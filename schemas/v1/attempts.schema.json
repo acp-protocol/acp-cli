@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://acp-protocol.dev/schemas/v1/attempts.schema.json",
+  "title": "ACP Attempts File",
+  "description": "AI Context Protocol attempts tracking file format (.acp/acp.attempts.json)",
+  "type": "object",
+  "required": ["version", "updated_at", "attempts", "checkpoints", "history"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for validation"
+    },
+    "version": {
+      "type": "string",
+      "description": "ACP specification version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+",
+      "examples": ["1.0.0"]
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp (ISO 8601)"
+    },
+    "attempts": {
+      "type": "object",
+      "description": "Active attempts indexed by ID",
+      "additionalProperties": {
+        "$ref": "#/$defs/tracked_attempt"
+      }
+    },
+    "checkpoints": {
+      "type": "object",
+      "description": "Checkpoints indexed by name",
+      "additionalProperties": {
+        "$ref": "#/$defs/tracked_checkpoint"
+      }
+    },
+    "history": {
+      "type": "array",
+      "description": "History of completed/reverted attempts (max 1000 entries)",
+      "maxItems": 1000,
+      "items": {
+        "$ref": "#/$defs/attempt_history_entry"
+      }
+    }
+  },
+  "$defs": {
+    "tracked_attempt": {
+      "type": "object",
+      "required": ["id", "status", "created_at", "updated_at", "files", "revert_if"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique attempt identifier"
+        },
+        "for_issue": {
+          "type": "string",
+          "description": "Related issue/ticket reference"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of what this attempt is trying to accomplish"
+        },
+        "status": {
+          "$ref": "#/$defs/attempt_status"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the attempt was started"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the attempt was last updated"
+        },
+        "files": {
+          "type": "array",
+          "description": "Files modified in this attempt",
+          "items": {
+            "$ref": "#/$defs/attempt_file"
+          }
+        },
+        "revert_if": {
+          "type": "array",
+          "description": "Conditions that should trigger automatic revert",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "attempt_file": {
+      "type": "object",
+      "required": ["path", "original_hash", "modified_hash"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "File path relative to project root"
+        },
+        "original_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$",
+          "description": "MD5 hash of original content"
+        },
+        "original_content": {
+          "type": "string",
+          "description": "Original file content (stored if under size limit)"
+        },
+        "modified_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$",
+          "description": "MD5 hash of modified content"
+        },
+        "lines_changed": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "[start_line, end_line] of changes. Semantic constraint: start_line <= end_line"
+        }
+      }
+    },
+    "tracked_checkpoint": {
+      "type": "object",
+      "required": ["name", "created_at", "files"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Checkpoint name"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the checkpoint was created"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of checkpoint state"
+        },
+        "git_commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "Git commit SHA at checkpoint time"
+        },
+        "files": {
+          "type": "object",
+          "description": "File states at checkpoint time",
+          "additionalProperties": {
+            "$ref": "#/$defs/file_state"
+          }
+        }
+      }
+    },
+    "file_state": {
+      "type": "object",
+      "required": ["hash"],
+      "additionalProperties": false,
+      "properties": {
+        "hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$",
+          "description": "MD5 hash of file content"
+        },
+        "content": {
+          "type": "string",
+          "description": "File content (stored if under size limit)"
+        }
+      }
+    },
+    "attempt_history_entry": {
+      "type": "object",
+      "required": ["id", "status", "started_at", "ended_at", "files_modified"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Attempt identifier"
+        },
+        "status": {
+          "$ref": "#/$defs/attempt_status"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the attempt started"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the attempt ended"
+        },
+        "for_issue": {
+          "type": "string",
+          "description": "Related issue/ticket reference"
+        },
+        "files_modified": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of files modified"
+        },
+        "outcome": {
+          "type": "string",
+          "description": "Description of outcome"
+        }
+      }
+    },
+    "attempt_status": {
+      "type": "string",
+      "enum": ["active", "testing", "failed", "verified", "reverted"],
+      "description": "Current status of the attempt"
+    }
+  }
+}

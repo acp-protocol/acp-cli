@@ -1,0 +1,15 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/config.schema.json",
+  "version": "1.0.0",
+  "projectName": "test-project",
+  "indexing": {
+    "include": ["src/**/*.rs", "lib/**/*.rs"],
+    "exclude": ["target/**", "node_modules/**"],
+    "maxFileSize": 1048576
+  },
+  "defaults": {
+    "lock": "normal",
+    "behavior": "balanced"
+  },
+  "strictness": "strict"
+}

@@ -1,0 +1,551 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://acp-protocol.dev/schemas/v1/sync.schema.json",
+  "title": "ACP Sync Configuration",
+  "description": "Configuration for ACP tool synchronization (.acp/acp.sync.json or sync section in config)",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for validation"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+",
+      "description": "Sync configuration version",
+      "examples": ["1.0.0"]
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable or disable sync functionality"
+    },
+    "auto": {
+      "type": "boolean",
+      "default": true,
+      "description": "Automatically sync when index or watch updates cache"
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/toolName"
+      },
+      "uniqueItems": true,
+      "description": "Explicit list of tools to sync to. Empty array means auto-detect. Warning: same tool in both 'tools' and 'exclude' causes undefined behavior"
+    },
+    "exclude": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/toolName"
+      },
+      "uniqueItems": true,
+      "description": "Tools to never sync to, even if detected. Warning: same tool in both 'tools' and 'exclude' causes undefined behavior"
+    },
+    "primer": {
+      "$ref": "#/$defs/globalPrimerConfig",
+      "description": "Global primer configuration (can be overridden per-tool)"
+    },
+    "custom": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/toolCustomConfig"
+      },
+      "description": "Per-tool custom configuration"
+    },
+    "contentOptions": {
+      "$ref": "#/$defs/contentOptions"
+    },
+    "customAdapters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/customAdapter"
+      },
+      "description": "User-defined tool adapters"
+    },
+    "templates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "description": "Path to custom template file"
+      },
+      "description": "Override default templates for tools or components"
+    },
+    "hooks": {
+      "$ref": "#/$defs/hooks"
+    },
+    "debounceMs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 60000,
+      "default": 2000,
+      "description": "Debounce interval for auto-sync in watch mode (milliseconds)"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "toolName": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "cursor",
+            "claude-code",
+            "copilot",
+            "continue",
+            "windsurf",
+            "cline",
+            "aider",
+            "generic"
+          ],
+          "description": "Built-in tool identifier"
+        },
+        {
+          "type": "string",
+          "pattern": "^custom-[a-z0-9-]+$",
+          "description": "Custom tool identifier (must start with 'custom-')"
+        }
+      ],
+      "description": "Built-in or custom tool identifier"
+    },
+
+    "globalPrimerConfig": {
+      "type": "object",
+      "description": "Global primer generation configuration",
+      "properties": {
+        "defaultBudget": {
+          "type": "integer",
+          "minimum": 80,
+          "maximum": 100000,
+          "default": 500,
+          "description": "Default token budget when not specified per-tool"
+        },
+        "defaultFormat": {
+          "type": "string",
+          "enum": ["markdown", "compact", "json", "text"],
+          "default": "markdown",
+          "description": "Default output format"
+        },
+        "weights": {
+          "$ref": "#/$defs/dimensionWeights",
+          "description": "Default dimension weights for value calculation"
+        },
+        "preset": {
+          "type": "string",
+          "enum": ["safe", "efficient", "accurate", "balanced"],
+          "description": "Use a named weight preset as default"
+        },
+        "dynamicModifiers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable dynamic value modifiers globally"
+        },
+        "primerFile": {
+          "type": "string",
+          "description": "Path to custom primer definition file"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "toolPrimerConfig": {
+      "type": "object",
+      "description": "Per-tool primer generation configuration",
+      "properties": {
+        "budget": {
+          "type": "integer",
+          "minimum": 80,
+          "maximum": 100000,
+          "description": "Token budget for primer content"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["markdown", "compact", "json", "text"],
+          "description": "Output format for primer"
+        },
+        "weights": {
+          "$ref": "#/$defs/dimensionWeights",
+          "description": "Dimension weights for value calculation"
+        },
+        "preset": {
+          "type": "string",
+          "enum": ["safe", "efficient", "accurate", "balanced"],
+          "description": "Use a named weight preset"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["shell", "mcp", "file-read", "file-write", "http"]
+          },
+          "description": "Capabilities this tool has (auto-detected if not specified)"
+        },
+        "includeSections": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Only include these section IDs"
+        },
+        "excludeSections": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Exclude these section IDs"
+        },
+        "includeCategories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Only include these categories"
+        },
+        "excludeCategories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Exclude these categories"
+        },
+        "includeTags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Only include sections with these tags"
+        },
+        "dynamicModifiers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable dynamic value modifiers"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "dimensionWeights": {
+      "type": "object",
+      "description": "Weights for multi-dimensional value calculation",
+      "properties": {
+        "safety": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1.5,
+          "description": "Weight for safety dimension"
+        },
+        "efficiency": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1.0,
+          "description": "Weight for efficiency dimension"
+        },
+        "accuracy": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1.0,
+          "description": "Weight for accuracy dimension"
+        },
+        "base": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1.0,
+          "description": "Weight for base value"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "toolCustomConfig": {
+      "type": "object",
+      "properties": {
+        "outputPath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Override default output path"
+        },
+        "appendTo": {
+          "type": "string",
+          "description": "Append to existing file instead of creating new"
+        },
+        "sectionMarker": {
+          "type": "string",
+          "description": "Custom section marker for merge operations"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["markdown", "json", "yaml", "text", "compact"],
+          "description": "Override output format"
+        },
+        "template": {
+          "type": "string",
+          "description": "Path to custom template"
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "Disable this specific tool"
+        },
+        "primer": {
+          "$ref": "#/$defs/toolPrimerConfig",
+          "description": "Primer generation configuration for this tool"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "contentOptions": {
+      "type": "object",
+      "description": "Legacy content options (prefer using primer config instead)",
+      "properties": {
+        "includeHacks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include active hack markers in output"
+        },
+        "includeDebugSessions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include active debug sessions in output"
+        },
+        "maxProtectedFiles": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 50,
+          "description": "Maximum number of protected files to list"
+        },
+        "maxVariables": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500,
+          "default": 20,
+          "description": "Maximum number of variables to include"
+        },
+        "includeQueryExamples": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include jq query examples"
+        },
+        "includeDomainSummary": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include domain architecture summary"
+        },
+        "includeLayerSummary": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include layer architecture summary"
+        },
+        "includeStyleGuides": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include referenced style guide links"
+        },
+        "protectedFilesSortBy": {
+          "type": "string",
+          "enum": ["path", "lock-level", "domain"],
+          "default": "lock-level",
+          "description": "How to sort the protected files list"
+        },
+        "variablesSortBy": {
+          "type": "string",
+          "enum": ["name", "usage", "type"],
+          "default": "usage",
+          "description": "How to sort the variables list"
+        },
+        "customSections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/customSection"
+          },
+          "description": "Additional custom sections to include"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "customSection": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Section heading"
+        },
+        "content": {
+          "type": "string",
+          "description": "Static content or path to file"
+        },
+        "position": {
+          "type": "string",
+          "enum": ["start", "end", "after-constraints", "after-domains"],
+          "default": "end",
+          "description": "Where to insert the section"
+        }
+      },
+      "required": ["title", "content"],
+      "additionalProperties": false
+    },
+
+    "customAdapter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "minLength": 1,
+          "description": "Unique adapter identifier"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "outputPath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Output file path relative to project root"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["markdown", "json", "yaml", "text", "compact"],
+          "description": "Output format"
+        },
+        "template": {
+          "type": "string",
+          "description": "Path to Handlebars template file"
+        },
+        "detect": {
+          "type": "object",
+          "properties": {
+            "files": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1,
+              "description": "Files that indicate this tool is in use"
+            },
+            "commands": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1,
+              "description": "CLI commands to check for"
+            },
+            "env": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1,
+              "description": "Environment variables to check"
+            }
+          },
+          "anyOf": [
+            { "required": ["files"] },
+            { "required": ["commands"] },
+            { "required": ["env"] }
+          ],
+          "additionalProperties": false,
+          "description": "Detection methods (at least one required)"
+        },
+        "mergeStrategy": {
+          "type": "string",
+          "enum": ["replace", "section", "append", "merge"],
+          "default": "section",
+          "description": "How to handle existing files"
+        },
+        "sectionMarker": {
+          "type": "string",
+          "description": "Marker for section-based merging (required when mergeStrategy is 'section')"
+        },
+        "primer": {
+          "$ref": "#/$defs/toolPrimerConfig",
+          "description": "Primer configuration for this custom adapter"
+        }
+      },
+      "required": ["name", "outputPath", "format"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "mergeStrategy": { "const": "section" } },
+            "required": ["mergeStrategy"]
+          },
+          "then": {
+            "required": ["sectionMarker"]
+          }
+        }
+      ]
+    },
+
+    "hooks": {
+      "type": "object",
+      "properties": {
+        "pre": {
+          "type": "string",
+          "description": "Script to run before sync"
+        },
+        "post": {
+          "type": "string",
+          "description": "Script to run after sync"
+        },
+        "onError": {
+          "type": "string",
+          "description": "Script to run on sync error"
+        },
+        "perTool": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "pre": { "type": "string" },
+              "post": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "description": "Per-tool hooks"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "examples": [
+    {
+      "$schema": "https://acp-protocol.dev/schemas/v1/sync.schema.json",
+      "version": "1.0.0",
+      "enabled": true,
+      "auto": true,
+      "tools": ["cursor", "claude-code", "generic"],
+      "primer": {
+        "defaultBudget": 500,
+        "preset": "safe"
+      },
+      "custom": {
+        "cursor": {
+          "primer": {
+            "budget": 2000,
+            "capabilities": ["shell", "file-read", "file-write"]
+          }
+        },
+        "claude-code": {
+          "primer": {
+            "budget": 4000,
+            "capabilities": ["shell", "mcp", "file-read", "file-write"],
+            "weights": { "safety": 1.5, "efficiency": 1.2, "accuracy": 1.0, "base": 1.0 }
+          }
+        }
+      }
+    },
+    {
+      "$schema": "https://acp-protocol.dev/schemas/v1/sync.schema.json",
+      "version": "1.0.0",
+      "enabled": true,
+      "exclude": ["aider"],
+      "primer": {
+        "weights": { "safety": 2.0, "efficiency": 0.8, "accuracy": 1.0, "base": 0.8 }
+      },
+      "customAdapters": [
+        {
+          "name": "my-ide",
+          "displayName": "My Custom IDE",
+          "outputPath": ".my-ide/context.md",
+          "format": "markdown",
+          "detect": {
+            "files": [".my-ide/config.json"]
+          },
+          "mergeStrategy": "replace",
+          "primer": {
+            "budget": 2000,
+            "capabilities": ["shell", "file-read"]
+          }
+        }
+      ]
+    }
+  ]
+}

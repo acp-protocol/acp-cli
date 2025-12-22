@@ -1,0 +1,119 @@
+# git-cliff configuration
+# https://git-cliff.org/docs/configuration
+
+[changelog]
+# Changelog header
+header = """
+# Changelog
+
+All notable changes to the AI Context Protocol specification and reference implementation will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+"""
+
+# Template for the changelog body
+body = """
+{%- macro remote_url() -%}
+  https://github.com/acp-protocol/acp-spec
+{%- endmacro -%}
+
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits
+| filter(attribute="scope")
+| sort(attribute="scope") %}
+- **{{ commit.scope }}**: {{ commit.message | upper_first }}
+{%- if commit.breaking %} [**BREAKING**]{% endif %}
+{% endfor -%}
+{% for commit in commits %}
+{%- if not commit.scope %}
+- {{ commit.message | upper_first }}
+{%- if commit.breaking %} [**BREAKING**]{% endif %}
+{% endif -%}
+{% endfor -%}
+{% endfor %}
+"""
+
+# Template for the changelog footer
+footer = """
+---
+
+[Unreleased]: https://github.com/acp-protocol/acp-spec/compare/HEAD
+"""
+
+# Remove leading and trailing whitespace
+trim = true
+
+# Postprocessors for cleanup
+postprocessors = [
+  { pattern = '<REPO>', replace = "https://github.com/acp-protocol/acp-spec" },
+]
+
+[git]
+# Parse conventional commits
+conventional_commits = true
+
+# Filter out unconventional commits
+filter_unconventional = false
+
+# Process each line as individual commit
+split_commits = false
+
+# Commit preprocessors (regex -> replacement)
+commit_preprocessors = [
+  # Remove issue numbers from commit messages
+  { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "" },
+]
+
+# Commit parsers (map commit types to groups)
+commit_parsers = [
+  { message = "^feat", group = "Added" },
+  { message = "^add", group = "Added" },
+  { message = "^fix", group = "Fixed" },
+  { message = "^bug", group = "Fixed" },
+  { message = "^doc", group = "Documentation" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Changed" },
+  { message = "^style", group = "Changed" },
+  { message = "^test", group = "Testing" },
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^chore\\(deps\\)", group = "Dependencies" },
+  { message = "^chore", group = "Miscellaneous" },
+  { message = "^ci", group = "CI/CD" },
+  { message = "^build", group = "Build" },
+  { message = "^revert", group = "Reverted" },
+  # Security fixes
+  { message = "^security", group = "Security" },
+  # Breaking changes
+  { message = ".*!", group = "Breaking Changes" },
+  # Deprecations
+  { message = "^deprecate", group = "Deprecated" },
+  # Removals
+  { message = "^remove", group = "Removed" },
+  # Default: include in Changed
+  { body = ".*", group = "Changed" },
+]
+
+# Protect breaking changes from being skipped
+protect_breaking_commits = true
+
+# Filter out commits by pattern
+filter_commits = false
+
+# Tag pattern for releases
+tag_pattern = "v[0-9].*"
+
+# Sort commits by oldest first within each group
+sort_commits = "oldest"
+
+# Limit number of commits (0 = unlimited)
+# limit_commits = 0

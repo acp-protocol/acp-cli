@@ -1,0 +1,14 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/attempts.schema.json",
+  "version": "1.0.0",
+  "attempts": {
+    "attempt-001": {
+      "id": "attempt-001",
+      "status": "invalid_status",
+      "started_at": "2024-01-15T10:00:00Z",
+      "files": []
+    }
+  },
+  "checkpoints": {},
+  "history": []
+}

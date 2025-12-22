@@ -1,0 +1,8 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/attempts.schema.json",
+  "version": "1.0.0",
+  "updated_at": "2024-01-15T10:00:00Z",
+  "attempts": {},
+  "checkpoints": {},
+  "history": []
+}

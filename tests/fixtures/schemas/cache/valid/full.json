@@ -1,0 +1,38 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/cache.schema.json",
+  "version": "1.0.0",
+  "generated_at": "2024-01-15T10:30:00Z",
+  "git_commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  "project": {
+    "name": "test-project",
+    "root": "/home/user/projects/test",
+    "description": "A test project for schema validation"
+  },
+  "stats": {
+    "files": 1,
+    "symbols": 1,
+    "lines": 100
+  },
+  "source_files": {
+    "src/main.rs": "2024-01-15T10:00:00Z"
+  },
+  "files": {
+    "src/main.rs": {
+      "path": "src/main.rs",
+      "language": "rust",
+      "lines": 100,
+      "exports": ["main"],
+      "imports": ["std::io"]
+    }
+  },
+  "symbols": {
+    "main": {
+      "name": "main",
+      "qualified_name": "src/main.rs:main",
+      "type": "function",
+      "file": "src/main.rs",
+      "lines": [1, 10],
+      "exported": true
+    }
+  }
+}

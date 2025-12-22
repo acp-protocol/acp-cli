@@ -1,0 +1,775 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://acp-protocol.dev/schemas/v1/primer.schema.json",
+  "title": "ACP Primer Schema",
+  "description": "Defines the structure for AI context primers - the bootstrapping layer that teaches AI systems about ACP",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+",
+      "description": "Primer schema version (semver)",
+      "examples": ["1.0.0"]
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    },
+    "capabilities": {
+      "$ref": "#/$defs/capabilitiesRegistry"
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/category"
+      },
+      "description": "Section categories with metadata"
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/section"
+      },
+      "description": "All available primer sections"
+    },
+    "selectionStrategy": {
+      "$ref": "#/$defs/selectionStrategy"
+    },
+    "outputFormats": {
+      "$ref": "#/$defs/outputFormats"
+    },
+    "knowledgeStore": {
+      "$ref": "#/$defs/knowledgeStore"
+    }
+  },
+  "required": ["version", "sections"],
+  "additionalProperties": false,
+
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for this primer definition"
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose and scope of this primer"
+        },
+        "author": {
+          "type": "string",
+          "description": "Author or organization"
+        },
+        "license": {
+          "type": "string",
+          "description": "License for this primer definition"
+        },
+        "minAcpVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+",
+          "description": "Minimum ACP CLI version required"
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this primer definition was created"
+        },
+        "updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this primer definition was last updated"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "capabilitiesRegistry": {
+      "type": "object",
+      "description": "Registry of tool capabilities that sections can require",
+      "additionalProperties": {
+        "$ref": "#/$defs/capability"
+      },
+      "examples": [
+        {
+          "shell": {
+            "id": "shell",
+            "name": "Shell Execution",
+            "description": "Can execute shell/terminal commands",
+            "tools": ["cursor", "claude-code", "aider", "cline", "windsurf"]
+          },
+          "mcp": {
+            "id": "mcp",
+            "name": "Model Context Protocol",
+            "description": "Supports MCP tool integration",
+            "tools": ["claude-code", "continue", "cline"]
+          },
+          "file-read": {
+            "id": "file-read",
+            "name": "File System Read",
+            "description": "Can read files from the filesystem",
+            "tools": ["cursor", "claude-code", "copilot", "continue", "cline", "windsurf"]
+          },
+          "file-write": {
+            "id": "file-write",
+            "name": "File System Write",
+            "description": "Can write/modify files",
+            "tools": ["cursor", "claude-code", "aider", "cline", "windsurf"]
+          },
+          "http": {
+            "id": "http",
+            "name": "HTTP Requests",
+            "description": "Can make HTTP requests to APIs",
+            "tools": ["claude-code", "cline"]
+          }
+        }
+      ]
+    },
+
+    "capability": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique capability identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this capability enables"
+        },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tools that have this capability"
+        },
+        "detectCommand": {
+          "type": "string",
+          "description": "Optional command to detect capability at runtime"
+        }
+      },
+      "required": ["id", "name"],
+      "additionalProperties": false
+    },
+
+    "category": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique category identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable category name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this category covers"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Category-level priority (lower = higher priority)"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "Color for CLI visualization"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Emoji or icon for display"
+        },
+        "budgetConstraints": {
+          "type": "object",
+          "properties": {
+            "minimum": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Minimum tokens to allocate to this category"
+            },
+            "maximum": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum tokens to allocate to this category"
+            },
+            "minimumPercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Minimum percentage of budget for this category"
+            },
+            "maximumPercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Maximum percentage of budget for this category"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["id", "name"],
+      "additionalProperties": false
+    },
+
+    "section": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique section identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable section name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this section provides to the AI"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category this section belongs to"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Section priority within category (lower = higher priority)"
+        },
+        "tokens": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Fixed token count"
+            },
+            {
+              "const": "dynamic",
+              "description": "Token count depends on data"
+            }
+          ],
+          "description": "Token cost for this section"
+        },
+        "value": {
+          "$ref": "#/$defs/sectionValue"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Always include regardless of budget optimization"
+        },
+        "requiredIf": {
+          "type": "string",
+          "description": "Condition expression that makes this section required"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required capabilities (ANY of these)"
+        },
+        "capabilitiesAll": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required capabilities (ALL of these)"
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Section IDs that must be included before this one. Warning: circular references must be prevented by implementation"
+        },
+        "conflictsWith": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Section IDs that cannot be included with this one. Warning: self-references should be prevented by implementation"
+        },
+        "replaces": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Section IDs that this section supersedes"
+        },
+        "since": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+",
+          "description": "ACP version that introduced this section"
+        },
+        "deprecated": {
+          "type": "object",
+          "properties": {
+            "since": { "type": "string" },
+            "message": { "type": "string" },
+            "replacedBy": { "type": "string" }
+          },
+          "description": "Deprecation info if section is deprecated"
+        },
+        "data": {
+          "$ref": "#/$defs/sectionData"
+        },
+        "formats": {
+          "$ref": "#/$defs/sectionFormats"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tags for filtering and searching sections"
+        }
+      },
+      "required": ["id", "category", "tokens", "value", "formats"],
+      "additionalProperties": false
+    },
+
+    "sectionValue": {
+      "type": "object",
+      "description": "Multi-dimensional value scoring for section selection",
+      "properties": {
+        "safety": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 0,
+          "description": "How critical for preventing harmful AI actions (0-100)"
+        },
+        "efficiency": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 0,
+          "description": "How much it saves future tokens/queries (0-100)"
+        },
+        "accuracy": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 0,
+          "description": "How much it improves response quality (0-100)"
+        },
+        "base": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 50,
+          "description": "Baseline value independent of dimensions (0-100)"
+        },
+        "modifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/valueModifier"
+          },
+          "description": "Dynamic modifiers based on project state"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "valueModifier": {
+      "type": "object",
+      "description": "Conditional modifier that adjusts section value based on project state",
+      "properties": {
+        "condition": {
+          "type": "string",
+          "description": "Expression evaluated against project state (e.g., 'hacks.count > 0')"
+        },
+        "add": {
+          "type": "integer",
+          "description": "Add this amount to final score"
+        },
+        "multiply": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Multiply final score by this amount"
+        },
+        "set": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Override score to this value"
+        },
+        "dimension": {
+          "type": "string",
+          "enum": ["safety", "efficiency", "accuracy", "base", "all"],
+          "default": "all",
+          "description": "Which dimension(s) to modify"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Human-readable explanation for this modifier"
+        }
+      },
+      "required": ["condition"],
+      "oneOf": [
+        { "required": ["add"] },
+        { "required": ["multiply"] },
+        { "required": ["set"] }
+      ],
+      "additionalProperties": false
+    },
+
+    "sectionData": {
+      "type": "object",
+      "description": "Data source configuration for dynamic sections",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Data path (e.g., 'cache.constraints.by_lock_level', 'vars.variables')"
+        },
+        "fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fields to extract from each item"
+        },
+        "filter": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Include only these values"
+            },
+            {
+              "type": "object",
+              "description": "Filter expression object"
+            }
+          ]
+        },
+        "sortBy": {
+          "type": "string",
+          "description": "Field to sort by"
+        },
+        "sortOrder": {
+          "type": "string",
+          "enum": ["asc", "desc"],
+          "default": "desc"
+        },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of items to include"
+        },
+        "itemTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Estimated tokens per item (for budget calculation)"
+        },
+        "emptyBehavior": {
+          "type": "string",
+          "enum": ["exclude", "placeholder", "error"],
+          "default": "exclude",
+          "description": "What to do when data source is empty"
+        },
+        "placeholderText": {
+          "type": "string",
+          "description": "Text to show if emptyBehavior is 'placeholder'"
+        }
+      },
+      "required": ["source"],
+      "additionalProperties": false
+    },
+
+    "sectionFormats": {
+      "type": "object",
+      "description": "Output templates for different formats (at least one format required)",
+      "minProperties": 1,
+      "properties": {
+        "markdown": {
+          "$ref": "#/$defs/formatTemplate"
+        },
+        "compact": {
+          "$ref": "#/$defs/formatTemplate"
+        },
+        "json": {
+          "oneOf": [
+            { "type": "null", "description": "Return raw data" },
+            { "$ref": "#/$defs/formatTemplate" }
+          ]
+        },
+        "text": {
+          "$ref": "#/$defs/formatTemplate"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/formatTemplate",
+        "description": "Custom format templates"
+      }
+    },
+
+    "formatTemplate": {
+      "type": "object",
+      "properties": {
+        "template": {
+          "type": "string",
+          "description": "Handlebars template string"
+        },
+        "header": {
+          "type": "string",
+          "description": "Header text before items (for list sections)"
+        },
+        "footer": {
+          "type": "string",
+          "description": "Footer text after items"
+        },
+        "itemTemplate": {
+          "type": "string",
+          "description": "Template for each item in a list"
+        },
+        "separator": {
+          "type": "string",
+          "default": "\n",
+          "description": "Separator between items"
+        },
+        "emptyTemplate": {
+          "type": "string",
+          "description": "Template when no items"
+        },
+        "wrapWith": {
+          "type": "object",
+          "properties": {
+            "before": { "type": "string" },
+            "after": { "type": "string" }
+          },
+          "description": "Wrap entire output"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "selectionStrategy": {
+      "type": "object",
+      "description": "Configuration for how sections are selected within budget",
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": ["priority-ordered", "value-optimized", "category-balanced", "custom"],
+          "default": "value-optimized",
+          "description": "Selection algorithm"
+        },
+        "weights": {
+          "$ref": "#/$defs/dimensionWeights"
+        },
+        "presets": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/dimensionWeights"
+          },
+          "description": "Named weight presets (e.g., 'safe', 'efficient', 'balanced')"
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/selectionPhase"
+          },
+          "description": "Selection phases in order"
+        },
+        "minimumBudget": {
+          "type": "integer",
+          "minimum": 50,
+          "default": 80,
+          "description": "Minimum tokens required (for required sections)"
+        },
+        "categoryConstraints": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "minimum": { "type": "integer" },
+              "maximum": { "type": "integer" },
+              "minimumPercent": { "type": "number" },
+              "maximumPercent": { "type": "number" }
+            }
+          },
+          "description": "Per-category budget constraints"
+        },
+        "dynamicModifiersEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to evaluate dynamic value modifiers"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "dimensionWeights": {
+      "type": "object",
+      "description": "Weights for multi-dimensional value calculation",
+      "properties": {
+        "safety": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1.5,
+          "description": "Weight for safety dimension"
+        },
+        "efficiency": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1.0,
+          "description": "Weight for efficiency dimension"
+        },
+        "accuracy": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1.0,
+          "description": "Weight for accuracy dimension"
+        },
+        "base": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1.0,
+          "description": "Weight for base value"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "selectionPhase": {
+      "type": "object",
+      "description": "A phase in the section selection process",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Phase name for logging/debugging"
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "required": { "type": "boolean" },
+            "requiredIf": { "type": "boolean" },
+            "safetyMinimum": { "type": "integer" },
+            "categories": { "type": "array", "items": { "type": "string" } },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "custom": { "type": "string" }
+          },
+          "description": "Filter criteria for sections in this phase"
+        },
+        "sort": {
+          "type": "string",
+          "enum": ["priority", "value", "value-per-token", "safety", "random"],
+          "default": "value-per-token"
+        },
+        "budgetPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Maximum percentage of budget for this phase"
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+
+    "outputFormats": {
+      "type": "object",
+      "description": "Global output format configurations",
+      "properties": {
+        "markdown": {
+          "type": "object",
+          "properties": {
+            "sectionSeparator": { "type": "string", "default": "\n\n" },
+            "headerLevel": { "type": "integer", "minimum": 1, "maximum": 6, "default": 2 },
+            "listStyle": { "type": "string", "enum": ["bullet", "number", "dash"], "default": "bullet" },
+            "codeBlockStyle": { "type": "string", "enum": ["fenced", "indented"], "default": "fenced" }
+          }
+        },
+        "compact": {
+          "type": "object",
+          "properties": {
+            "sectionSeparator": { "type": "string", "default": " | " },
+            "maxLineLength": { "type": "integer", "default": 120 },
+            "abbreviate": { "type": "boolean", "default": true }
+          }
+        },
+        "json": {
+          "type": "object",
+          "properties": {
+            "pretty": { "type": "boolean", "default": false },
+            "includeMetadata": { "type": "boolean", "default": true },
+            "includeTokenCounts": { "type": "boolean", "default": true }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "knowledgeStore": {
+      "type": "object",
+      "description": "Configuration for the ACP knowledge base",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether knowledge store features are enabled"
+        },
+        "indexPath": {
+          "type": "string",
+          "default": "~/.acp/knowledge/index.json",
+          "description": "Path to keyword/tag index"
+        },
+        "semanticDbPath": {
+          "type": "string",
+          "default": "~/.acp/knowledge/semantic.db",
+          "description": "Path to optional vector database"
+        },
+        "fallbackToIndex": {
+          "type": "boolean",
+          "default": true,
+          "description": "Fall back to keyword index if semantic DB unavailable"
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/knowledgeSection"
+          },
+          "description": "Knowledge content sections"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "knowledgeSection": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Knowledge section identifier"
+        },
+        "title": {
+          "type": "string",
+          "description": "Section title"
+        },
+        "content": {
+          "type": "string",
+          "description": "Knowledge content (markdown)"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Searchable tags"
+        },
+        "keywords": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Keywords for index lookup"
+        },
+        "relatedSections": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Related knowledge section IDs"
+        },
+        "sourceFile": {
+          "type": "string",
+          "description": "Source documentation file"
+        }
+      },
+      "required": ["id", "content"],
+      "additionalProperties": false
+    }
+  }
+}

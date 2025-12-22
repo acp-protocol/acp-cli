@@ -1,0 +1,25 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/cache.schema.json",
+  "version": "1.0.0",
+  "generated_at": "2024-01-01T00:00:00Z",
+  "project": {
+    "name": "test-project",
+    "root": "/test"
+  },
+  "stats": {
+    "files": 0,
+    "symbols": 0,
+    "lines": 0
+  },
+  "source_files": [],
+  "files": [],
+  "symbols": [],
+  "constraints": {
+    "files": [
+      {
+        "path": "test.rs",
+        "behavior": "invalid_behavior_not_in_enum"
+      }
+    ]
+  }
+}

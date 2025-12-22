@@ -1,0 +1,21 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/sync.schema.json",
+  "version": "1.0.0",
+  "enabled": true,
+  "auto": true,
+  "tools": ["cursor", "claude-code"],
+  "exclude": ["aider"],
+  "primer": {
+    "defaultBudget": 1000,
+    "defaultFormat": "markdown",
+    "preset": "safe"
+  },
+  "custom": {
+    "cursor": {
+      "primer": {
+        "budget": 2000
+      }
+    }
+  },
+  "debounceMs": 3000
+}

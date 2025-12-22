@@ -1,0 +1,117 @@
+# @acp:module "ACP CLI Package Manifest"
+# @acp:domain cli
+# @acp:layer config
+# @acp:stability stable
+# @acp:summary "Cargo build configuration for the ACP command-line tool"
+
+# @acp:summary "Package metadata and publishing information"
+[package]
+name = "acp"
+version = "0.3.0"
+edition = "2021"
+authors = ["ACP Contributors"]
+description = "AI Context Protocol - Token-efficient and context enhancing code documentation for AI systems"
+license = "MIT"
+repository = "https://github.com/acp-protocol/acp-cli"
+keywords = ["ai", "documentation", "code-analysis", "context", "llm"]
+categories = ["development-tools", "command-line-utilities"]
+
+# @acp:summary "Library crate configuration"
+[lib]
+name = "acp"
+path = "src/lib.rs"
+
+# @acp:summary "CLI binary entry point"
+[[bin]]
+name = "acp"
+path = "src/main.rs"
+
+# @acp:summary "Runtime dependencies organized by function"
+[dependencies]
+# CLI - Command-line interface and user interaction
+clap = { version = "4.5", features = ["derive", "env"] }
+indicatif = "0.17"          # Progress bars
+console = "0.15"            # Terminal colors/styling
+dialoguer = "0.11"          # Interactive prompts
+
+# Serialization - Data format handling
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# Async runtime - Concurrent execution
+tokio = { version = "1.48", features = ["full"] }
+
+# File system - Directory traversal and watching
+walkdir = "2.5"
+glob = "0.3"
+notify = "8.2"              # File watching
+
+# Parsing - Source code analysis via tree-sitter
+tree-sitter = "0.25"
+tree-sitter-typescript = "0.23"
+tree-sitter-javascript = "0.25"
+tree-sitter-rust = "0.24"
+tree-sitter-python = "0.25"
+tree-sitter-go = "0.25"
+tree-sitter-java = "0.23"
+
+# Git - Repository operations, blame tracking, file history
+git2 = "0.19"
+
+# Hashing - File content fingerprinting
+md5 = "0.7"
+sha2 = "0.10"
+
+# Error handling - Ergonomic error types
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Parallel processing - Multi-threaded file indexing
+rayon = "1.10"
+
+# Regex - Pattern matching for annotations
+regex = "1.11"
+
+# Diff generation - For annotation preview mode
+similar = "2.6"
+
+# Logging - Structured diagnostics
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Database - Optional SQLite for large codebases
+rusqlite = { version = "0.32", optional = true, features = ["bundled"] }
+
+# HTTP client - Optional for future MCP server integration
+reqwest = { version = "0.12", optional = true, features = ["json"] }
+
+# JSON schema validation - Cache/vars file validation
+jsonschema = "0.29"
+
+# Template engine - Output formatting and expansion
+handlebars = "6.3"
+
+# Time - Timestamps for cache generation
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID - Unique identifiers for attempts/checkpoints
+uuid = { version = "1.18", features = ["v4", "serde"] }
+
+# @acp:summary "Development and testing dependencies"
+[dev-dependencies]
+tempfile = "3.15"           # Temporary test directories
+pretty_assertions = "1.4"   # Readable test diffs
+criterion = "0.5"           # Benchmarking
+
+# @acp:summary "Optional feature flags for extended functionality"
+[features]
+default = []
+sqlite = ["rusqlite"]       # SQLite database support
+mcp = ["reqwest"]           # MCP server integration
+full = ["sqlite", "mcp"]    # All optional features
+
+# @acp:summary "Benchmark configuration (uncomment when ready)"
+# [[bench]]
+# name = "indexing"
+# harness = false

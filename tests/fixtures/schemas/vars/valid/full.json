@@ -1,0 +1,21 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/vars.schema.json",
+  "version": "1.0.0",
+  "variables": {
+    "PROJECT_NAME": {
+      "type": "context",
+      "value": "My Project"
+    },
+    "MAIN_MODULE": {
+      "type": "symbol",
+      "value": "src::main",
+      "description": "The main module"
+    },
+    "CONFIG_PATH": {
+      "type": "file",
+      "value": "config/settings.json",
+      "source": "docs/README.md",
+      "lines": [10, 15]
+    }
+  }
+}

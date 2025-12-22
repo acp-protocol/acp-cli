@@ -1,0 +1,19 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/attempts.schema.json",
+  "version": "1.0.0",
+  "attempts": {
+    "attempt-001": {
+      "id": "attempt-001",
+      "status": "active",
+      "started_at": "2024-01-15T10:00:00Z",
+      "files": [
+        {
+          "path": "test.rs",
+          "hash": "not-a-valid-md5-hash"
+        }
+      ]
+    }
+  },
+  "checkpoints": {},
+  "history": []
+}

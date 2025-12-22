@@ -1,0 +1,11 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/vars.schema.json",
+  "version": "1.0.0",
+  "variables": [
+    {
+      "name": "BAD_VAR",
+      "type": "invalid_type",
+      "value": "test"
+    }
+  ]
+}

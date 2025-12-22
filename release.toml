@@ -1,0 +1,41 @@
+# cargo-release configuration
+# https://github.com/crate-ci/cargo-release
+
+# Commit message template
+pre-release-commit-message = "chore: release v{{version}}"
+
+# Tag configuration
+tag-message = "v{{version}}"
+tag-name = "v{{version}}"
+tag-prefix = ""
+
+# Sign commits and tags (disable if no GPG key configured)
+sign-commit = false
+sign-tag = false
+
+# Push to remote after release
+push = true
+push-remote = "origin"
+
+# Publish to crates.io (set to false for private repos)
+publish = false
+
+# Pre-release hook: generate changelog before release
+# Note: Requires git-cliff in PATH, or run manually before release
+# pre-release-hook = ["git-cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}"]
+
+# Files to update version in (in addition to Cargo.toml)
+# [[pre-release-replacements]]
+# file = "README.md"
+# search = "acp = \".*\""
+# replace = "acp = \"{{version}}\""
+
+# Consolidate commits (optional)
+consolidate-commits = true
+
+# Allow dirty working directory (not recommended for production)
+allow-branch = ["main", "master"]
+
+# Dev version suffix (optional, for development builds)
+# dev-version = true
+# dev-version-ext = "dev"

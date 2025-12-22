@@ -1,0 +1,25 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/cache.schema.json",
+  "version": "1.0.0",
+  "generated_at": "2024-01-01T00:00:00Z",
+  "project": {
+    "name": "test-project",
+    "root": "/test"
+  },
+  "stats": {
+    "files": 1,
+    "symbols": 0,
+    "lines": 10
+  },
+  "source_files": [],
+  "files": [
+    {
+      "path": "test.xyz",
+      "language": "invalid_language_not_in_enum",
+      "lines": 10,
+      "size": 100,
+      "hash": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "symbols": []
+}

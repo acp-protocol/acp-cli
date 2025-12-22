@@ -1,0 +1,1415 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/primer.schema.json",
+  "version": "1.0.0",
+  "metadata": {
+    "name": "ACP Default Primer",
+    "description": "Default section library for AI Context Protocol primers",
+    "author": "ACP Protocol Team",
+    "license": "MIT",
+    "minAcpVersion": "1.0.0"
+  },
+
+  "capabilities": {
+    "shell": {
+      "id": "shell",
+      "name": "Shell Execution",
+      "description": "Can execute shell/terminal commands",
+      "tools": ["cursor", "claude-code", "aider", "cline", "windsurf", "terminal"]
+    },
+    "mcp": {
+      "id": "mcp",
+      "name": "Model Context Protocol",
+      "description": "Supports MCP tool integration",
+      "tools": ["claude-code", "continue", "cline"]
+    },
+    "file-read": {
+      "id": "file-read",
+      "name": "File System Read",
+      "description": "Can read files from the filesystem",
+      "tools": ["cursor", "claude-code", "copilot", "continue", "cline", "windsurf", "aider"]
+    },
+    "file-write": {
+      "id": "file-write",
+      "name": "File System Write",
+      "description": "Can write/modify files",
+      "tools": ["cursor", "claude-code", "aider", "cline", "windsurf"]
+    },
+    "http": {
+      "id": "http",
+      "name": "HTTP Requests",
+      "description": "Can make HTTP requests to APIs",
+      "tools": ["claude-code", "cline"]
+    }
+  },
+
+  "categories": [
+    {
+      "id": "bootstrap",
+      "name": "Bootstrap",
+      "description": "Core awareness - teaches AI that ACP exists",
+      "priority": 1,
+      "color": "#FF6B6B",
+      "icon": "🚀",
+      "budgetConstraints": {
+        "minimum": 40
+      }
+    },
+    {
+      "id": "constraints",
+      "name": "Constraints",
+      "description": "File protection and modification rules",
+      "priority": 2,
+      "color": "#4ECDC4",
+      "icon": "🔒",
+      "budgetConstraints": {
+        "minimumPercent": 15
+      }
+    },
+    {
+      "id": "interface",
+      "name": "Interface",
+      "description": "CLI commands and MCP tools",
+      "priority": 3,
+      "color": "#45B7D1",
+      "icon": "⚡"
+    },
+    {
+      "id": "annotations",
+      "name": "Annotations",
+      "description": "Code annotation syntax and usage",
+      "priority": 4,
+      "color": "#96CEB4",
+      "icon": "📝"
+    },
+    {
+      "id": "structure",
+      "name": "Structure",
+      "description": "Codebase architecture, domains, layers",
+      "priority": 5,
+      "color": "#FFEAA7",
+      "icon": "🏗️"
+    },
+    {
+      "id": "variables",
+      "name": "Variables",
+      "description": "Token-efficient variable references",
+      "priority": 6,
+      "color": "#DDA0DD",
+      "icon": "🔤"
+    },
+    {
+      "id": "debug",
+      "name": "Debug",
+      "description": "Debugging sessions and temporary code",
+      "priority": 7,
+      "color": "#F39C12",
+      "icon": "🐛"
+    },
+    {
+      "id": "knowledge",
+      "name": "Knowledge",
+      "description": "Self-expansion and knowledge queries",
+      "priority": 8,
+      "color": "#9B59B6",
+      "icon": "📚"
+    }
+  ],
+
+  "sections": [
+    {
+      "id": "acp-exists",
+      "name": "ACP Exists",
+      "description": "Core awareness that this project uses ACP",
+      "category": "bootstrap",
+      "priority": 1,
+      "tokens": 15,
+      "required": true,
+      "value": {
+        "safety": 100,
+        "efficiency": 80,
+        "accuracy": 70,
+        "base": 100
+      },
+      "formats": {
+        "markdown": {
+          "template": "This codebase uses **AI Context Protocol (ACP)** for structured AI assistance."
+        },
+        "compact": {
+          "template": "Uses ACP."
+        },
+        "json": null
+      },
+      "tags": ["core", "awareness"]
+    },
+
+    {
+      "id": "acp-location",
+      "name": "ACP File Locations",
+      "description": "Where ACP data files are located",
+      "category": "bootstrap",
+      "priority": 2,
+      "tokens": 25,
+      "required": true,
+      "value": {
+        "safety": 60,
+        "efficiency": 90,
+        "accuracy": 80,
+        "base": 85
+      },
+      "dependsOn": ["acp-exists"],
+      "formats": {
+        "markdown": {
+          "template": "ACP data: `.acp/acp.cache.json` (index), `.acp/acp.vars.json` (variables), `.acp/acp.attempts.json` (debug log), `.acp.config.json` (config)."
+        },
+        "compact": {
+          "template": "Data: .acp/{cache,vars,attempts}.json, .acp.config.json"
+        },
+        "json": null
+      },
+      "tags": ["core", "files"]
+    },
+
+    {
+      "id": "acp-self-expand",
+      "name": "Self-Expansion",
+      "description": "How to get more ACP context",
+      "category": "bootstrap",
+      "priority": 3,
+      "tokens": 30,
+      "required": true,
+      "capabilities": ["shell"],
+      "value": {
+        "safety": 40,
+        "efficiency": 100,
+        "accuracy": 60,
+        "base": 75
+      },
+      "dependsOn": ["acp-exists"],
+      "formats": {
+        "markdown": {
+          "template": "For more context: `acp primer --budget N` or `acp knowledge \"question\"`"
+        },
+        "compact": {
+          "template": "More: acp primer --budget N | acp knowledge \"?\""
+        },
+        "json": null
+      },
+      "tags": ["core", "expansion"]
+    },
+
+    {
+      "id": "acp-self-expand-mcp",
+      "name": "Self-Expansion (MCP)",
+      "description": "How to get more ACP context via MCP",
+      "category": "bootstrap",
+      "priority": 3,
+      "tokens": 25,
+      "capabilities": ["mcp"],
+      "capabilitiesAll": ["mcp"],
+      "conflictsWith": ["acp-self-expand"],
+      "value": {
+        "safety": 40,
+        "efficiency": 100,
+        "accuracy": 60,
+        "base": 80
+      },
+      "dependsOn": ["acp-exists"],
+      "formats": {
+        "markdown": {
+          "template": "For more context: `acp_primer({ budget: N })` or `acp_knowledge({ query: \"question\" })`"
+        },
+        "compact": {
+          "template": "More: acp_primer/acp_knowledge tools"
+        },
+        "json": null
+      },
+      "tags": ["core", "expansion", "mcp"]
+    },
+
+    {
+      "id": "constraint-concept",
+      "name": "Constraint Concept",
+      "description": "What constraints are and why they matter",
+      "category": "constraints",
+      "priority": 10,
+      "tokens": 35,
+      "required": true,
+      "value": {
+        "safety": 100,
+        "efficiency": 50,
+        "accuracy": 70,
+        "base": 80
+      },
+      "formats": {
+        "markdown": {
+          "template": "Files have **constraint levels** that control AI modification. **Always check constraints before editing any file.**"
+        },
+        "compact": {
+          "template": "Files have constraints. ALWAYS check before editing."
+        },
+        "json": null
+      },
+      "tags": ["constraints", "safety"]
+    },
+
+    {
+      "id": "lock-frozen",
+      "name": "Lock Level: Frozen",
+      "description": "Frozen constraint level definition",
+      "category": "constraints",
+      "priority": 11,
+      "tokens": 18,
+      "requiredIf": "constraints.frozenCount > 0",
+      "value": {
+        "safety": 100,
+        "efficiency": 30,
+        "accuracy": 40,
+        "base": 60,
+        "modifiers": [
+          {
+            "condition": "constraints.frozenCount > 0",
+            "add": 40,
+            "dimension": "all",
+            "reason": "Project has frozen files"
+          },
+          {
+            "condition": "constraints.frozenCount > 10",
+            "add": 20,
+            "dimension": "safety",
+            "reason": "Many frozen files"
+          }
+        ]
+      },
+      "dependsOn": ["constraint-concept"],
+      "formats": {
+        "markdown": {
+          "template": "**`frozen`**: Never modify under any circumstances."
+        },
+        "compact": {
+          "template": "frozen=NEVER modify"
+        },
+        "json": null
+      },
+      "tags": ["constraints", "lock-level"]
+    },
+
+    {
+      "id": "lock-restricted",
+      "name": "Lock Level: Restricted",
+      "description": "Restricted constraint level definition",
+      "category": "constraints",
+      "priority": 12,
+      "tokens": 22,
+      "requiredIf": "constraints.restrictedCount > 0",
+      "value": {
+        "safety": 95,
+        "efficiency": 35,
+        "accuracy": 45,
+        "base": 55,
+        "modifiers": [
+          {
+            "condition": "constraints.restrictedCount > 0",
+            "add": 35,
+            "dimension": "all",
+            "reason": "Project has restricted files"
+          }
+        ]
+      },
+      "dependsOn": ["constraint-concept"],
+      "formats": {
+        "markdown": {
+          "template": "**`restricted`**: Explain proposed changes and rationale before modifying."
+        },
+        "compact": {
+          "template": "restricted=explain changes FIRST"
+        },
+        "json": null
+      },
+      "tags": ["constraints", "lock-level"]
+    },
+
+    {
+      "id": "lock-approval",
+      "name": "Lock Level: Approval Required",
+      "description": "Approval-required constraint level definition",
+      "category": "constraints",
+      "priority": 13,
+      "tokens": 25,
+      "value": {
+        "safety": 90,
+        "efficiency": 30,
+        "accuracy": 40,
+        "base": 50,
+        "modifiers": [
+          {
+            "condition": "constraints.approvalCount > 0",
+            "add": 40,
+            "dimension": "all",
+            "reason": "Project has approval-required files"
+          }
+        ]
+      },
+      "dependsOn": ["constraint-concept"],
+      "formats": {
+        "markdown": {
+          "template": "**`approval-required`**: Ask for explicit user approval before ANY changes."
+        },
+        "compact": {
+          "template": "approval-required=ASK before ANY change"
+        },
+        "json": null
+      },
+      "tags": ["constraints", "lock-level"]
+    },
+
+    {
+      "id": "lock-tests",
+      "name": "Lock Level: Tests Required",
+      "description": "Tests-required constraint level definition",
+      "category": "constraints",
+      "priority": 14,
+      "tokens": 18,
+      "value": {
+        "safety": 70,
+        "efficiency": 40,
+        "accuracy": 60,
+        "base": 45,
+        "modifiers": [
+          {
+            "condition": "constraints.testsRequiredCount > 0",
+            "add": 30,
+            "dimension": "all",
+            "reason": "Project has tests-required files"
+          }
+        ]
+      },
+      "dependsOn": ["constraint-concept"],
+      "formats": {
+        "markdown": {
+          "template": "**`tests-required`**: Include or update tests with any modifications."
+        },
+        "compact": {
+          "template": "tests-required=include tests"
+        },
+        "json": null
+      },
+      "tags": ["constraints", "lock-level"]
+    },
+
+    {
+      "id": "lock-docs",
+      "name": "Lock Level: Docs Required",
+      "description": "Docs-required constraint level definition",
+      "category": "constraints",
+      "priority": 15,
+      "tokens": 18,
+      "value": {
+        "safety": 50,
+        "efficiency": 35,
+        "accuracy": 55,
+        "base": 40,
+        "modifiers": [
+          {
+            "condition": "constraints.docsRequiredCount > 0",
+            "add": 25,
+            "dimension": "all",
+            "reason": "Project has docs-required files"
+          }
+        ]
+      },
+      "dependsOn": ["constraint-concept"],
+      "formats": {
+        "markdown": {
+          "template": "**`docs-required`**: Update relevant documentation with changes."
+        },
+        "compact": {
+          "template": "docs-required=update docs"
+        },
+        "json": null
+      },
+      "tags": ["constraints", "lock-level"]
+    },
+
+    {
+      "id": "constraint-query-cli",
+      "name": "Constraint Query (CLI)",
+      "description": "How to check constraints via CLI",
+      "category": "constraints",
+      "priority": 16,
+      "tokens": 30,
+      "capabilities": ["shell"],
+      "value": {
+        "safety": 85,
+        "efficiency": 75,
+        "accuracy": 60,
+        "base": 55
+      },
+      "dependsOn": ["constraint-concept"],
+      "formats": {
+        "markdown": {
+          "template": "Check constraints: `acp constraints <filepath>`"
+        },
+        "compact": {
+          "template": "Check: acp constraints <path>"
+        },
+        "json": null
+      },
+      "tags": ["constraints", "cli", "query"]
+    },
+
+    {
+      "id": "constraint-query-jq",
+      "name": "Constraint Query (jq)",
+      "description": "How to check constraints via jq",
+      "category": "constraints",
+      "priority": 17,
+      "tokens": 45,
+      "capabilities": ["shell"],
+      "value": {
+        "safety": 75,
+        "efficiency": 65,
+        "accuracy": 55,
+        "base": 45
+      },
+      "dependsOn": ["constraint-concept", "acp-location"],
+      "formats": {
+        "markdown": {
+          "template": "Direct query: `jq '.constraints.by_file[\"<path>\"]' .acp/acp.cache.json`"
+        },
+        "compact": {
+          "template": "jq '.constraints.by_file[\"<path>\"]' .acp/acp.cache.json"
+        },
+        "json": null
+      },
+      "tags": ["constraints", "jq", "query"]
+    },
+
+    {
+      "id": "constraint-query-mcp",
+      "name": "Constraint Query (MCP)",
+      "description": "How to check constraints via MCP",
+      "category": "constraints",
+      "priority": 16,
+      "tokens": 35,
+      "capabilities": ["mcp"],
+      "conflictsWith": ["constraint-query-cli"],
+      "value": {
+        "safety": 90,
+        "efficiency": 80,
+        "accuracy": 65,
+        "base": 60
+      },
+      "dependsOn": ["constraint-concept"],
+      "formats": {
+        "markdown": {
+          "template": "Check constraints: `acp_constraints({ file: \"<filepath>\" })` — **ALWAYS call before modifying.**"
+        },
+        "compact": {
+          "template": "acp_constraints({ file }) BEFORE modifying"
+        },
+        "json": null
+      },
+      "tags": ["constraints", "mcp", "query"]
+    },
+
+    {
+      "id": "protected-files-list",
+      "name": "Protected Files List",
+      "description": "List of files with frozen/restricted constraints",
+      "category": "constraints",
+      "priority": 18,
+      "tokens": "dynamic",
+      "value": {
+        "safety": 95,
+        "efficiency": 60,
+        "accuracy": 70,
+        "base": 55,
+        "modifiers": [
+          {
+            "condition": "constraints.protectedCount == 0",
+            "multiply": 0.1,
+            "reason": "No protected files"
+          },
+          {
+            "condition": "constraints.protectedCount > 20",
+            "add": 25,
+            "dimension": "safety",
+            "reason": "Many protected files"
+          }
+        ]
+      },
+      "dependsOn": ["constraint-concept"],
+      "data": {
+        "source": "cache.constraints.by_lock_level",
+        "filter": ["frozen", "restricted"],
+        "fields": ["path", "level", "reason"],
+        "sortBy": "level",
+        "maxItems": 25,
+        "itemTokens": 10,
+        "emptyBehavior": "exclude"
+      },
+      "formats": {
+        "markdown": {
+          "header": "### Protected Files\n",
+          "itemTemplate": "- `{{path}}` (**{{level}}**){{#if reason}}: {{reason}}{{/if}}",
+          "separator": "\n",
+          "emptyTemplate": "No protected files."
+        },
+        "compact": {
+          "header": "Protected: ",
+          "itemTemplate": "{{path}}({{level}})",
+          "separator": ", "
+        },
+        "json": null
+      },
+      "tags": ["constraints", "files", "dynamic"]
+    },
+
+    {
+      "id": "cli-overview",
+      "name": "CLI Overview",
+      "description": "Overview of available CLI commands",
+      "category": "interface",
+      "priority": 20,
+      "tokens": 35,
+      "capabilities": ["shell"],
+      "value": {
+        "safety": 30,
+        "efficiency": 80,
+        "accuracy": 50,
+        "base": 55
+      },
+      "formats": {
+        "markdown": {
+          "template": "**ACP CLI**: `acp index`, `acp constraints`, `acp query`, `acp primer`, `acp knowledge`, `acp attempt`"
+        },
+        "compact": {
+          "template": "CLI: index|constraints|query|primer|knowledge|attempt"
+        },
+        "json": null
+      },
+      "tags": ["interface", "cli"]
+    },
+
+    {
+      "id": "cli-index",
+      "name": "CLI: index",
+      "description": "The index command",
+      "category": "interface",
+      "priority": 21,
+      "tokens": 25,
+      "capabilities": ["shell"],
+      "value": {
+        "safety": 20,
+        "efficiency": 70,
+        "accuracy": 45,
+        "base": 40
+      },
+      "dependsOn": ["cli-overview"],
+      "formats": {
+        "markdown": {
+          "template": "`acp index`: Rebuild the cache after code changes."
+        },
+        "compact": {
+          "template": "index=rebuild cache"
+        },
+        "json": null
+      },
+      "tags": ["interface", "cli", "command"]
+    },
+
+    {
+      "id": "cli-query",
+      "name": "CLI: query",
+      "description": "The query command",
+      "category": "interface",
+      "priority": 22,
+      "tokens": 40,
+      "capabilities": ["shell"],
+      "value": {
+        "safety": 25,
+        "efficiency": 75,
+        "accuracy": 60,
+        "base": 50
+      },
+      "dependsOn": ["cli-overview"],
+      "formats": {
+        "markdown": {
+          "template": "`acp query <type> <name>`: Query codebase. Types: `symbol`, `file`, `domain`, `callers`, `callees`."
+        },
+        "compact": {
+          "template": "query <symbol|file|domain|callers|callees> <name>"
+        },
+        "json": null
+      },
+      "tags": ["interface", "cli", "command"]
+    },
+
+    {
+      "id": "cli-attempt",
+      "name": "CLI: attempt",
+      "description": "The attempt/debug session command",
+      "category": "interface",
+      "priority": 23,
+      "tokens": 45,
+      "capabilities": ["shell"],
+      "value": {
+        "safety": 60,
+        "efficiency": 65,
+        "accuracy": 55,
+        "base": 45,
+        "modifiers": [
+          {
+            "condition": "attempts.activeCount > 0",
+            "add": 40,
+            "reason": "Active debug sessions exist"
+          }
+        ]
+      },
+      "dependsOn": ["cli-overview"],
+      "formats": {
+        "markdown": {
+          "template": "`acp attempt <start|log|resolve|revert>`: Track debugging sessions. Enables rollback if fix fails."
+        },
+        "compact": {
+          "template": "attempt start|log|resolve|revert=debug tracking"
+        },
+        "json": null
+      },
+      "tags": ["interface", "cli", "command", "debug"]
+    },
+
+    {
+      "id": "mcp-tools-overview",
+      "name": "MCP Tools Overview",
+      "description": "Overview of available MCP tools",
+      "category": "interface",
+      "priority": 25,
+      "tokens": 40,
+      "capabilities": ["mcp"],
+      "value": {
+        "safety": 35,
+        "efficiency": 85,
+        "accuracy": 55,
+        "base": 60
+      },
+      "formats": {
+        "markdown": {
+          "template": "**ACP MCP Tools**: `acp_constraints`, `acp_query`, `acp_expand`, `acp_primer`, `acp_knowledge`, `acp_attempt`"
+        },
+        "compact": {
+          "template": "MCP: acp_constraints|query|expand|primer|knowledge|attempt"
+        },
+        "json": null
+      },
+      "tags": ["interface", "mcp"]
+    },
+
+    {
+      "id": "mcp-constraints",
+      "name": "MCP: acp_constraints",
+      "description": "The constraints MCP tool",
+      "category": "interface",
+      "priority": 26,
+      "tokens": 35,
+      "capabilities": ["mcp"],
+      "value": {
+        "safety": 95,
+        "efficiency": 70,
+        "accuracy": 60,
+        "base": 65
+      },
+      "dependsOn": ["mcp-tools-overview"],
+      "formats": {
+        "markdown": {
+          "template": "`acp_constraints({ file })`: **ALWAYS call before modifying any file.** Returns lock level and requirements."
+        },
+        "compact": {
+          "template": "acp_constraints({file})=ALWAYS before edit"
+        },
+        "json": null
+      },
+      "tags": ["interface", "mcp", "tool", "safety"]
+    },
+
+    {
+      "id": "mcp-query",
+      "name": "MCP: acp_query",
+      "description": "The query MCP tool",
+      "category": "interface",
+      "priority": 27,
+      "tokens": 35,
+      "capabilities": ["mcp"],
+      "value": {
+        "safety": 30,
+        "efficiency": 80,
+        "accuracy": 65,
+        "base": 55
+      },
+      "dependsOn": ["mcp-tools-overview"],
+      "formats": {
+        "markdown": {
+          "template": "`acp_query({ type, name })`: Query symbols, files, domains, callers, callees."
+        },
+        "compact": {
+          "template": "acp_query({type,name})=search codebase"
+        },
+        "json": null
+      },
+      "tags": ["interface", "mcp", "tool"]
+    },
+
+    {
+      "id": "annotation-syntax",
+      "name": "Annotation Syntax",
+      "description": "Basic annotation syntax",
+      "category": "annotations",
+      "priority": 30,
+      "tokens": 30,
+      "value": {
+        "safety": 40,
+        "efficiency": 55,
+        "accuracy": 70,
+        "base": 50
+      },
+      "formats": {
+        "markdown": {
+          "template": "ACP annotations: `@acp:key value` in code comments. They're indexed into the cache."
+        },
+        "compact": {
+          "template": "Annotations: @acp:key value (in comments)"
+        },
+        "json": null
+      },
+      "tags": ["annotations", "syntax"]
+    },
+
+    {
+      "id": "annotation-module",
+      "name": "Annotation: @acp:module",
+      "description": "Module annotation",
+      "category": "annotations",
+      "priority": 31,
+      "tokens": 22,
+      "value": {
+        "safety": 25,
+        "efficiency": 45,
+        "accuracy": 60,
+        "base": 40
+      },
+      "dependsOn": ["annotation-syntax"],
+      "formats": {
+        "markdown": {
+          "template": "`@acp:module \"Name\"`: Groups related code into a named module."
+        },
+        "compact": {
+          "template": "@acp:module \"Name\"=grouping"
+        },
+        "json": null
+      },
+      "tags": ["annotations", "annotation-type"]
+    },
+
+    {
+      "id": "annotation-domain",
+      "name": "Annotation: @acp:domain",
+      "description": "Domain annotation",
+      "category": "annotations",
+      "priority": 32,
+      "tokens": 25,
+      "value": {
+        "safety": 30,
+        "efficiency": 50,
+        "accuracy": 65,
+        "base": 45
+      },
+      "dependsOn": ["annotation-syntax"],
+      "formats": {
+        "markdown": {
+          "template": "`@acp:domain name`: Assigns code to a business domain (auth, billing, api, etc)."
+        },
+        "compact": {
+          "template": "@acp:domain name=business area"
+        },
+        "json": null
+      },
+      "tags": ["annotations", "annotation-type"]
+    },
+
+    {
+      "id": "annotation-lock",
+      "name": "Annotation: @acp:lock",
+      "description": "Lock annotation",
+      "category": "annotations",
+      "priority": 33,
+      "tokens": 25,
+      "value": {
+        "safety": 80,
+        "efficiency": 40,
+        "accuracy": 55,
+        "base": 55
+      },
+      "dependsOn": ["annotation-syntax"],
+      "formats": {
+        "markdown": {
+          "template": "`@acp:lock level`: Sets constraint level (frozen, restricted, approval-required, etc)."
+        },
+        "compact": {
+          "template": "@acp:lock level=constraint"
+        },
+        "json": null
+      },
+      "tags": ["annotations", "annotation-type", "constraints"]
+    },
+
+    {
+      "id": "annotation-hack",
+      "name": "Annotation: @acp:hack",
+      "description": "Hack annotation",
+      "category": "annotations",
+      "priority": 34,
+      "tokens": 30,
+      "value": {
+        "safety": 45,
+        "efficiency": 50,
+        "accuracy": 55,
+        "base": 40,
+        "modifiers": [
+          {
+            "condition": "hacks.count > 0",
+            "add": 25,
+            "reason": "Project has hacks"
+          }
+        ]
+      },
+      "dependsOn": ["annotation-syntax"],
+      "formats": {
+        "markdown": {
+          "template": "`@acp:hack \"reason\" expires:DATE`: Marks temporary code. Track with `acp hacks`."
+        },
+        "compact": {
+          "template": "@acp:hack \"reason\" expires:DATE=temp code"
+        },
+        "json": null
+      },
+      "tags": ["annotations", "annotation-type", "debug"]
+    },
+
+    {
+      "id": "domains-list",
+      "name": "Domains List",
+      "description": "List of domains in the codebase",
+      "category": "structure",
+      "priority": 40,
+      "tokens": "dynamic",
+      "value": {
+        "safety": 35,
+        "efficiency": 55,
+        "accuracy": 80,
+        "base": 50,
+        "modifiers": [
+          {
+            "condition": "domains.count == 0",
+            "multiply": 0,
+            "reason": "No domains defined"
+          },
+          {
+            "condition": "domains.count > 5",
+            "add": 20,
+            "dimension": "accuracy",
+            "reason": "Multiple domains"
+          }
+        ]
+      },
+      "data": {
+        "source": "cache.domains",
+        "fields": ["name", "fileCount", "description"],
+        "sortBy": "fileCount",
+        "sortOrder": "desc",
+        "maxItems": 15,
+        "itemTokens": 12,
+        "emptyBehavior": "exclude"
+      },
+      "formats": {
+        "markdown": {
+          "header": "### Domains\n",
+          "itemTemplate": "- **{{name}}** ({{fileCount}} files){{#if description}}: {{description}}{{/if}}",
+          "separator": "\n"
+        },
+        "compact": {
+          "header": "Domains: ",
+          "itemTemplate": "{{name}}({{fileCount}})",
+          "separator": ", "
+        },
+        "json": null
+      },
+      "tags": ["structure", "domains", "dynamic"]
+    },
+
+    {
+      "id": "layers-list",
+      "name": "Layers List",
+      "description": "Architectural layers in the codebase",
+      "category": "structure",
+      "priority": 41,
+      "tokens": "dynamic",
+      "value": {
+        "safety": 30,
+        "efficiency": 45,
+        "accuracy": 70,
+        "base": 40,
+        "modifiers": [
+          {
+            "condition": "layers.count == 0",
+            "multiply": 0,
+            "reason": "No layers defined"
+          }
+        ]
+      },
+      "data": {
+        "source": "cache.layers",
+        "fields": ["name", "fileCount"],
+        "maxItems": 10,
+        "itemTokens": 8,
+        "emptyBehavior": "exclude"
+      },
+      "formats": {
+        "markdown": {
+          "header": "### Layers\n",
+          "itemTemplate": "- **{{name}}** ({{fileCount}} files)",
+          "separator": "\n"
+        },
+        "compact": {
+          "header": "Layers: ",
+          "itemTemplate": "{{name}}",
+          "separator": " → "
+        },
+        "json": null
+      },
+      "tags": ["structure", "layers", "dynamic"]
+    },
+
+    {
+      "id": "entry-points",
+      "name": "Entry Points",
+      "description": "Main entry points of the codebase",
+      "category": "structure",
+      "priority": 42,
+      "tokens": "dynamic",
+      "value": {
+        "safety": 25,
+        "efficiency": 50,
+        "accuracy": 65,
+        "base": 35,
+        "modifiers": [
+          {
+            "condition": "entryPoints.count == 0",
+            "multiply": 0,
+            "reason": "No entry points identified"
+          }
+        ]
+      },
+      "data": {
+        "source": "cache.entryPoints",
+        "fields": ["path", "type"],
+        "maxItems": 10,
+        "itemTokens": 10,
+        "emptyBehavior": "exclude"
+      },
+      "formats": {
+        "markdown": {
+          "header": "### Entry Points\n",
+          "itemTemplate": "- `{{path}}`{{#if type}} ({{type}}){{/if}}",
+          "separator": "\n"
+        },
+        "compact": {
+          "header": "Entry: ",
+          "itemTemplate": "{{path}}",
+          "separator": ", "
+        },
+        "json": null
+      },
+      "tags": ["structure", "entry-points", "dynamic"]
+    },
+
+    {
+      "id": "variables-concept",
+      "name": "Variables Concept",
+      "description": "What variables are and how to use them",
+      "category": "variables",
+      "priority": 50,
+      "tokens": 35,
+      "value": {
+        "safety": 20,
+        "efficiency": 90,
+        "accuracy": 50,
+        "base": 55
+      },
+      "formats": {
+        "markdown": {
+          "template": "Use `$VAR_NAME` references for token efficiency. They expand to full context from `.acp/acp.vars.json`."
+        },
+        "compact": {
+          "template": "$VAR_NAME refs expand from acp.vars.json"
+        },
+        "json": null
+      },
+      "tags": ["variables"]
+    },
+
+    {
+      "id": "variables-expand-cli",
+      "name": "Variable Expansion (CLI)",
+      "description": "How to expand variables via CLI",
+      "category": "variables",
+      "priority": 51,
+      "tokens": 25,
+      "capabilities": ["shell"],
+      "value": {
+        "safety": 15,
+        "efficiency": 70,
+        "accuracy": 45,
+        "base": 40
+      },
+      "dependsOn": ["variables-concept"],
+      "formats": {
+        "markdown": {
+          "template": "Expand: `acp expand '$VAR_NAME'` or `jq '.variables.VAR_NAME' .acp/acp.vars.json`"
+        },
+        "compact": {
+          "template": "acp expand '$VAR_NAME'"
+        },
+        "json": null
+      },
+      "tags": ["variables", "cli"]
+    },
+
+    {
+      "id": "variables-list",
+      "name": "Variables List",
+      "description": "List of defined variables",
+      "category": "variables",
+      "priority": 52,
+      "tokens": "dynamic",
+      "value": {
+        "safety": 15,
+        "efficiency": 85,
+        "accuracy": 55,
+        "base": 45,
+        "modifiers": [
+          {
+            "condition": "variables.count == 0",
+            "multiply": 0,
+            "reason": "No variables defined"
+          },
+          {
+            "condition": "variables.count > 10",
+            "add": 20,
+            "dimension": "efficiency",
+            "reason": "Many variables available"
+          }
+        ]
+      },
+      "dependsOn": ["variables-concept"],
+      "data": {
+        "source": "vars.variables",
+        "fields": ["name", "summary", "tokens"],
+        "sortBy": "usage",
+        "sortOrder": "desc",
+        "maxItems": 15,
+        "itemTokens": 12,
+        "emptyBehavior": "exclude"
+      },
+      "formats": {
+        "markdown": {
+          "header": "### Variables\n",
+          "itemTemplate": "- `{{name}}`: {{summary}}",
+          "separator": "\n"
+        },
+        "compact": {
+          "header": "Vars: ",
+          "itemTemplate": "{{name}}",
+          "separator": ", "
+        },
+        "json": null
+      },
+      "tags": ["variables", "dynamic"]
+    },
+
+    {
+      "id": "attempts-concept",
+      "name": "Debug Attempts Concept",
+      "description": "What debug attempts are",
+      "category": "debug",
+      "priority": 60,
+      "tokens": 40,
+      "value": {
+        "safety": 70,
+        "efficiency": 55,
+        "accuracy": 60,
+        "base": 40,
+        "modifiers": [
+          {
+            "condition": "attempts.activeCount > 0",
+            "add": 50,
+            "reason": "Active debug sessions"
+          }
+        ]
+      },
+      "formats": {
+        "markdown": {
+          "template": "Track debugging in `.acp/acp.attempts.json`. Log attempts with `acp attempt start`, record results with `log`, enables `revert` if fix fails."
+        },
+        "compact": {
+          "template": "Debug: acp attempt start|log|resolve|revert"
+        },
+        "json": null
+      },
+      "tags": ["debug", "attempts"]
+    },
+
+    {
+      "id": "active-attempts",
+      "name": "Active Debug Sessions",
+      "description": "List of active debugging sessions",
+      "category": "debug",
+      "priority": 61,
+      "tokens": "dynamic",
+      "value": {
+        "safety": 85,
+        "efficiency": 65,
+        "accuracy": 75,
+        "base": 30,
+        "modifiers": [
+          {
+            "condition": "attempts.activeCount == 0",
+            "multiply": 0,
+            "reason": "No active sessions"
+          },
+          {
+            "condition": "attempts.activeCount > 0",
+            "add": 70,
+            "reason": "Active sessions need visibility"
+          }
+        ]
+      },
+      "data": {
+        "source": "attempts.active",
+        "fields": ["id", "problem", "attemptCount", "lastAttempt"],
+        "maxItems": 5,
+        "itemTokens": 25,
+        "emptyBehavior": "exclude"
+      },
+      "formats": {
+        "markdown": {
+          "header": "### Active Debug Sessions\n",
+          "itemTemplate": "- **{{id}}**: {{problem}} ({{attemptCount}} attempts)",
+          "separator": "\n"
+        },
+        "compact": {
+          "header": "Debug: ",
+          "itemTemplate": "{{id}}({{attemptCount}})",
+          "separator": ", "
+        },
+        "json": null
+      },
+      "tags": ["debug", "attempts", "dynamic"]
+    },
+
+    {
+      "id": "active-hacks",
+      "name": "Active Hacks",
+      "description": "List of temporary code markers",
+      "category": "debug",
+      "priority": 62,
+      "tokens": "dynamic",
+      "value": {
+        "safety": 55,
+        "efficiency": 50,
+        "accuracy": 60,
+        "base": 30,
+        "modifiers": [
+          {
+            "condition": "hacks.count == 0",
+            "multiply": 0,
+            "reason": "No hacks"
+          },
+          {
+            "condition": "hacks.count > 0",
+            "add": 30,
+            "reason": "Hacks exist"
+          },
+          {
+            "condition": "hacks.expiredCount > 0",
+            "add": 50,
+            "dimension": "safety",
+            "reason": "Expired hacks need attention"
+          }
+        ]
+      },
+      "data": {
+        "source": "cache.hacks",
+        "filter": { "expired": false },
+        "fields": ["file", "reason", "expires"],
+        "sortBy": "expires",
+        "maxItems": 8,
+        "itemTokens": 18,
+        "emptyBehavior": "exclude"
+      },
+      "formats": {
+        "markdown": {
+          "header": "### Active Hacks\n",
+          "itemTemplate": "- `{{file}}`: {{reason}}{{#if expires}} (expires {{expires}}){{/if}}",
+          "separator": "\n"
+        },
+        "compact": {
+          "header": "Hacks: ",
+          "itemTemplate": "{{file}}",
+          "separator": ", "
+        },
+        "json": null
+      },
+      "tags": ["debug", "hacks", "dynamic"]
+    },
+
+    {
+      "id": "knowledge-intro",
+      "name": "Knowledge Store Intro",
+      "description": "How to query the ACP knowledge base",
+      "category": "knowledge",
+      "priority": 70,
+      "tokens": 35,
+      "capabilities": ["shell"],
+      "value": {
+        "safety": 20,
+        "efficiency": 75,
+        "accuracy": 65,
+        "base": 50
+      },
+      "formats": {
+        "markdown": {
+          "template": "Query ACP documentation: `acp knowledge \"your question\"` — returns relevant protocol info, best practices, troubleshooting."
+        },
+        "compact": {
+          "template": "acp knowledge \"?\"=search ACP docs"
+        },
+        "json": null
+      },
+      "tags": ["knowledge", "expansion"]
+    },
+
+    {
+      "id": "knowledge-intro-mcp",
+      "name": "Knowledge Store Intro (MCP)",
+      "description": "How to query knowledge via MCP",
+      "category": "knowledge",
+      "priority": 70,
+      "tokens": 30,
+      "capabilities": ["mcp"],
+      "conflictsWith": ["knowledge-intro"],
+      "value": {
+        "safety": 20,
+        "efficiency": 80,
+        "accuracy": 65,
+        "base": 55
+      },
+      "formats": {
+        "markdown": {
+          "template": "Query ACP docs: `acp_knowledge({ query: \"your question\" })` — returns protocol info, best practices."
+        },
+        "compact": {
+          "template": "acp_knowledge({query})=search docs"
+        },
+        "json": null
+      },
+      "tags": ["knowledge", "expansion", "mcp"]
+    }
+  ],
+
+  "selectionStrategy": {
+    "algorithm": "value-optimized",
+    "weights": {
+      "safety": 1.5,
+      "efficiency": 1.0,
+      "accuracy": 1.0,
+      "base": 1.0
+    },
+    "presets": {
+      "safe": {
+        "safety": 2.5,
+        "efficiency": 0.8,
+        "accuracy": 1.0,
+        "base": 0.8
+      },
+      "efficient": {
+        "safety": 1.2,
+        "efficiency": 2.0,
+        "accuracy": 0.9,
+        "base": 0.8
+      },
+      "accurate": {
+        "safety": 1.2,
+        "efficiency": 0.9,
+        "accuracy": 2.0,
+        "base": 0.8
+      },
+      "balanced": {
+        "safety": 1.0,
+        "efficiency": 1.0,
+        "accuracy": 1.0,
+        "base": 1.0
+      }
+    },
+    "phases": [
+      {
+        "name": "required",
+        "filter": { "required": true },
+        "sort": "priority"
+      },
+      {
+        "name": "conditionally-required",
+        "filter": { "requiredIf": true },
+        "sort": "priority"
+      },
+      {
+        "name": "safety-critical",
+        "filter": { "safetyMinimum": 80 },
+        "sort": "value",
+        "budgetPercent": 40
+      },
+      {
+        "name": "value-optimized",
+        "filter": {},
+        "sort": "value-per-token"
+      }
+    ],
+    "minimumBudget": 80,
+    "dynamicModifiersEnabled": true
+  },
+
+  "outputFormats": {
+    "markdown": {
+      "sectionSeparator": "\n\n",
+      "headerLevel": 2,
+      "listStyle": "bullet",
+      "codeBlockStyle": "fenced"
+    },
+    "compact": {
+      "sectionSeparator": " | ",
+      "maxLineLength": 120,
+      "abbreviate": true
+    },
+    "json": {
+      "pretty": false,
+      "includeMetadata": true,
+      "includeTokenCounts": true
+    }
+  },
+
+  "knowledgeStore": {
+    "enabled": true,
+    "indexPath": "~/.acp/knowledge/index.json",
+    "semanticDbPath": "~/.acp/knowledge/semantic.db",
+    "fallbackToIndex": true
+  }
+}

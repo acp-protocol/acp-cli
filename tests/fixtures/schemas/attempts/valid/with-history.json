@@ -1,0 +1,52 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/attempts.schema.json",
+  "version": "1.0.0",
+  "updated_at": "2024-01-15T12:00:00Z",
+  "attempts": {
+    "attempt-001": {
+      "id": "attempt-001",
+      "status": "active",
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-15T11:00:00Z",
+      "files": [
+        {
+          "path": "src/auth.rs",
+          "original_hash": "d41d8cd98f00b204e9800998ecf8427e",
+          "modified_hash": "e9800998ecf8427ed41d8cd98f00b204",
+          "lines_changed": [10, 25]
+        }
+      ],
+      "revert_if": ["test failure", "build error"]
+    }
+  },
+  "checkpoints": {
+    "before-auth-refactor": {
+      "name": "before-auth-refactor",
+      "created_at": "2024-01-15T09:00:00Z",
+      "description": "State before auth refactoring",
+      "files": {
+        "src/auth.rs": {
+          "hash": "d41d8cd98f00b204e9800998ecf8427e"
+        }
+      }
+    }
+  },
+  "history": [
+    {
+      "id": "past-attempt-001",
+      "status": "verified",
+      "started_at": "2024-01-14T09:00:00Z",
+      "ended_at": "2024-01-14T12:00:00Z",
+      "files_modified": 3,
+      "outcome": "Successfully added user model"
+    },
+    {
+      "id": "past-attempt-002",
+      "status": "reverted",
+      "started_at": "2024-01-13T14:00:00Z",
+      "ended_at": "2024-01-13T16:00:00Z",
+      "files_modified": 5,
+      "outcome": "Database refactor caused test failures"
+    }
+  ]
+}

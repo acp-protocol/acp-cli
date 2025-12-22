@@ -1,0 +1,15 @@
+{
+  "$schema": "https://acp-protocol.dev/schemas/v1/primer.schema.json",
+  "version": "1.0.0",
+  "sections": [
+    {
+      "id": "test-section",
+      "category": "bootstrap",
+      "tokens": 50,
+      "value": {
+        "base": 50
+      },
+      "formats": {}
+    }
+  ]
+}

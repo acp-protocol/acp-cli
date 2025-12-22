@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://acp-protocol.dev/schemas/v1/vars.schema.json",
+  "title": "ACP Variables File",
+  "description": "AI Context Protocol variables file format (.acp.vars.json)",
+  "type": "object",
+  "required": ["version", "variables"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "ACP specification version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+",
+      "examples": ["1.0.0"]
+    },
+    "variables": {
+      "type": "object",
+      "description": "Map of variable names to variable entries",
+      "additionalProperties": {
+        "$ref": "#/$defs/variable_entry"
+      }
+    }
+  },
+  "$defs": {
+    "variable_entry": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["symbol", "file", "domain", "layer", "pattern", "context"],
+          "description": "Variable type"
+        },
+        "value": {
+          "type": "string",
+          "description": "Reference value (qualified name, path, etc.)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        },
+        "refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "References to other variables (for inheritance chains)"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source file path where the variable is defined"
+        },
+        "lines": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "[start_line, end_line] range in source file"
+        }
+      }
+    }
+  }
+}
