@@ -1,9 +1,10 @@
 //! @acp:module "Cache Types"
-//! @acp:summary "Data structures matching the .acp.cache.json schema"
+//! @acp:summary "Data structures matching the .acp.cache.json schema (RFC-001/RFC-003 compliant)"
 //! @acp:domain cli
 //! @acp:layer model
 //!
 //! These types serialize directly to/from `.acp.cache.json`
+//! Includes RFC-003 annotation provenance tracking support.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,7 @@ use std::path::Path;
 use crate::constraints::ConstraintIndex;
 use crate::error::Result;
 use crate::git::{GitFileInfo, GitSymbolInfo};
+use crate::parse::SourceOrigin;
 
 /// @acp:summary "Normalize a file path for cross-platform compatibility"
 ///
@@ -87,6 +89,9 @@ pub struct Cache {
     /// AI behavioral constraints (optional)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub constraints: Option<ConstraintIndex>,
+    /// RFC-0003: Annotation provenance statistics (optional)
+    #[serde(default, skip_serializing_if = "ProvenanceStats::is_empty")]
+    pub provenance: ProvenanceStats,
 }
 
 fn default_cache_schema() -> String {
@@ -113,6 +118,7 @@ impl Cache {
             graph: Some(CallGraph::default()),
             domains: HashMap::new(),
             constraints: None,
+            provenance: ProvenanceStats::default(),
         }
     }
 
@@ -335,6 +341,9 @@ pub struct FileEntry {
     /// Git metadata (optional - last commit, author, contributors)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub git: Option<GitFileInfo>,
+    /// RFC-0003: Annotation provenance tracking
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub annotations: HashMap<String, AnnotationProvenance>,
 }
 
 /// @acp:summary "RFC-001: Inline annotation (hack, todo, fixme, critical, perf)"
@@ -404,6 +413,9 @@ pub struct SymbolEntry {
     /// Git metadata (optional - last commit, author, code age)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub git: Option<GitSymbolInfo>,
+    /// RFC-0003: Annotation provenance tracking
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub annotations: HashMap<String, AnnotationProvenance>,
 }
 
 /// @acp:summary "RFC-001: Symbol-level constraint"
@@ -507,6 +519,129 @@ pub struct DomainEntry {
     pub description: Option<String>,
 }
 
+// ============================================================================
+// RFC-0003: Annotation Provenance Types
+// ============================================================================
+
+/// Provenance metadata for a single annotation value (RFC-0003)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnotationProvenance {
+    /// The annotation value
+    pub value: String,
+    /// Origin of the annotation
+    #[serde(default, skip_serializing_if = "is_explicit")]
+    pub source: SourceOrigin,
+    /// Confidence score (0.0-1.0), only for auto-generated
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<f64>,
+    /// Whether annotation is flagged for review
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub needs_review: bool,
+    /// Whether annotation has been reviewed
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub reviewed: bool,
+    /// When the annotation was reviewed (ISO 8601)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reviewed_at: Option<String>,
+    /// When the annotation was generated (ISO 8601)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated_at: Option<String>,
+    /// Generation batch identifier
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation_id: Option<String>,
+}
+
+fn is_explicit(source: &SourceOrigin) -> bool {
+    matches!(source, SourceOrigin::Explicit)
+}
+
+/// Top-level provenance statistics (RFC-0003)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProvenanceStats {
+    /// Summary counts by source type
+    pub summary: ProvenanceSummary,
+    /// Annotations below confidence threshold
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub low_confidence: Vec<LowConfidenceEntry>,
+    /// Information about the last generation run
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_generation: Option<GenerationInfo>,
+}
+
+impl ProvenanceStats {
+    /// Check if provenance stats are empty (for serialization skip)
+    pub fn is_empty(&self) -> bool {
+        self.summary.total == 0
+    }
+}
+
+/// Summary of annotation provenance counts (RFC-0003)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProvenanceSummary {
+    /// Total annotations tracked
+    pub total: u64,
+    /// Counts by source type
+    pub by_source: SourceCounts,
+    /// Count needing review
+    pub needs_review: u64,
+    /// Count already reviewed
+    pub reviewed: u64,
+    /// Average confidence by source type
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub average_confidence: HashMap<String, f64>,
+}
+
+/// Counts of annotations by source origin (RFC-0003)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SourceCounts {
+    /// Human-written annotations
+    #[serde(default)]
+    pub explicit: u64,
+    /// Converted from existing docs
+    #[serde(default)]
+    pub converted: u64,
+    /// Inferred via heuristics
+    #[serde(default)]
+    pub heuristic: u64,
+    /// Refined by AI
+    #[serde(default)]
+    pub refined: u64,
+    /// Fully AI-inferred
+    #[serde(default)]
+    pub inferred: u64,
+}
+
+/// Entry for low-confidence annotation tracking (RFC-0003)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LowConfidenceEntry {
+    /// Target file or symbol (file:symbol format)
+    pub target: String,
+    /// Annotation key (e.g., "@acp:summary")
+    pub annotation: String,
+    /// Confidence score
+    pub confidence: f64,
+    /// Annotation value
+    pub value: String,
+}
+
+/// Information about a generation run (RFC-0003)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerationInfo {
+    /// Unique batch identifier
+    pub id: String,
+    /// When generation occurred (ISO 8601)
+    pub timestamp: String,
+    /// Number of annotations generated
+    pub annotations_generated: u64,
+    /// Number of files affected
+    pub files_affected: u64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -530,6 +665,7 @@ mod tests {
                 calls: vec![],
                 called_by: vec![],
                 git: None,
+                annotations: HashMap::new(), // RFC-0003
             })
             .build();
 
@@ -622,6 +758,7 @@ mod tests {
             stability: None,
             ai_hints: vec![],
             git: None,
+            annotations: HashMap::new(), // RFC-0003
         });
         cache
     }
@@ -691,6 +828,7 @@ mod tests {
             stability: None,
             ai_hints: vec![],
             git: None,
+            annotations: HashMap::new(), // RFC-0003
         });
 
         // All formats should find it

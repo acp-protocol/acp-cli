@@ -5,10 +5,11 @@
 
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use console::style;
 
 use crate::cache::Cache;
+use crate::parse::SourceOrigin;
 use crate::query::Query;
 
 /// Options for the query command
@@ -18,6 +19,12 @@ pub struct QueryOptions {
     pub cache: PathBuf,
     /// Output as JSON
     pub json: bool,
+    /// RFC-0003: Filter by source origin
+    pub source: Option<SourceOrigin>,
+    /// RFC-0003: Filter by confidence expression (e.g., "<0.7", ">=0.9")
+    pub confidence: Option<String>,
+    /// RFC-0003: Show only annotations needing review
+    pub needs_review: bool,
 }
 
 /// Query subcommand types
@@ -31,6 +38,8 @@ pub enum QuerySubcommand {
     Domain { name: String },
     Hotpaths,
     Stats,
+    /// RFC-0003: Show provenance statistics
+    Provenance,
 }
 
 /// Execute the query command
@@ -47,6 +56,7 @@ pub fn execute_query(options: QueryOptions, subcommand: QuerySubcommand) -> Resu
         QuerySubcommand::Domain { name } => query_domain(&q, &name),
         QuerySubcommand::Hotpaths => query_hotpaths(&q),
         QuerySubcommand::Stats => query_stats(&cache_data, options.json),
+        QuerySubcommand::Provenance => query_provenance(&cache_data, &options),
     }
 }
 
@@ -250,4 +260,176 @@ fn query_stats(cache_data: &Cache, json: bool) -> Result<()> {
         println!("Domains: {}", cache_data.domains.len());
     }
     Ok(())
+}
+
+// =============================================================================
+// RFC-0003: Provenance Query Support
+// =============================================================================
+
+/// Confidence filter expression (RFC-0003)
+#[derive(Debug, Clone)]
+pub enum ConfidenceFilter {
+    Less(f64),
+    LessOrEqual(f64),
+    Greater(f64),
+    GreaterOrEqual(f64),
+    Equal(f64),
+}
+
+impl ConfidenceFilter {
+    /// Parse a confidence filter expression (e.g., "<0.7", ">=0.9")
+    pub fn parse(expr: &str) -> Result<Self> {
+        let expr = expr.trim();
+
+        if let Some(val) = expr.strip_prefix("<=") {
+            return Ok(Self::LessOrEqual(val.parse()?));
+        }
+        if let Some(val) = expr.strip_prefix(">=") {
+            return Ok(Self::GreaterOrEqual(val.parse()?));
+        }
+        if let Some(val) = expr.strip_prefix('<') {
+            return Ok(Self::Less(val.parse()?));
+        }
+        if let Some(val) = expr.strip_prefix('>') {
+            return Ok(Self::Greater(val.parse()?));
+        }
+        if let Some(val) = expr.strip_prefix('=') {
+            return Ok(Self::Equal(val.parse()?));
+        }
+
+        Err(anyhow!("Invalid confidence filter: {}", expr))
+    }
+
+    /// Check if a confidence value matches this filter
+    pub fn matches(&self, confidence: f64) -> bool {
+        match self {
+            Self::Less(v) => confidence < *v,
+            Self::LessOrEqual(v) => confidence <= *v,
+            Self::Greater(v) => confidence > *v,
+            Self::GreaterOrEqual(v) => confidence >= *v,
+            Self::Equal(v) => (confidence - v).abs() < 0.001,
+        }
+    }
+}
+
+/// Display provenance statistics dashboard (RFC-0003)
+fn query_provenance(cache_data: &Cache, options: &QueryOptions) -> Result<()> {
+    let stats = &cache_data.provenance;
+
+    if options.json {
+        println!("{}", serde_json::to_string_pretty(stats)?);
+        return Ok(());
+    }
+
+    println!("{}", style("Annotation Provenance Statistics").bold());
+    println!("{}", "=".repeat(40));
+    println!();
+
+    if stats.summary.total == 0 {
+        println!("{} No provenance data tracked yet.", style("ℹ").cyan());
+        println!();
+        println!("Run `acp index` to index your codebase with provenance tracking,");
+        println!("or `acp annotate` to generate annotations with provenance markers.");
+        return Ok(());
+    }
+
+    println!("Total annotations tracked: {}", stats.summary.total);
+    println!();
+
+    // By source breakdown
+    println!("{}:", style("By Source").bold());
+    let total = stats.summary.total as f64;
+    if stats.summary.by_source.explicit > 0 {
+        println!(
+            "  explicit:  {:>5} ({:.1}%)",
+            stats.summary.by_source.explicit,
+            (stats.summary.by_source.explicit as f64 / total) * 100.0
+        );
+    }
+    if stats.summary.by_source.converted > 0 {
+        println!(
+            "  converted: {:>5} ({:.1}%)",
+            stats.summary.by_source.converted,
+            (stats.summary.by_source.converted as f64 / total) * 100.0
+        );
+    }
+    if stats.summary.by_source.heuristic > 0 {
+        println!(
+            "  heuristic: {:>5} ({:.1}%)",
+            stats.summary.by_source.heuristic,
+            (stats.summary.by_source.heuristic as f64 / total) * 100.0
+        );
+    }
+    if stats.summary.by_source.refined > 0 {
+        println!(
+            "  refined:   {:>5} ({:.1}%)",
+            stats.summary.by_source.refined,
+            (stats.summary.by_source.refined as f64 / total) * 100.0
+        );
+    }
+    if stats.summary.by_source.inferred > 0 {
+        println!(
+            "  inferred:  {:>5} ({:.1}%)",
+            stats.summary.by_source.inferred,
+            (stats.summary.by_source.inferred as f64 / total) * 100.0
+        );
+    }
+
+    // Review status
+    println!();
+    println!("{}:", style("Review Status").bold());
+    println!("  Needs review: {}", stats.summary.needs_review);
+    println!("  Reviewed:     {}", stats.summary.reviewed);
+
+    // Average confidence per source
+    if !stats.summary.average_confidence.is_empty() {
+        println!();
+        println!("{}:", style("Average Confidence").bold());
+        for (source, avg) in &stats.summary.average_confidence {
+            println!("  {}: {:.2}", source, avg);
+        }
+    }
+
+    // Low confidence annotations
+    if !stats.low_confidence.is_empty() {
+        println!();
+        println!(
+            "{} ({}):",
+            style("Low Confidence Annotations").bold(),
+            stats.low_confidence.len()
+        );
+        for entry in stats.low_confidence.iter().take(10) {
+            println!(
+                "  {} [{}]: \"{}\" ({:.2})",
+                style(&entry.target).cyan(),
+                entry.annotation,
+                truncate_value(&entry.value, 30),
+                entry.confidence
+            );
+        }
+        if stats.low_confidence.len() > 10 {
+            println!("  ... and {} more", stats.low_confidence.len() - 10);
+        }
+    }
+
+    // Last generation info
+    if let Some(ref gen) = stats.last_generation {
+        println!();
+        println!("{}:", style("Last Generation").bold());
+        println!("  ID:        {}", gen.id);
+        println!("  Timestamp: {}", gen.timestamp);
+        println!("  Generated: {} annotations", gen.annotations_generated);
+        println!("  Files:     {}", gen.files_affected);
+    }
+
+    Ok(())
+}
+
+/// Truncate a string value for display
+fn truncate_value(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len - 3])
+    }
 }

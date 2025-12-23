@@ -1,11 +1,13 @@
 //! @acp:module "Indexer"
-//! @acp:summary "Codebase indexing and cache generation (schema-compliant)"
+//! @acp:summary "Codebase indexing and cache generation (schema-compliant, RFC-003 provenance)"
 //! @acp:domain cli
 //! @acp:layer service
 //!
 //! Walks the codebase and builds the cache/vars files.
 //! Uses tree-sitter AST parsing for symbol extraction and git2 for metadata.
+//! Supports RFC-0003 annotation provenance tracking.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::fs;
@@ -16,12 +18,15 @@ use walkdir::WalkDir;
 use glob::Pattern;
 
 use crate::ast::{AstParser, ExtractedSymbol, SymbolKind, Visibility as AstVisibility};
-use crate::cache::{Cache, CacheBuilder, DomainEntry, Language, SymbolEntry, SymbolType, Visibility};
+use crate::cache::{
+    Cache, CacheBuilder, DomainEntry, Language, SymbolEntry, SymbolType, Visibility,
+    AnnotationProvenance, ProvenanceStats, LowConfidenceEntry,
+};
 use crate::config::Config;
 use crate::constraints::{ConstraintIndex, Constraints, MutationConstraint, LockLevel, HackMarker, HackType};
 use crate::error::Result;
 use crate::git::{GitRepository, BlameInfo, FileHistory, GitFileInfo, GitSymbolInfo};
-use crate::parse::Parser;
+use crate::parse::{Parser, AnnotationWithProvenance, SourceOrigin};
 use crate::vars::{VarsFile, VarEntry};
 
 /// @acp:summary "Codebase indexer with parallel file processing"
@@ -85,6 +90,9 @@ impl Indexer {
         let annotation_parser = Arc::clone(&self.parser);
         let root_path = root.to_path_buf();
 
+        // RFC-0003: Get review threshold from config (default 0.8)
+        let review_threshold = 0.8; // TODO: Read from config when available
+
         let mut results: Vec<_> = files
             .par_iter()
             .filter_map(|path| {
@@ -93,6 +101,13 @@ impl Indexer {
 
                 // Try AST parsing for accurate symbol extraction
                 if let Ok(source) = std::fs::read_to_string(path) {
+                    // RFC-0003: Parse annotations with provenance support
+                    let annotations_with_prov = annotation_parser.parse_annotations_with_provenance(&source);
+                    let file_provenance = extract_provenance(&annotations_with_prov, review_threshold);
+
+                    // Add provenance to file entry
+                    parse_result.file.annotations = file_provenance;
+
                     if let Ok(ast_symbols) = ast_parser.parse_file(Path::new(path), &source) {
                         // Convert AST symbols to cache symbols and merge
                         let relative_path = Path::new(path)
@@ -105,7 +120,7 @@ impl Indexer {
                         // Merge: prefer AST symbols but keep annotation metadata
                         if !converted.is_empty() {
                             // Keep summaries from annotation parser
-                            let annotation_summaries: std::collections::HashMap<_, _> =
+                            let annotation_summaries: HashMap<_, _> =
                                 parse_result.symbols.iter()
                                     .filter_map(|s| s.summary.as_ref().map(|sum| (s.name.clone(), sum.clone())))
                                     .collect();
@@ -282,7 +297,14 @@ impl Indexer {
             builder = builder.set_constraints(constraint_index);
         }
 
-        Ok(builder.build())
+        // Build the cache
+        let mut cache = builder.build();
+
+        // RFC-0003: Compute provenance statistics
+        let low_conf_threshold = 0.5; // TODO: Read from config when available
+        cache.provenance = compute_provenance_stats(&cache, low_conf_threshold);
+
+        Ok(cache)
     }
 
     /// @acp:summary "Find all files matching include/exclude patterns"
@@ -493,6 +515,163 @@ fn convert_ast_symbols(ast_symbols: &[ExtractedSymbol], file_path: &str) -> Vec<
             calls: vec![], // Populated separately from call graph
             called_by: vec![], // Populated by graph builder
             git: None, // Populated after symbol creation
+            annotations: HashMap::new(), // RFC-0003: Populated during indexing
         }
     }).collect()
+}
+
+// ============================================================================
+// RFC-0003: Annotation Provenance Functions
+// ============================================================================
+
+/// Extract provenance data from parsed annotations (RFC-0003)
+///
+/// Converts AnnotationWithProvenance to AnnotationProvenance entries
+/// suitable for storage in the cache.
+fn extract_provenance(
+    annotations: &[AnnotationWithProvenance],
+    review_threshold: f64,
+) -> HashMap<String, AnnotationProvenance> {
+    let mut result = HashMap::new();
+
+    for ann in annotations {
+        // Skip provenance-only annotations (source, source-confidence, etc.)
+        if ann.annotation.name.starts_with("source") {
+            continue;
+        }
+
+        let key = format!("@acp:{}", ann.annotation.name);
+
+        let prov = if let Some(ref marker) = ann.provenance {
+            let needs_review = marker.confidence.map_or(false, |c| c < review_threshold);
+
+            AnnotationProvenance {
+                value: ann.annotation.value.clone().unwrap_or_default(),
+                source: marker.source,
+                confidence: marker.confidence,
+                needs_review,
+                reviewed: marker.reviewed.unwrap_or(false),
+                reviewed_at: None,
+                generated_at: Some(Utc::now().to_rfc3339()),
+                generation_id: marker.generation_id.clone(),
+            }
+        } else {
+            // No provenance markers = explicit annotation (human-written)
+            AnnotationProvenance {
+                value: ann.annotation.value.clone().unwrap_or_default(),
+                source: SourceOrigin::Explicit,
+                confidence: None,
+                needs_review: false,
+                reviewed: true, // Explicit annotations are considered reviewed
+                reviewed_at: None,
+                generated_at: None,
+                generation_id: None,
+            }
+        };
+
+        result.insert(key, prov);
+    }
+
+    result
+}
+
+/// Compute aggregate provenance statistics from cache (RFC-0003)
+///
+/// Aggregates provenance data from all files and symbols to produce
+/// summary statistics for the cache.
+fn compute_provenance_stats(cache: &Cache, low_conf_threshold: f64) -> ProvenanceStats {
+    let mut stats = ProvenanceStats::default();
+    let mut confidence_sums: HashMap<String, (f64, u64)> = HashMap::new();
+
+    // Process file annotations
+    for (path, file) in &cache.files {
+        for (key, prov) in &file.annotations {
+            update_provenance_stats(
+                &mut stats,
+                &mut confidence_sums,
+                key,
+                prov,
+                path,
+                low_conf_threshold,
+            );
+        }
+    }
+
+    // Process symbol annotations
+    for symbol in cache.symbols.values() {
+        for (key, prov) in &symbol.annotations {
+            let target = format!("{}:{}", symbol.file, symbol.name);
+            update_provenance_stats(
+                &mut stats,
+                &mut confidence_sums,
+                key,
+                prov,
+                &target,
+                low_conf_threshold,
+            );
+        }
+    }
+
+    // Calculate average confidence per source type
+    for (source, (sum, count)) in confidence_sums {
+        if count > 0 {
+            stats.summary.average_confidence.insert(source, sum / count as f64);
+        }
+    }
+
+    // Sort low confidence entries by confidence (ascending)
+    stats.low_confidence.sort_by(|a, b| {
+        a.confidence
+            .partial_cmp(&b.confidence)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    stats
+}
+
+/// Update provenance statistics with a single annotation's data
+fn update_provenance_stats(
+    stats: &mut ProvenanceStats,
+    confidence_sums: &mut HashMap<String, (f64, u64)>,
+    key: &str,
+    prov: &AnnotationProvenance,
+    target: &str,
+    low_conf_threshold: f64,
+) {
+    stats.summary.total += 1;
+
+    // Count by source type
+    match prov.source {
+        SourceOrigin::Explicit => stats.summary.by_source.explicit += 1,
+        SourceOrigin::Converted => stats.summary.by_source.converted += 1,
+        SourceOrigin::Heuristic => stats.summary.by_source.heuristic += 1,
+        SourceOrigin::Refined => stats.summary.by_source.refined += 1,
+        SourceOrigin::Inferred => stats.summary.by_source.inferred += 1,
+    }
+
+    // Count review status
+    if prov.needs_review {
+        stats.summary.needs_review += 1;
+    }
+    if prov.reviewed {
+        stats.summary.reviewed += 1;
+    }
+
+    // Track confidence for averaging
+    if let Some(conf) = prov.confidence {
+        let source_key = prov.source.as_str().to_string();
+        let entry = confidence_sums.entry(source_key).or_insert((0.0, 0));
+        entry.0 += conf;
+        entry.1 += 1;
+
+        // Track low confidence annotations
+        if conf < low_conf_threshold {
+            stats.low_confidence.push(LowConfidenceEntry {
+                target: target.to_string(),
+                annotation: key.to_string(),
+                confidence: conf,
+                value: prov.value.clone(),
+            });
+        }
+    }
 }

@@ -10,11 +10,13 @@ use acp::{Config, Cache};
 use acp::annotate::{AnnotateLevel, ConversionSource, OutputFormat};
 use acp::commands::{
     execute_annotate, execute_attempt, execute_chain, execute_check, execute_daemon,
-    execute_expand, execute_index, execute_init, execute_map, execute_migrate,
-    execute_query, execute_revert, execute_validate, execute_vars, execute_watch,
-    AnnotateOptions, AttemptSubcommand, ChainOptions, CheckOptions, DaemonSubcommand,
-    ExpandOptions, IndexOptions, InitOptions, MapFormat, MapOptions, MigrateOptions,
-    QueryOptions, QuerySubcommand, RevertOptions, ValidateOptions, VarsOptions, WatchOptions,
+    execute_expand, execute_index, execute_init, execute_install, execute_list_installed,
+    execute_map, execute_migrate, execute_query, execute_review, execute_revert, execute_uninstall,
+    execute_validate, execute_vars, execute_watch, AnnotateOptions, AttemptSubcommand,
+    ChainOptions, CheckOptions, DaemonSubcommand, ExpandOptions, IndexOptions, InitOptions,
+    InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions, QueryOptions,
+    QuerySubcommand, ReviewOptions, ReviewSubcommand, RevertOptions, ValidateOptions, VarsOptions,
+    WatchOptions,
 };
 
 #[derive(Parser)]
@@ -69,6 +71,29 @@ enum Commands {
         /// Skip AI tool bootstrap (don't create CLAUDE.md, .cursorrules, etc.)
         #[arg(long)]
         no_bootstrap: bool,
+    },
+
+    /// Install ACP plugins (daemon, mcp)
+    Install {
+        /// Plugins to install (daemon, mcp)
+        #[arg(required = true)]
+        targets: Vec<String>,
+
+        /// Force reinstall even if already installed
+        #[arg(short, long)]
+        force: bool,
+
+        /// Specific version to install (default: latest)
+        #[arg(long)]
+        version: Option<String>,
+
+        /// List installed plugins instead of installing
+        #[arg(long)]
+        list: bool,
+
+        /// Uninstall specified plugins
+        #[arg(long)]
+        uninstall: bool,
     },
 
     /// Index the codebase and generate cache
@@ -239,6 +264,37 @@ enum Commands {
         /// Number of parallel workers (default: number of CPUs)
         #[arg(long, short = 'j')]
         workers: Option<usize>,
+
+        /// RFC-0003: Disable provenance markers in generated annotations
+        #[arg(long)]
+        no_provenance: bool,
+
+        /// RFC-0003: Mark all generated annotations as needing review
+        #[arg(long)]
+        mark_needs_review: bool,
+    },
+
+    /// RFC-0003: Review auto-generated annotations
+    Review {
+        /// Review subcommand
+        #[command(subcommand)]
+        cmd: ReviewCommands,
+
+        /// Filter by source origin (explicit, converted, heuristic, refined, inferred)
+        #[arg(long)]
+        source: Option<String>,
+
+        /// Filter by confidence expression (e.g., "<0.7", ">=0.9")
+        #[arg(long)]
+        confidence: Option<String>,
+
+        /// Cache file path
+        #[arg(long, default_value = ".acp/acp.cache.json")]
+        cache: PathBuf,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Map directory structure with annotations (RFC-001)
@@ -482,6 +538,34 @@ enum QueryCommands {
 
     /// Show stats
     Stats,
+
+    /// RFC-0003: Show provenance statistics
+    Provenance,
+}
+
+/// RFC-0003: Review subcommands
+#[derive(Subcommand)]
+enum ReviewCommands {
+    /// List annotations needing review
+    List,
+
+    /// Mark annotations as reviewed
+    Mark {
+        /// Filter by file path
+        #[arg(long)]
+        file: Option<PathBuf>,
+
+        /// Filter by symbol name
+        #[arg(long)]
+        symbol: Option<String>,
+
+        /// Mark all matching annotations as reviewed
+        #[arg(long)]
+        all: bool,
+    },
+
+    /// Interactive review mode
+    Interactive,
 }
 
 #[tokio::main]
@@ -498,7 +582,7 @@ async fn main() -> anyhow::Result<()> {
     // Check for config requirement (most commands require .acp.config.json)
     let requires_config = !matches!(
         cli.command,
-        Commands::Init { .. } | Commands::Validate { .. } | Commands::Daemon { .. }
+        Commands::Init { .. } | Commands::Install { .. } | Commands::Validate { .. } | Commands::Daemon { .. }
     );
     if requires_config {
         let config_path = PathBuf::from(".acp.config.json");
@@ -525,6 +609,31 @@ async fn main() -> anyhow::Result<()> {
             execute_init(options)?;
         }
 
+        Commands::Install { targets, force, version, list, uninstall } => {
+            if list {
+                execute_list_installed()?;
+            } else if uninstall {
+                let install_targets: Vec<InstallTarget> = targets
+                    .iter()
+                    .map(|t| t.parse::<InstallTarget>())
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e: String| anyhow::anyhow!(e))?;
+                execute_uninstall(install_targets)?;
+            } else {
+                let install_targets: Vec<InstallTarget> = targets
+                    .iter()
+                    .map(|t| t.parse::<InstallTarget>())
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e: String| anyhow::anyhow!(e))?;
+                let options = InstallOptions {
+                    targets: install_targets,
+                    force,
+                    version,
+                };
+                execute_install(options)?;
+            }
+        }
+
         Commands::Index { root, output, vars } => {
             let options = IndexOptions { root, output, vars };
             execute_index(options, config).await?;
@@ -536,7 +645,13 @@ async fn main() -> anyhow::Result<()> {
         }
 
         Commands::Query { query, cache, json } => {
-            let options = QueryOptions { cache, json };
+            let options = QueryOptions {
+                cache,
+                json,
+                source: None,
+                confidence: None,
+                needs_review: false,
+            };
             let subcommand = match query {
                 QueryCommands::Symbol { name } => QuerySubcommand::Symbol { name },
                 QueryCommands::File { path } => QuerySubcommand::File { path },
@@ -546,6 +661,7 @@ async fn main() -> anyhow::Result<()> {
                 QueryCommands::Domain { name } => QuerySubcommand::Domain { name },
                 QueryCommands::Hotpaths => QuerySubcommand::Hotpaths,
                 QueryCommands::Stats => QuerySubcommand::Stats,
+                QueryCommands::Provenance => QuerySubcommand::Provenance,
             };
             execute_query(options, subcommand)?;
         }
@@ -630,6 +746,8 @@ async fn main() -> anyhow::Result<()> {
             check,
             min_coverage,
             workers,
+            no_provenance,
+            mark_needs_review,
         } => {
             // Convert CLI enums to library types
             let annotate_level = match level {
@@ -668,9 +786,28 @@ async fn main() -> anyhow::Result<()> {
                 min_coverage,
                 workers,
                 verbose: cli.verbose,
+                no_provenance,
+                mark_needs_review,
             };
 
             execute_annotate(options, config)?;
+        }
+
+        Commands::Review { cmd, source, confidence, cache, json } => {
+            let options = ReviewOptions {
+                cache,
+                source: source.and_then(|s| s.parse().ok()),
+                confidence,
+                json,
+            };
+            let subcommand = match cmd {
+                ReviewCommands::List => ReviewSubcommand::List,
+                ReviewCommands::Mark { file, symbol, all } => {
+                    ReviewSubcommand::Mark { file, symbol, all }
+                }
+                ReviewCommands::Interactive => ReviewSubcommand::Interactive,
+            };
+            execute_review(options, subcommand)?;
         }
 
         Commands::Map { path, depth, inline, format, cache } => {

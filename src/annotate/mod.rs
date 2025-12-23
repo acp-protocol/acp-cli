@@ -30,7 +30,7 @@ pub mod writer;
 pub use analyzer::Analyzer;
 pub use converters::{DocStandardParser, ParsedDocumentation};
 pub use suggester::Suggester;
-pub use writer::Writer;
+pub use writer::{Writer, CommentStyle};
 
 use serde::{Deserialize, Serialize};
 
@@ -138,6 +138,34 @@ impl std::fmt::Display for SuggestionSource {
     }
 }
 
+/// @acp:summary "Configuration for RFC-0003 provenance marker generation"
+#[derive(Debug, Clone, Default)]
+pub struct ProvenanceConfig {
+    /// Generation batch ID (e.g., "gen-20251222-123456-abc")
+    pub generation_id: Option<String>,
+    /// Whether to mark all generated annotations as needing review
+    pub mark_needs_review: bool,
+}
+
+impl ProvenanceConfig {
+    /// @acp:summary "Creates a new provenance config"
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// @acp:summary "Sets the generation ID"
+    pub fn with_generation_id(mut self, id: impl Into<String>) -> Self {
+        self.generation_id = Some(id.into());
+        self
+    }
+
+    /// @acp:summary "Sets whether to mark annotations as needing review"
+    pub fn with_needs_review(mut self, needs_review: bool) -> Self {
+        self.mark_needs_review = needs_review;
+        self
+    }
+}
+
 /// @acp:summary "A suggested annotation to add to a symbol or file"
 /// Represents a single annotation suggestion with its metadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -225,6 +253,36 @@ impl Suggestion {
     /// @acp:summary "Formats the suggestion as an annotation string"
     pub fn to_annotation_string(&self) -> String {
         self.annotation_type.to_annotation_string(&self.value)
+    }
+
+    /// @acp:summary "Formats the suggestion with RFC-0003 provenance markers"
+    /// Returns multiple annotation lines: the main annotation followed by provenance markers.
+    pub fn to_annotation_strings_with_provenance(&self, config: &ProvenanceConfig) -> Vec<String> {
+        let mut lines = vec![self.annotation_type.to_annotation_string(&self.value)];
+
+        // Add source marker (convert SuggestionSource to RFC-0003 source value)
+        let source_value = match self.source {
+            SuggestionSource::Explicit => "explicit",
+            SuggestionSource::Converted => "converted",
+            SuggestionSource::Heuristic => "heuristic",
+        };
+        lines.push(format!("@acp:source {}", source_value));
+
+        // Add confidence marker (only if not 1.0)
+        if self.confidence < 1.0 {
+            lines.push(format!("@acp:source-confidence {:.2}", self.confidence));
+        }
+
+        // Add reviewed marker (defaults to false for generated annotations)
+        let reviewed = !config.mark_needs_review;
+        lines.push(format!("@acp:source-reviewed {}", reviewed));
+
+        // Add generation ID
+        if let Some(ref gen_id) = config.generation_id {
+            lines.push(format!("@acp:source-id \"{}\"", gen_id));
+        }
+
+        lines
     }
 }
 

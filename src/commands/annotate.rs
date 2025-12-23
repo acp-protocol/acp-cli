@@ -1,19 +1,22 @@
 //! @acp:module "Annotate Command"
-//! @acp:summary "Analyze and suggest ACP annotations"
+//! @acp:summary "Analyze and suggest ACP annotations (RFC-003 provenance support)"
 //! @acp:domain cli
 //! @acp:layer handler
 //!
 //! Implements `acp annotate` command for annotation analysis and generation.
+//! Supports RFC-0003 annotation provenance tracking.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
+use chrono::Utc;
 use console::style;
+use rand::Rng;
 use rayon::prelude::*;
 
-use crate::annotate::{AnnotateLevel, Analyzer, ConversionSource, OutputFormat, Suggester, Writer};
+use crate::annotate::{AnnotateLevel, Analyzer, ConversionSource, OutputFormat, ProvenanceConfig, Suggester, Writer};
 use crate::config::Config;
 use crate::git::GitRepository;
 
@@ -46,6 +49,10 @@ pub struct AnnotateOptions {
     pub workers: Option<usize>,
     /// Verbose output
     pub verbose: bool,
+    /// RFC-0003: Disable provenance markers
+    pub no_provenance: bool,
+    /// RFC-0003: Mark all generated annotations as needing review
+    pub mark_needs_review: bool,
 }
 
 impl Default for AnnotateOptions {
@@ -64,8 +71,23 @@ impl Default for AnnotateOptions {
             min_coverage: None,
             workers: None,
             verbose: false,
+            no_provenance: false,
+            mark_needs_review: false,
         }
     }
+}
+
+/// Generate a unique generation ID for annotation batches (RFC-0003)
+///
+/// Format: `gen-YYYYMMDD-HHMMSS-XXXX` where XXXX is a random hex string
+fn generate_generation_id() -> String {
+    let timestamp = Utc::now().format("%Y%m%d-%H%M%S");
+    let random_suffix: String = rand::rng()
+        .sample_iter(&rand::distr::Alphanumeric)
+        .take(4)
+        .map(char::from)
+        .collect();
+    format!("gen-{}-{}", timestamp, random_suffix.to_lowercase())
 }
 
 /// Execute the annotate command
@@ -91,7 +113,28 @@ pub fn execute_annotate(options: AnnotateOptions, config: Config) -> Result<()> 
             .with_conversion_source(options.from)
             .with_heuristics(!options.convert),
     );
-    let writer = Writer::new();
+
+    // RFC-0003: Create provenance config if enabled
+    let provenance_config = if !options.no_provenance {
+        let generation_id = generate_generation_id();
+        if options.verbose {
+            eprintln!("Provenance generation ID: {}", generation_id);
+        }
+        Some(
+            ProvenanceConfig::new()
+                .with_generation_id(generation_id)
+                .with_needs_review(options.mark_needs_review),
+        )
+    } else {
+        None
+    };
+
+    // Create writer with optional provenance config
+    let writer = if let Some(config) = provenance_config {
+        Writer::new().with_provenance(config)
+    } else {
+        Writer::new()
+    };
 
     // Discover files
     let files = analyzer.discover_files(&options.path, options.filter.as_deref())?;

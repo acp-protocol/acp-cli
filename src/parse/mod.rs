@@ -1,10 +1,11 @@
 //! @acp:module "Parser"
-//! @acp:summary "Source code parsing and annotation extraction (RFC-001 compliant)"
+//! @acp:summary "Source code parsing and annotation extraction (RFC-001/RFC-003 compliant)"
 //! @acp:domain cli
 //! @acp:layer service
 //!
 //! Parses source files to extract symbols, calls, and documentation.
 //! Supports RFC-001 self-documenting annotations with directive extraction.
+//! Supports RFC-003 annotation provenance tracking.
 //! Currently uses regex-based parsing with tree-sitter support planned.
 
 use std::path::Path;
@@ -28,6 +29,108 @@ static ANNOTATION_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 static CONTINUATION_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(?://|#|/?\*)\s{2,}(.+)$").unwrap()
 });
+
+// ============================================================================
+// RFC-0003: Annotation Provenance Tracking
+// ============================================================================
+
+/// Regex for @acp:source annotation (RFC-0003)
+static SOURCE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"@acp:source\s+(explicit|converted|heuristic|refined|inferred)(?:\s+-\s+(.+))?$")
+        .unwrap()
+});
+
+/// Regex for @acp:source-confidence annotation (RFC-0003)
+static CONFIDENCE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"@acp:source-confidence\s+(\d+\.?\d*)(?:\s+-\s+(.+))?$").unwrap()
+});
+
+/// Regex for @acp:source-reviewed annotation (RFC-0003)
+static REVIEWED_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"@acp:source-reviewed\s+(true|false)(?:\s+-\s+(.+))?$").unwrap()
+});
+
+/// Regex for @acp:source-id annotation (RFC-0003)
+static ID_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"@acp:source-id\s+([a-zA-Z0-9\-]+)(?:\s+-\s+(.+))?$").unwrap()
+});
+
+/// Source origin for annotation provenance (RFC-0003)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SourceOrigin {
+    /// Annotation was written by a human developer
+    #[default]
+    Explicit,
+    /// Annotation was converted from existing documentation (JSDoc, rustdoc, etc.)
+    Converted,
+    /// Annotation was inferred using heuristic analysis
+    Heuristic,
+    /// Annotation was refined by AI from lower-quality source
+    Refined,
+    /// Annotation was fully inferred by AI
+    Inferred,
+}
+
+impl SourceOrigin {
+    /// Get string representation for serialization
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SourceOrigin::Explicit => "explicit",
+            SourceOrigin::Converted => "converted",
+            SourceOrigin::Heuristic => "heuristic",
+            SourceOrigin::Refined => "refined",
+            SourceOrigin::Inferred => "inferred",
+        }
+    }
+}
+
+impl std::str::FromStr for SourceOrigin {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "explicit" => Ok(SourceOrigin::Explicit),
+            "converted" => Ok(SourceOrigin::Converted),
+            "heuristic" => Ok(SourceOrigin::Heuristic),
+            "refined" => Ok(SourceOrigin::Refined),
+            "inferred" => Ok(SourceOrigin::Inferred),
+            _ => Err(format!("Unknown source origin: {}", s)),
+        }
+    }
+}
+
+impl std::fmt::Display for SourceOrigin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// Provenance metadata for an annotation (RFC-0003)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProvenanceMarker {
+    /// Source origin (explicit, converted, heuristic, refined, inferred)
+    pub source: SourceOrigin,
+    /// Confidence score (0.0-1.0), only for auto-generated
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<f64>,
+    /// Whether annotation has been reviewed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reviewed: Option<bool>,
+    /// Generation batch identifier
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation_id: Option<String>,
+}
+
+/// Extended annotation with provenance (RFC-0003)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnnotationWithProvenance {
+    /// The base annotation
+    pub annotation: Annotation,
+    /// Optional provenance metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<ProvenanceMarker>,
+}
 
 /// @acp:summary "Result of parsing a source file"
 #[derive(Debug, Clone)]
@@ -319,6 +422,7 @@ impl Parser {
             stability: None,
             ai_hints: ai_hints.clone(),
             git: None,
+            annotations: std::collections::HashMap::new(), // RFC-0003: Populated during indexing
         };
 
         Ok(ParseResult {
@@ -418,6 +522,101 @@ impl Parser {
             _ => None,
         }
     }
+
+    // ========================================================================
+    // RFC-0003: Provenance Parsing Methods
+    // ========================================================================
+
+    /// Parse provenance annotations from comment lines (RFC-0003)
+    ///
+    /// Looks for @acp:source* annotations following the given start index.
+    /// Returns a ProvenanceMarker if any provenance annotations are found.
+    pub fn parse_provenance(&self, lines: &[&str], start_idx: usize) -> Option<ProvenanceMarker> {
+        let mut marker = ProvenanceMarker::default();
+        let mut found_any = false;
+
+        for i in start_idx..lines.len() {
+            let line = lines[i];
+
+            // Check for @acp:source
+            if let Some(cap) = SOURCE_PATTERN.captures(line) {
+                if let Ok(origin) = cap.get(1).unwrap().as_str().parse() {
+                    marker.source = origin;
+                    found_any = true;
+                }
+            }
+
+            // Check for @acp:source-confidence
+            if let Some(cap) = CONFIDENCE_PATTERN.captures(line) {
+                if let Ok(conf) = cap.get(1).unwrap().as_str().parse::<f64>() {
+                    // Clamp to valid range [0.0, 1.0]
+                    marker.confidence = Some(conf.clamp(0.0, 1.0));
+                    found_any = true;
+                }
+            }
+
+            // Check for @acp:source-reviewed
+            if let Some(cap) = REVIEWED_PATTERN.captures(line) {
+                marker.reviewed = Some(cap.get(1).unwrap().as_str() == "true");
+                found_any = true;
+            }
+
+            // Check for @acp:source-id
+            if let Some(cap) = ID_PATTERN.captures(line) {
+                marker.generation_id = Some(cap.get(1).unwrap().as_str().to_string());
+                found_any = true;
+            }
+
+            // Stop if we hit a non-provenance @acp annotation or non-comment line
+            let trimmed = line.trim();
+            let is_comment = trimmed.starts_with("//")
+                || trimmed.starts_with('*')
+                || trimmed.starts_with('#')
+                || trimmed.starts_with("/*");
+
+            if !is_comment {
+                break;
+            }
+
+            // If it's a comment with @acp: but not a provenance annotation, stop
+            if line.contains("@acp:") && !line.contains("@acp:source") {
+                break;
+            }
+        }
+
+        if found_any {
+            Some(marker)
+        } else {
+            None
+        }
+    }
+
+    /// Parse @acp: annotations with provenance support (RFC-0003)
+    ///
+    /// Returns annotations paired with their provenance metadata if present.
+    /// Provenance is detected from @acp:source* annotations following the main annotation.
+    pub fn parse_annotations_with_provenance(&self, content: &str) -> Vec<AnnotationWithProvenance> {
+        let annotations = self.parse_annotations(content);
+        let lines: Vec<&str> = content.lines().collect();
+
+        annotations
+            .into_iter()
+            .map(|ann| {
+                // Look for provenance markers on lines following the annotation
+                // Annotations are 1-indexed, so ann.line points to the actual line
+                let provenance = if ann.line < lines.len() {
+                    self.parse_provenance(&lines, ann.line)
+                } else {
+                    None
+                };
+
+                AnnotationWithProvenance {
+                    annotation: ann,
+                    provenance,
+                }
+            })
+            .collect()
+    }
 }
 
 impl Default for Parser {
@@ -489,6 +688,7 @@ impl SymbolBuilder {
             called_by: vec![], // Populated later by indexer
             git: None,
             constraints: None,
+            annotations: std::collections::HashMap::new(), // RFC-0003
         }
     }
 }

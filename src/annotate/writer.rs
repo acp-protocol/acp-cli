@@ -19,7 +19,7 @@ use similar::TextDiff;
 
 use crate::error::Result;
 
-use super::{AnalysisResult, FileChange, Suggestion};
+use super::{AnalysisResult, FileChange, ProvenanceConfig, Suggestion};
 
 /// @acp:summary "Comment style for different languages"
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -140,6 +140,111 @@ impl CommentStyle {
             }
         }
     }
+
+    /// @acp:summary "Formats annotations with RFC-0003 provenance markers"
+    pub fn format_annotations_with_provenance(
+        &self,
+        annotations: &[Suggestion],
+        indent: &str,
+        config: &ProvenanceConfig,
+    ) -> String {
+        if annotations.is_empty() {
+            return String::new();
+        }
+
+        // Collect all annotation lines (main + provenance markers)
+        let all_lines: Vec<String> = annotations
+            .iter()
+            .flat_map(|ann| ann.to_annotation_strings_with_provenance(config))
+            .collect();
+
+        match self {
+            Self::JsDoc | Self::Javadoc => {
+                let mut lines = vec![format!("{}/**", indent)];
+                for line in all_lines {
+                    lines.push(format!("{} * {}", indent, line));
+                }
+                lines.push(format!("{} */", indent));
+                lines.join("\n")
+            }
+            Self::PyDocstring => {
+                let mut lines = vec![format!("{}\"\"\"", indent)];
+                for line in all_lines {
+                    lines.push(format!("{}{}", indent, line));
+                }
+                lines.push(format!("{}\"\"\"", indent));
+                lines.join("\n")
+            }
+            Self::RustDoc => {
+                all_lines
+                    .iter()
+                    .map(|line| format!("{}/// {}", indent, line))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
+            Self::RustModuleDoc => {
+                all_lines
+                    .iter()
+                    .map(|line| format!("{}//! {}", indent, line))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
+            Self::GoDoc => {
+                all_lines
+                    .iter()
+                    .map(|line| format!("{}// {}", indent, line))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
+        }
+    }
+
+    /// @acp:summary "Formats annotations for insertion with RFC-0003 provenance markers"
+    pub fn format_for_insertion_with_provenance(
+        &self,
+        annotations: &[Suggestion],
+        indent: &str,
+        config: &ProvenanceConfig,
+    ) -> Vec<String> {
+        // Collect all annotation lines (main + provenance markers)
+        let all_lines: Vec<String> = annotations
+            .iter()
+            .flat_map(|ann| ann.to_annotation_strings_with_provenance(config))
+            .collect();
+
+        match self {
+            Self::JsDoc | Self::Javadoc => {
+                all_lines
+                    .iter()
+                    .map(|line| format!("{} * {}", indent, line))
+                    .collect()
+            }
+            Self::PyDocstring => {
+                all_lines
+                    .iter()
+                    .map(|line| format!("{}{}", indent, line))
+                    .collect()
+            }
+            Self::RustDoc => {
+                all_lines
+                    .iter()
+                    .map(|line| format!("{}/// {}", indent, line))
+                    .collect()
+            }
+            Self::RustModuleDoc => {
+                all_lines
+                    .iter()
+                    .map(|line| format!("{}//! {}", indent, line))
+                    .collect()
+            }
+            Self::GoDoc => {
+                all_lines
+                    .iter()
+                    .map(|line| format!("{}// {}", indent, line))
+                    .collect()
+            }
+        }
+    }
 }
 
 /// @acp:summary "Writes annotations to files and generates diffs"
@@ -147,6 +252,8 @@ impl CommentStyle {
 pub struct Writer {
     /// Whether to preserve existing documentation
     preserve_existing: bool,
+    /// RFC-0003: Provenance configuration (None = no provenance markers)
+    provenance_config: Option<ProvenanceConfig>,
 }
 
 impl Writer {
@@ -154,12 +261,19 @@ impl Writer {
     pub fn new() -> Self {
         Self {
             preserve_existing: true,
+            provenance_config: None,
         }
     }
 
     /// @acp:summary "Sets whether to preserve existing documentation"
     pub fn with_preserve_existing(mut self, preserve: bool) -> Self {
         self.preserve_existing = preserve;
+        self
+    }
+
+    /// @acp:summary "Sets RFC-0003 provenance configuration"
+    pub fn with_provenance(mut self, config: ProvenanceConfig) -> Self {
+        self.provenance_config = Some(config);
         self
     }
 
@@ -315,7 +429,12 @@ impl Writer {
                     continue; // Nothing new to add, skip this change
                 }
 
-                let annotation_lines = style.format_for_insertion(&new_annotations, indent);
+                // Use provenance-aware formatting if configured (RFC-0003)
+                let annotation_lines = if let Some(ref config) = self.provenance_config {
+                    style.format_for_insertion_with_provenance(&new_annotations, indent, config)
+                } else {
+                    style.format_for_insertion(&new_annotations, indent)
+                };
 
                 for (i, ann_line) in annotation_lines.into_iter().enumerate() {
                     let insert_at = insert_line + i; // After the opening line
@@ -325,7 +444,12 @@ impl Writer {
                 }
             } else {
                 // Create new doc comment before the target line
-                let comment_block = style.format_annotations(&change.annotations, indent);
+                // Use provenance-aware formatting if configured (RFC-0003)
+                let comment_block = if let Some(ref config) = self.provenance_config {
+                    style.format_annotations_with_provenance(&change.annotations, indent, config)
+                } else {
+                    style.format_annotations(&change.annotations, indent)
+                };
 
                 if !comment_block.is_empty() {
                     let insert_at = if change.line > 0 {
