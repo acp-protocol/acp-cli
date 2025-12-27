@@ -5,6 +5,7 @@
 //!
 //! Implements `acp init` command for project initialization.
 
+use std::io::IsTerminal;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -50,8 +51,9 @@ pub fn execute_init(options: InitOptions) -> Result<()> {
 
     let mut config = Config::default();
 
-    // Interactive mode if no CLI options and not using --yes
+    // Interactive mode if stdin is TTY, no CLI options, and not using --yes
     let interactive = !options.yes
+        && std::io::stdin().is_terminal()
         && options.include.is_empty()
         && options.exclude.is_empty()
         && options.cache_path.is_none()

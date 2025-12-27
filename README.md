@@ -565,7 +565,7 @@ Create `.acp.config.json` in your project root:
 }
 ```
 
-See the [config schema](../schemas/v1/config.schema.json) for all options.
+See the [config schema](acp-spec/schemas/v1/config.schema.json) for all options.
 
 ---
 

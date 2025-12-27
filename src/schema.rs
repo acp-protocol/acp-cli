@@ -11,13 +11,13 @@ use jsonschema::{Validator, Draft, Retrieve, Uri};
 use crate::error::{AcpError, Result};
 use crate::attempts::AttemptTracker;
 
-// Embed schemas at compile time
-static CACHE_SCHEMA_STR: &str = include_str!("../schemas/v1/cache.schema.json");
-static VARS_SCHEMA_STR: &str = include_str!("../schemas/v1/vars.schema.json");
-static CONFIG_SCHEMA_STR: &str = include_str!("../schemas/v1/config.schema.json");
-static ATTEMPTS_SCHEMA_STR: &str = include_str!("../schemas/v1/attempts.schema.json");
-static SYNC_SCHEMA_STR: &str = include_str!("../schemas/v1/sync.schema.json");
-static PRIMER_SCHEMA_STR: &str = include_str!("../schemas/v1/primer.schema.json");
+// Embed schemas at compile time from acp-spec submodule (source of truth)
+static CACHE_SCHEMA_STR: &str = include_str!("../acp-spec/schemas/v1/cache.schema.json");
+static VARS_SCHEMA_STR: &str = include_str!("../acp-spec/schemas/v1/vars.schema.json");
+static CONFIG_SCHEMA_STR: &str = include_str!("../acp-spec/schemas/v1/config.schema.json");
+static ATTEMPTS_SCHEMA_STR: &str = include_str!("../acp-spec/schemas/v1/attempts.schema.json");
+static SYNC_SCHEMA_STR: &str = include_str!("../acp-spec/schemas/v1/sync.schema.json");
+static PRIMER_SCHEMA_STR: &str = include_str!("../acp-spec/schemas/v1/primer.schema.json");
 
 // Compiled schema validators (lazy initialization)
 static CACHE_VALIDATOR: OnceLock<Validator> = OnceLock::new();

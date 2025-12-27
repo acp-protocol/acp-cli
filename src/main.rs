@@ -197,7 +197,8 @@ enum Commands {
 
     /// Check guardrails for a file
     Check {
-        /// File to check
+        /// File to check (default: show all files with constraints)
+        #[arg(default_value = ".")]
         file: PathBuf,
 
         /// Cache file
@@ -244,6 +245,10 @@ enum Commands {
         /// Apply changes to files (default: preview only)
         #[arg(long)]
         apply: bool,
+
+        /// Preview changes without applying (default: true, opposite of --apply)
+        #[arg(long)]
+        dry_run: bool,
 
         /// Convert-only mode: only use doc comment conversion, disable heuristics
         #[arg(long)]
@@ -793,6 +798,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Annotate {
             path,
             apply,
+            dry_run,
             convert,
             from,
             level,
@@ -806,6 +812,8 @@ async fn main() -> anyhow::Result<()> {
             no_provenance,
             mark_needs_review,
         } => {
+            // --dry-run overrides --apply (for explicit user intent)
+            let apply = apply && !dry_run;
             // Convert CLI enums to library types
             let annotate_level = match level {
                 AnnotateLevelArg::Minimal => AnnotateLevel::Minimal,

@@ -23,8 +23,13 @@ pub struct CheckOptions {
 pub fn execute_check(options: CheckOptions) -> Result<()> {
     let cache_data = Cache::from_json(&options.cache)?;
 
-    // Try multiple path formats to find the file
+    // If path is ".", show all files with constraints
     let file_str = options.file.to_string_lossy().to_string();
+    if file_str == "." {
+        return show_all_constraints(&cache_data);
+    }
+
+    // Try multiple path formats to find the file
     let file_entry = cache_data
         .files
         .get(&file_str)
@@ -83,6 +88,61 @@ pub fn execute_check(options: CheckOptions) -> Result<()> {
             style("✗").red(),
             options.file.display()
         );
+    }
+
+    Ok(())
+}
+
+/// Show all files with constraints
+fn show_all_constraints(cache_data: &Cache) -> Result<()> {
+    let constraints = match &cache_data.constraints {
+        Some(c) => c,
+        None => {
+            println!("{} No constraints found in cache", style("•").dim());
+            return Ok(());
+        }
+    };
+
+    if constraints.by_file.is_empty() {
+        println!("{} No file constraints defined", style("•").dim());
+        return Ok(());
+    }
+
+    println!("{} Files with constraints:\n", style("→").cyan());
+
+    // Group by lock level
+    let mut by_level: std::collections::HashMap<String, Vec<&String>> =
+        std::collections::HashMap::new();
+
+    for (path, file_constraint) in &constraints.by_file {
+        if let Some(ref mutation) = file_constraint.mutation {
+            let level = format!("{:?}", mutation.level);
+            by_level.entry(level).or_default().push(path);
+        }
+    }
+
+    // Sort by severity (frozen first)
+    let level_order = ["Frozen", "Restricted", "ApprovalRequired", "TestsRequired", "DocsRequired", "ReviewRequired", "Normal", "Experimental"];
+
+    for level in level_order {
+        if let Some(files) = by_level.get(level) {
+            let color = match level {
+                "Frozen" => style(level).red().bold(),
+                "Restricted" => style(level).red(),
+                "ApprovalRequired" | "TestsRequired" | "DocsRequired" | "ReviewRequired" => {
+                    style(level).yellow()
+                }
+                _ => style(level).dim(),
+            };
+            println!("  {} ({} files)", color, files.len());
+            for path in files.iter().take(10) {
+                println!("    {}", path);
+            }
+            if files.len() > 10 {
+                println!("    ... and {} more", files.len() - 10);
+            }
+            println!();
+        }
     }
 
     Ok(())

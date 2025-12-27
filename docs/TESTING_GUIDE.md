@@ -538,7 +538,7 @@ time cargo run --release -- index /path/to/large/project
 cargo test schema_validation
 
 # Manual validation with external tool
-npx ajv validate -s schemas/v1/cache.schema.json -d .acp.cache.json
+npx ajv validate -s acp-spec/schemas/v1/cache.schema.json -d .acp.cache.json
 ```
 
 ---
