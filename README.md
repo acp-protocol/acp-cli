@@ -489,6 +489,66 @@ acp validate .acp.vars.json
 
 ---
 
+### `acp primer`
+
+Generate AI bootstrap primers with tiered content selection.
+
+```bash
+acp primer [OPTIONS]
+
+Options:
+      --budget <N>           Token budget [default: 200]
+      --capabilities <caps>  Capabilities filter (comma-separated: shell,mcp)
+      --json                 Output as JSON with metadata
+  -c, --cache <path>         Cache file for project warnings [default: .acp/acp.cache.json]
+```
+
+**Tier Selection:**
+
+| Remaining Budget | Tier | Content Depth |
+|------------------|------|---------------|
+| <80 tokens | minimal | Command + one-line purpose |
+| 80-299 tokens | standard | + options, usage |
+| 300+ tokens | full | + examples, patterns |
+
+**Examples:**
+
+```bash
+# Standard primer (200 tokens)
+acp primer
+
+# Minimal primer
+acp primer --budget 60
+
+# Full primer with project warnings
+acp primer --budget 500
+
+# JSON output with metadata
+acp primer --budget 200 --json
+
+# Filter by capability
+acp primer --capabilities shell
+```
+
+**Output (200 tokens):**
+
+```
+This project uses ACP. @acp:* comments are directives for you.
+Before editing: acp constraints <path>
+More: acp primer --budget N
+
+acp constraints <path>
+  Returns: lock level + directive
+  Levels: frozen (refuse), restricted (ask), normal (proceed)
+  Use: Check before ANY file modification
+
+acp query file <path>
+  Returns: purpose, constraints, symbols, dependencies
+  ...
+```
+
+---
+
 ## Configuration
 
 Create `.acp.config.json` in your project root:
@@ -562,6 +622,35 @@ See the [roadmap](../docs/roadmap.md) for status.
 | `@acp:ref <url>` | Documentation reference | Can fetch and consult |
 | `@acp:hack` | Temporary code | Tracks for cleanup |
 | `@acp:debug-session` | Debug tracking | Logs attempts for reversal |
+
+### Type Annotations (RFC-0008)
+
+Optional type syntax for documenting parameters and return types:
+
+```typescript
+/**
+ * @acp:fn "authenticate" - User authentication handler
+ * @acp:template T extends User - User type for response
+ * @acp:param {string} email - Valid email address
+ * @acp:param {string} password - Password meeting requirements
+ * @acp:param {AuthOptions} [options={}] - Optional auth settings
+ * @acp:returns {Promise<T | null>} - User object or null if failed
+ */
+async function authenticate<T extends User>(
+  email: string,
+  password: string,
+  options?: AuthOptions
+): Promise<T | null> { }
+```
+
+**Syntax:**
+- `@acp:param {Type} name - directive` — Parameter with type
+- `@acp:param {Type} [name] - directive` — Optional parameter
+- `@acp:param {Type} [name=default] - directive` — Parameter with default
+- `@acp:returns {Type} - directive` — Return type
+- `@acp:template T extends Constraint - directive` — Generic type parameter
+
+Types are optional and stored in the cache's `type_info` field.
 
 See the [Annotation Reference](../spec/chapters/annotations.md) for the complete list.
 

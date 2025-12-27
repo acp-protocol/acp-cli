@@ -92,6 +92,9 @@ pub struct Cache {
     /// RFC-0003: Annotation provenance statistics (optional)
     #[serde(default, skip_serializing_if = "ProvenanceStats::is_empty")]
     pub provenance: ProvenanceStats,
+    /// RFC-0006: Bridge statistics (optional)
+    #[serde(default, skip_serializing_if = "BridgeStats::is_empty")]
+    pub bridge: BridgeStats,
 }
 
 fn default_cache_schema() -> String {
@@ -119,6 +122,7 @@ impl Cache {
             domains: HashMap::new(),
             constraints: None,
             provenance: ProvenanceStats::default(),
+            bridge: BridgeStats::default(),
         }
     }
 
@@ -344,6 +348,24 @@ pub struct FileEntry {
     /// RFC-0003: Annotation provenance tracking
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub annotations: HashMap<String, AnnotationProvenance>,
+    /// RFC-0006: Bridge metadata for this file
+    #[serde(default, skip_serializing_if = "BridgeMetadata::is_empty")]
+    pub bridge: BridgeMetadata,
+    /// RFC-0009: File version (from @acp:version)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// RFC-0009: Version when introduced (from @acp:since)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub since: Option<String>,
+    /// RFC-0009: File license (from @acp:license)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
+    /// RFC-0009: File author (from @acp:author)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    /// RFC-0009: Lifecycle status
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lifecycle: Option<LifecycleAnnotations>,
 }
 
 /// @acp:summary "RFC-001: Inline annotation (hack, todo, fixme, critical, perf)"
@@ -416,6 +438,21 @@ pub struct SymbolEntry {
     /// RFC-0003: Annotation provenance tracking
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub annotations: HashMap<String, AnnotationProvenance>,
+    /// RFC-0009: Behavioral characteristics
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub behavioral: Option<BehavioralAnnotations>,
+    /// RFC-0009: Lifecycle status
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lifecycle: Option<LifecycleAnnotations>,
+    /// RFC-0009: Documentation metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation: Option<DocumentationAnnotations>,
+    /// RFC-0009: Performance characteristics
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub performance: Option<PerformanceAnnotations>,
+    /// RFC-0008: Type annotation information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_info: Option<TypeInfo>,
 }
 
 /// @acp:summary "RFC-001: Symbol-level constraint"
@@ -517,6 +554,461 @@ pub struct DomainEntry {
     /// Human description (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+}
+
+// ============================================================================
+// RFC-0006: Documentation System Bridging Types
+// ============================================================================
+
+/// @acp:summary "Source of type information (RFC-0006, RFC-0008)"
+/// Indicates where type information was extracted from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TypeSource {
+    /// Type from ACP annotation {Type} (RFC-0008)
+    Acp,
+    /// Inline type annotation (TypeScript, Python type hint)
+    TypeHint,
+    /// JSDoc @param {Type} or @returns {Type}
+    Jsdoc,
+    /// Python docstring type specification
+    Docstring,
+    /// Rust doc comment type specification
+    Rustdoc,
+    /// Javadoc @param type specification
+    Javadoc,
+    /// Inferred from usage or default values
+    Inferred,
+    /// Type bridged from native docs - general category (RFC-0008)
+    Native,
+}
+
+/// @acp:summary "Source of bridged documentation (RFC-0006)"
+/// Indicates how documentation was obtained.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BridgeSource {
+    /// Pure ACP annotation (human-written)
+    Explicit,
+    /// Converted from native documentation
+    Converted,
+    /// Combined from native + ACP
+    Merged,
+    /// Auto-generated through inference
+    Heuristic,
+}
+
+impl Default for BridgeSource {
+    fn default() -> Self {
+        BridgeSource::Explicit
+    }
+}
+
+fn is_explicit_bridge(source: &BridgeSource) -> bool {
+    matches!(source, BridgeSource::Explicit)
+}
+
+/// @acp:summary "Original documentation format (RFC-0006)"
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceFormat {
+    /// Pure ACP annotation
+    Acp,
+    /// JSDoc/TSDoc
+    Jsdoc,
+    /// Google-style Python docstring
+    #[serde(rename = "docstring:google")]
+    DocstringGoogle,
+    /// NumPy-style Python docstring
+    #[serde(rename = "docstring:numpy")]
+    DocstringNumpy,
+    /// Sphinx/reST-style Python docstring
+    #[serde(rename = "docstring:sphinx")]
+    DocstringSphinx,
+    /// Rust doc comments
+    Rustdoc,
+    /// Javadoc comments
+    Javadoc,
+    /// Go doc comments
+    Godoc,
+    /// Inline type annotation (TypeScript, Python type hints)
+    TypeHint,
+}
+
+/// @acp:summary "Parameter entry with bridge provenance (RFC-0006)"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParamEntry {
+    /// Parameter name
+    pub name: String,
+    /// Type annotation (if available)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    /// Source of type information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_source: Option<TypeSource>,
+    /// Parameter description
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// AI behavioral directive
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub directive: Option<String>,
+    /// Whether parameter is optional
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub optional: bool,
+    /// Default value (if any)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+    /// Source of documentation
+    #[serde(default, skip_serializing_if = "is_explicit_bridge")]
+    pub source: BridgeSource,
+    /// Single source format (when from one source)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_format: Option<SourceFormat>,
+    /// Multiple source formats (when merged)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_formats: Vec<SourceFormat>,
+}
+
+/// @acp:summary "Returns entry with bridge provenance (RFC-0006)"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReturnsEntry {
+    /// Return type (if available)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    /// Source of type information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_source: Option<TypeSource>,
+    /// Return value description
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// AI behavioral directive
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub directive: Option<String>,
+    /// Source of documentation
+    #[serde(default, skip_serializing_if = "is_explicit_bridge")]
+    pub source: BridgeSource,
+    /// Single source format (when from one source)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_format: Option<SourceFormat>,
+    /// Multiple source formats (when merged)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_formats: Vec<SourceFormat>,
+}
+
+/// @acp:summary "Throws/Raises entry with bridge provenance (RFC-0006)"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThrowsEntry {
+    /// Exception/error type
+    pub exception: String,
+    /// Description of when/why thrown
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// AI behavioral directive
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub directive: Option<String>,
+    /// Source of documentation
+    #[serde(default, skip_serializing_if = "is_explicit_bridge")]
+    pub source: BridgeSource,
+    /// Original documentation format
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_format: Option<SourceFormat>,
+}
+
+/// @acp:summary "Per-file bridge metadata (RFC-0006)"
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgeMetadata {
+    /// Whether bridging was enabled for this file
+    #[serde(default)]
+    pub enabled: bool,
+    /// Detected documentation format (auto-detected or configured)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detected_format: Option<SourceFormat>,
+    /// Count of converted annotations
+    #[serde(default)]
+    pub converted_count: u64,
+    /// Count of merged annotations
+    #[serde(default)]
+    pub merged_count: u64,
+    /// Count of explicit ACP annotations
+    #[serde(default)]
+    pub explicit_count: u64,
+}
+
+impl BridgeMetadata {
+    /// Check if bridge metadata should be serialized
+    pub fn is_empty(&self) -> bool {
+        !self.enabled && self.converted_count == 0 && self.merged_count == 0
+    }
+}
+
+/// @acp:summary "Top-level bridge statistics (RFC-0006)"
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgeStats {
+    /// Whether bridging is enabled project-wide
+    pub enabled: bool,
+    /// Precedence mode (acp-first, native-first, merge)
+    pub precedence: String,
+    /// Summary statistics
+    pub summary: BridgeSummary,
+    /// Counts by source format
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub by_format: HashMap<String, u64>,
+}
+
+impl BridgeStats {
+    /// Check if bridge stats are empty (for serialization skip)
+    pub fn is_empty(&self) -> bool {
+        !self.enabled && self.summary.total_annotations == 0
+    }
+}
+
+/// @acp:summary "Bridge summary counts (RFC-0006)"
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgeSummary {
+    /// Total annotations
+    pub total_annotations: u64,
+    /// Explicit ACP annotations
+    pub explicit_count: u64,
+    /// Converted from native docs
+    pub converted_count: u64,
+    /// Merged ACP + native
+    pub merged_count: u64,
+}
+
+// ============================================================================
+// RFC-0009: Extended Annotation Types
+// ============================================================================
+
+/// @acp:summary "Behavioral characteristics of a symbol (RFC-0009)"
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BehavioralAnnotations {
+    /// Function has no side effects (from @acp:pure)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub pure: bool,
+    /// Function is safe to call multiple times (from @acp:idempotent)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub idempotent: bool,
+    /// Results are cached; string for duration (from @acp:memoized)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memoized: Option<MemoizedValue>,
+    /// Function is asynchronous (from @acp:async)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub r#async: bool,
+    /// Function is a generator (from @acp:generator)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub generator: bool,
+    /// Rate limit specification (from @acp:throttled)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub throttled: Option<String>,
+    /// Function runs in a database transaction (from @acp:transactional)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub transactional: bool,
+    /// List of side effects (from @acp:side-effects)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub side_effects: Vec<String>,
+}
+
+impl BehavioralAnnotations {
+    /// Check if behavioral annotations are empty (for skip_serializing)
+    pub fn is_empty(&self) -> bool {
+        !self.pure
+            && !self.idempotent
+            && self.memoized.is_none()
+            && !self.r#async
+            && !self.generator
+            && self.throttled.is_none()
+            && !self.transactional
+            && self.side_effects.is_empty()
+    }
+}
+
+/// @acp:summary "Memoized value - either boolean or string duration (RFC-0009)"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MemoizedValue {
+    /// Simple memoization flag
+    Enabled(bool),
+    /// Memoization with duration (e.g., "5min", "1h")
+    Duration(String),
+}
+
+/// @acp:summary "Lifecycle status of a symbol or file (RFC-0009)"
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LifecycleAnnotations {
+    /// Deprecation message with version/replacement (from @acp:deprecated)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<String>,
+    /// API may change without notice (from @acp:experimental)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub experimental: bool,
+    /// Feature in beta testing (from @acp:beta)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub beta: bool,
+    /// Not intended for external use (from @acp:internal)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub internal: bool,
+    /// Stable public interface (from @acp:public-api)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub public_api: bool,
+    /// Version when introduced (from @acp:since)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub since: Option<String>,
+}
+
+impl LifecycleAnnotations {
+    /// Check if lifecycle annotations are empty (for skip_serializing)
+    pub fn is_empty(&self) -> bool {
+        self.deprecated.is_none()
+            && !self.experimental
+            && !self.beta
+            && !self.internal
+            && !self.public_api
+            && self.since.is_none()
+    }
+}
+
+/// @acp:summary "Documentation metadata for a symbol (RFC-0009)"
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocumentationAnnotations {
+    /// Code examples (from @acp:example)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub examples: Vec<String>,
+    /// References to related symbols (from @acp:see)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub see_also: Vec<String>,
+    /// External documentation URLs (from @acp:link)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub links: Vec<String>,
+    /// Important notes (from @acp:note)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
+    /// Warnings about usage (from @acp:warning)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<String>,
+    /// Pending work items (from @acp:todo)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub todos: Vec<String>,
+}
+
+impl DocumentationAnnotations {
+    /// Check if documentation annotations are empty (for skip_serializing)
+    pub fn is_empty(&self) -> bool {
+        self.examples.is_empty()
+            && self.see_also.is_empty()
+            && self.links.is_empty()
+            && self.notes.is_empty()
+            && self.warnings.is_empty()
+            && self.todos.is_empty()
+    }
+}
+
+/// @acp:summary "Performance characteristics of a symbol (RFC-0009)"
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PerformanceAnnotations {
+    /// Time complexity notation (from @acp:perf)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub complexity: Option<String>,
+    /// Space complexity notation (from @acp:memory)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory: Option<String>,
+    /// Caching duration or strategy (from @acp:cached)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cached: Option<String>,
+}
+
+impl PerformanceAnnotations {
+    /// Check if performance annotations are empty (for skip_serializing)
+    pub fn is_empty(&self) -> bool {
+        self.complexity.is_none() && self.memory.is_none() && self.cached.is_none()
+    }
+}
+
+// ============================================================================
+// RFC-0008: Type Annotation Types
+// ============================================================================
+
+/// @acp:summary "Type annotation information for a symbol (RFC-0008)"
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TypeInfo {
+    /// Parameter type information from @acp:param {Type}
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub params: Vec<TypeParamInfo>,
+    /// Return type information from @acp:returns {Type}
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub returns: Option<TypeReturnInfo>,
+    /// Generic type parameters from @acp:template
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub type_params: Vec<TypeTypeParam>,
+}
+
+impl TypeInfo {
+    /// Check if type info is empty (for skip_serializing)
+    pub fn is_empty(&self) -> bool {
+        self.params.is_empty() && self.returns.is_none() && self.type_params.is_empty()
+    }
+}
+
+/// @acp:summary "Parameter type information (RFC-0008)"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TypeParamInfo {
+    /// Parameter name (required)
+    pub name: String,
+    /// Type expression (e.g., "string", "Promise<User>")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    /// Where the type came from: acp, inferred, native
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_source: Option<TypeSource>,
+    /// Whether parameter is optional (from [name] syntax)
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub optional: bool,
+    /// Default value (from [name=default] syntax)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+    /// Directive text for this parameter
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub directive: Option<String>,
+}
+
+/// @acp:summary "Return type information (RFC-0008)"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TypeReturnInfo {
+    /// Return type expression
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#type: Option<String>,
+    /// Where the type came from: acp, inferred, native
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_source: Option<TypeSource>,
+    /// Directive text for return value
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub directive: Option<String>,
+}
+
+/// @acp:summary "Generic type parameter (RFC-0008)"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TypeTypeParam {
+    /// Type parameter name (e.g., "T")
+    pub name: String,
+    /// Constraint type from 'extends' clause
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub constraint: Option<String>,
+    /// Directive text for type parameter
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub directive: Option<String>,
 }
 
 // ============================================================================
@@ -666,6 +1158,13 @@ mod tests {
                 called_by: vec![],
                 git: None,
                 annotations: HashMap::new(), // RFC-0003
+                // RFC-0009: Extended annotation types
+                behavioral: None,
+                lifecycle: None,
+                documentation: None,
+                performance: None,
+                // RFC-0008: Type annotation info
+                type_info: None,
             })
             .build();
 
@@ -759,6 +1258,13 @@ mod tests {
             ai_hints: vec![],
             git: None,
             annotations: HashMap::new(), // RFC-0003
+            bridge: BridgeMetadata::default(), // RFC-0006
+            // RFC-0009: Extended file-level annotations
+            version: None,
+            since: None,
+            license: None,
+            author: None,
+            lifecycle: None,
         });
         cache
     }
@@ -829,6 +1335,13 @@ mod tests {
             ai_hints: vec![],
             git: None,
             annotations: HashMap::new(), // RFC-0003
+            bridge: BridgeMetadata::default(), // RFC-0006
+            // RFC-0009: Extended file-level annotations
+            version: None,
+            since: None,
+            license: None,
+            author: None,
+            lifecycle: None,
         });
 
         // All formats should find it

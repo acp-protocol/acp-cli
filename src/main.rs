@@ -9,14 +9,15 @@ use console::style;
 use acp::{Config, Cache};
 use acp::annotate::{AnnotateLevel, ConversionSource, OutputFormat};
 use acp::commands::{
-    execute_annotate, execute_attempt, execute_chain, execute_check, execute_daemon,
-    execute_expand, execute_index, execute_init, execute_install, execute_list_installed,
-    execute_map, execute_migrate, execute_query, execute_review, execute_revert, execute_uninstall,
-    execute_validate, execute_vars, execute_watch, AnnotateOptions, AttemptSubcommand,
+    execute_annotate, execute_attempt, execute_bridge, execute_chain, execute_check,
+    execute_daemon, execute_expand, execute_index, execute_init, execute_install,
+    execute_list_installed, execute_map, execute_migrate, execute_primer, execute_query,
+    execute_review, execute_revert, execute_uninstall, execute_validate, execute_vars,
+    execute_watch, AnnotateOptions, AttemptSubcommand, BridgeOptions, BridgeSubcommand,
     ChainOptions, CheckOptions, DaemonSubcommand, ExpandOptions, IndexOptions, InitOptions,
-    InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions, QueryOptions,
-    QuerySubcommand, ReviewOptions, ReviewSubcommand, RevertOptions, ValidateOptions, VarsOptions,
-    WatchOptions,
+    InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions, PrimerFormat,
+    PrimerOptions, QueryOptions, QuerySubcommand, ReviewOptions, ReviewSubcommand, RevertOptions,
+    ValidateOptions, VarsOptions, WatchOptions,
 };
 
 #[derive(Parser)]
@@ -109,6 +110,25 @@ enum Commands {
         /// Also generate vars file
         #[arg(long)]
         vars: bool,
+
+        /// Enable documentation bridging (RFC-0006)
+        #[arg(long)]
+        bridge: bool,
+
+        /// Disable documentation bridging (overrides config)
+        #[arg(long)]
+        no_bridge: bool,
+    },
+
+    /// Manage documentation bridging (RFC-0006)
+    Bridge {
+        /// Bridge subcommand
+        #[command(subcommand)]
+        subcommand: BridgeCommands,
+
+        /// Cache file to read
+        #[arg(short, long, default_value = ".acp/acp.cache.json", global = true)]
+        cache: PathBuf,
     },
 
     /// Generate vars file from cache
@@ -345,6 +365,25 @@ enum Commands {
         #[arg(short, long, default_value = ".acp/acp.cache.json")]
         cache: PathBuf,
     },
+
+    /// RFC-0004: Generate AI bootstrap primer with tiered content
+    Primer {
+        /// Token budget for the primer (default: 200)
+        #[arg(long, default_value = "200")]
+        budget: u32,
+
+        /// Required capabilities (comma-separated: shell,mcp)
+        #[arg(long, value_delimiter = ',')]
+        capabilities: Vec<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Cache file (for project warnings)
+        #[arg(short, long, default_value = ".acp/acp.cache.json")]
+        cache: PathBuf,
+    },
 }
 
 /// Output format for map command
@@ -499,6 +538,16 @@ enum DaemonCommands {
 }
 
 #[derive(Subcommand)]
+enum BridgeCommands {
+    /// Show bridging configuration and statistics
+    Status {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
 enum QueryCommands {
     /// Query a symbol
     Symbol {
@@ -582,7 +631,7 @@ async fn main() -> anyhow::Result<()> {
     // Check for config requirement (most commands require .acp.config.json)
     let requires_config = !matches!(
         cli.command,
-        Commands::Init { .. } | Commands::Install { .. } | Commands::Validate { .. } | Commands::Daemon { .. }
+        Commands::Init { .. } | Commands::Install { .. } | Commands::Validate { .. } | Commands::Daemon { .. } | Commands::Primer { .. }
     );
     if requires_config {
         let config_path = PathBuf::from(".acp.config.json");
@@ -634,9 +683,17 @@ async fn main() -> anyhow::Result<()> {
             }
         }
 
-        Commands::Index { root, output, vars } => {
-            let options = IndexOptions { root, output, vars };
+        Commands::Index { root, output, vars, bridge, no_bridge } => {
+            let options = IndexOptions { root, output, vars, bridge, no_bridge };
             execute_index(options, config).await?;
+        }
+
+        Commands::Bridge { subcommand, cache } => {
+            let subcommand = match subcommand {
+                BridgeCommands::Status { json } => BridgeSubcommand::Status { json },
+            };
+            let options = BridgeOptions { cache, subcommand };
+            execute_bridge(options, config)?;
         }
 
         Commands::Vars { cache, output } => {
@@ -845,6 +902,17 @@ async fn main() -> anyhow::Result<()> {
             };
 
             execute_migrate(&cache_data, options)?;
+        }
+
+        Commands::Primer { budget, capabilities, json, cache } => {
+            let options = PrimerOptions {
+                budget,
+                capabilities,
+                format: if json { PrimerFormat::Json } else { PrimerFormat::Text },
+                cache: if cache.exists() { Some(cache) } else { None },
+                json,
+            };
+            execute_primer(options)?;
         }
     }
 

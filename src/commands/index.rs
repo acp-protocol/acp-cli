@@ -22,6 +22,10 @@ pub struct IndexOptions {
     pub output: PathBuf,
     /// Also generate vars file
     pub vars: bool,
+    /// Enable documentation bridging (RFC-0006)
+    pub bridge: bool,
+    /// Disable documentation bridging (overrides config)
+    pub no_bridge: bool,
 }
 
 impl Default for IndexOptions {
@@ -30,6 +34,8 @@ impl Default for IndexOptions {
             root: PathBuf::from("."),
             output: PathBuf::from(".acp/acp.cache.json"),
             vars: false,
+            bridge: false,
+            no_bridge: false,
         }
     }
 }
@@ -39,7 +45,7 @@ pub async fn execute_index(options: IndexOptions, config: Config) -> Result<()> 
     println!("{} Indexing codebase...", style("→").cyan());
 
     // Use config from target root if it exists, otherwise use defaults
-    let effective_config = {
+    let mut effective_config = {
         let root_config = options.root.join(".acp.config.json");
         let root_str = options.root.to_string_lossy();
         if root_config.exists() {
@@ -51,6 +57,23 @@ pub async fn execute_index(options: IndexOptions, config: Config) -> Result<()> 
             config
         }
     };
+
+    // RFC-0006: Handle bridge flag overrides
+    // --no-bridge always wins, then --bridge, then config
+    if options.no_bridge {
+        effective_config.bridge.enabled = false;
+    } else if options.bridge {
+        effective_config.bridge.enabled = true;
+    }
+
+    // Show bridging status
+    if effective_config.bridge.enabled {
+        println!(
+            "{} Documentation bridging enabled ({})",
+            style("→").cyan(),
+            effective_config.bridge.precedence
+        );
+    }
 
     let indexer = Indexer::new(effective_config.clone())?;
     let cache = indexer.index(&options.root).await?;

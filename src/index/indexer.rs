@@ -1,11 +1,12 @@
 //! @acp:module "Indexer"
-//! @acp:summary "Codebase indexing and cache generation (schema-compliant, RFC-003 provenance)"
+//! @acp:summary "Codebase indexing and cache generation (schema-compliant, RFC-003 provenance, RFC-006 bridging)"
 //! @acp:domain cli
 //! @acp:layer service
 //!
 //! Walks the codebase and builds the cache/vars files.
 //! Uses tree-sitter AST parsing for symbol extraction and git2 for metadata.
 //! Supports RFC-0003 annotation provenance tracking.
+//! Supports RFC-0006 documentation system bridging.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -18,9 +19,11 @@ use walkdir::WalkDir;
 use glob::Pattern;
 
 use crate::ast::{AstParser, ExtractedSymbol, SymbolKind, Visibility as AstVisibility};
+use crate::bridge::{BridgeConfig, FormatDetector, BridgeMerger};
 use crate::cache::{
     Cache, CacheBuilder, DomainEntry, Language, SymbolEntry, SymbolType, Visibility,
     AnnotationProvenance, ProvenanceStats, LowConfidenceEntry,
+    BridgeMetadata, BridgeStats, BridgeSummary, SourceFormat,
 };
 use crate::config::Config;
 use crate::constraints::{ConstraintIndex, Constraints, MutationConstraint, LockLevel, HackMarker, HackType};
@@ -31,18 +34,29 @@ use crate::vars::{VarsFile, VarEntry};
 
 /// @acp:summary "Codebase indexer with parallel file processing"
 /// Uses tree-sitter AST parsing for accurate symbol extraction and git2 for metadata.
+/// Supports RFC-0006 documentation bridging.
 pub struct Indexer {
     config: Config,
     parser: Arc<Parser>,
     ast_parser: Arc<AstParser>,
+    /// RFC-0006: Format detector for native documentation
+    format_detector: Arc<FormatDetector>,
+    /// RFC-0006: Merger for native docs with ACP annotations
+    bridge_merger: Arc<BridgeMerger>,
 }
 
 impl Indexer {
     pub fn new(config: Config) -> Result<Self> {
+        // RFC-0006: Initialize bridge components
+        let format_detector = FormatDetector::new(&config.bridge);
+        let bridge_merger = BridgeMerger::new(&config.bridge);
+
         Ok(Self {
             config,
             parser: Arc::new(Parser::new()),
             ast_parser: Arc::new(AstParser::new()?),
+            format_detector: Arc::new(format_detector),
+            bridge_merger: Arc::new(bridge_merger),
         })
     }
 
@@ -93,6 +107,10 @@ impl Indexer {
         // RFC-0003: Get review threshold from config (default 0.8)
         let review_threshold = 0.8; // TODO: Read from config when available
 
+        // RFC-0006: Clone bridge components for parallel access
+        let format_detector = Arc::clone(&self.format_detector);
+        let bridge_enabled = self.config.bridge.enabled;
+
         let mut results: Vec<_> = files
             .par_iter()
             .filter_map(|path| {
@@ -107,6 +125,33 @@ impl Indexer {
 
                     // Add provenance to file entry
                     parse_result.file.annotations = file_provenance;
+
+                    // RFC-0006: Detect documentation format and populate bridge metadata
+                    if bridge_enabled {
+                        let language = language_name_from_enum(parse_result.file.language);
+                        let detected_format = format_detector.detect(&source, language);
+
+                        // Initialize bridge metadata
+                        parse_result.file.bridge = BridgeMetadata {
+                            enabled: true,
+                            detected_format,
+                            converted_count: 0,
+                            merged_count: 0,
+                            explicit_count: 0,
+                        };
+
+                        // Count explicit ACP annotations
+                        let explicit_count = parse_result.file.annotations.values()
+                            .filter(|p| matches!(p.source, SourceOrigin::Explicit))
+                            .count() as u64;
+                        parse_result.file.bridge.explicit_count = explicit_count;
+
+                        // Count converted annotations (from provenance tracking)
+                        let converted_count = parse_result.file.annotations.values()
+                            .filter(|p| matches!(p.source, SourceOrigin::Converted))
+                            .count() as u64;
+                        parse_result.file.bridge.converted_count = converted_count;
+                    }
 
                     if let Ok(ast_symbols) = ast_parser.parse_file(Path::new(path), &source) {
                         // Convert AST symbols to cache symbols and merge
@@ -303,6 +348,9 @@ impl Indexer {
         // RFC-0003: Compute provenance statistics
         let low_conf_threshold = 0.5; // TODO: Read from config when available
         cache.provenance = compute_provenance_stats(&cache, low_conf_threshold);
+
+        // RFC-0006: Compute bridge statistics
+        cache.bridge = compute_bridge_stats(&cache, &self.config.bridge);
 
         Ok(cache)
     }
@@ -516,6 +564,13 @@ fn convert_ast_symbols(ast_symbols: &[ExtractedSymbol], file_path: &str) -> Vec<
             called_by: vec![], // Populated by graph builder
             git: None, // Populated after symbol creation
             annotations: HashMap::new(), // RFC-0003: Populated during indexing
+            // RFC-0009: Extended annotation types
+            behavioral: None,
+            lifecycle: None,
+            documentation: None,
+            performance: None,
+            // RFC-0008: Type annotation info
+            type_info: None,
         }
     }).collect()
 }
@@ -673,5 +728,84 @@ fn update_provenance_stats(
                 value: prov.value.clone(),
             });
         }
+    }
+}
+
+// ============================================================================
+// RFC-0006: Documentation Bridging Functions
+// ============================================================================
+
+/// Convert Language enum to string for FormatDetector
+fn language_name_from_enum(lang: Language) -> &'static str {
+    match lang {
+        Language::Typescript => "typescript",
+        Language::Javascript => "javascript",
+        Language::Python => "python",
+        Language::Rust => "rust",
+        Language::Go => "go",
+        Language::Java => "java",
+        Language::CSharp => "csharp",
+        Language::Cpp => "cpp",
+        Language::C => "c",
+        Language::Ruby => "ruby",
+        Language::Php => "php",
+        Language::Swift => "swift",
+        Language::Kotlin => "kotlin",
+    }
+}
+
+/// Compute aggregate bridge statistics from cache (RFC-0006)
+///
+/// Aggregates bridging data from all files to produce summary statistics.
+fn compute_bridge_stats(cache: &Cache, config: &BridgeConfig) -> BridgeStats {
+    let mut stats = BridgeStats {
+        enabled: config.enabled,
+        precedence: config.precedence.to_string(),
+        summary: BridgeSummary::default(),
+        by_format: HashMap::new(),
+    };
+
+    if !config.enabled {
+        return stats;
+    }
+
+    // Aggregate from file bridge metadata
+    for file in cache.files.values() {
+        if !file.bridge.enabled {
+            continue;
+        }
+
+        stats.summary.explicit_count += file.bridge.explicit_count;
+        stats.summary.converted_count += file.bridge.converted_count;
+        stats.summary.merged_count += file.bridge.merged_count;
+
+        // Track by detected format
+        if let Some(format) = &file.bridge.detected_format {
+            let format_key = format_to_string(format);
+            let format_count = file.bridge.converted_count + file.bridge.merged_count;
+            if format_count > 0 {
+                *stats.by_format.entry(format_key).or_insert(0) += format_count;
+            }
+        }
+    }
+
+    stats.summary.total_annotations =
+        stats.summary.explicit_count + stats.summary.converted_count + stats.summary.merged_count;
+
+    stats
+}
+
+/// Convert SourceFormat to string key for by_format map
+fn format_to_string(format: &SourceFormat) -> String {
+    match format {
+        SourceFormat::Acp => "acp".to_string(),
+        SourceFormat::Jsdoc => "jsdoc".to_string(),
+        SourceFormat::DocstringGoogle => "docstring:google".to_string(),
+        SourceFormat::DocstringNumpy => "docstring:numpy".to_string(),
+        SourceFormat::DocstringSphinx => "docstring:sphinx".to_string(),
+        SourceFormat::Rustdoc => "rustdoc".to_string(),
+        SourceFormat::Javadoc => "javadoc".to_string(),
+        SourceFormat::Godoc => "godoc".to_string(),
+        SourceFormat::TypeHint => "type_hint".to_string(),
     }
 }

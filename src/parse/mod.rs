@@ -14,7 +14,11 @@ use std::sync::LazyLock;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use crate::cache::{FileEntry, InlineAnnotation, SymbolEntry, SymbolType, Visibility};
+use crate::cache::{
+    BehavioralAnnotations, DocumentationAnnotations, FileEntry, InlineAnnotation,
+    LifecycleAnnotations, MemoizedValue, PerformanceAnnotations, SymbolEntry, SymbolType,
+    TypeInfo, TypeParamInfo, TypeReturnInfo, TypeSource, TypeTypeParam, Visibility,
+};
 use crate::error::{AcpError, Result};
 use crate::index::detect_language;
 
@@ -205,6 +209,13 @@ impl Parser {
         let mut purpose = None;
         let mut owner = None;
 
+        // RFC-0009: File-level extended annotation accumulators
+        let mut file_version: Option<String> = None;
+        let mut file_since: Option<String> = None;
+        let mut file_license: Option<String> = None;
+        let mut file_author: Option<String> = None;
+        let mut file_lifecycle = LifecycleAnnotations::default();
+
         // Track current symbol context for multi-line annotations
         let mut current_symbol: Option<SymbolBuilder> = None;
 
@@ -305,7 +316,7 @@ impl Parser {
                     });
                 }
                 // RFC-001: Inline annotation types
-                "todo" | "fixme" | "critical" | "perf" => {
+                "todo" | "fixme" | "critical" => {
                     inline_annotations.push(InlineAnnotation {
                         line: ann.line,
                         annotation_type: ann.name.clone(),
@@ -315,7 +326,6 @@ impl Parser {
                                 "todo" => "Pending work item".to_string(),
                                 "fixme" => "Known issue requiring fix".to_string(),
                                 "critical" => "Critical section - extra review required".to_string(),
-                                "perf" => "Performance-sensitive code".to_string(),
                                 _ => "".to_string(),
                             }
                         }),
@@ -323,6 +333,33 @@ impl Parser {
                         ticket: None,
                         auto_generated: ann.auto_generated,
                     });
+                    // RFC-0009: Also add to symbol documentation.todos
+                    if ann.name == "todo" {
+                        if let Some(ref mut builder) = current_symbol {
+                            let todo_text = ann.directive.clone()
+                                .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
+                                .unwrap_or_else(|| "Pending work item".to_string());
+                            builder.documentation.todos.push(todo_text);
+                        }
+                    }
+                }
+                // RFC-0009: Performance annotation (extends RFC-001 perf)
+                "perf" => {
+                    inline_annotations.push(InlineAnnotation {
+                        line: ann.line,
+                        annotation_type: ann.name.clone(),
+                        value: ann.value.clone(),
+                        directive: ann.directive.clone().unwrap_or_else(|| "Performance-sensitive code".to_string()),
+                        expires: None,
+                        ticket: None,
+                        auto_generated: ann.auto_generated,
+                    });
+                    // RFC-0009: Also set symbol performance.complexity
+                    if let Some(ref mut builder) = current_symbol {
+                        if let Some(val) = &ann.value {
+                            builder.performance.complexity = Some(val.trim_matches('"').to_string());
+                        }
+                    }
                 }
                 "symbol" => {
                     // Save previous symbol if exists
@@ -385,6 +422,312 @@ impl Parser {
                         imports.extend(import_list);
                     }
                 }
+
+                // ================================================================
+                // RFC-0008: Type Annotations
+                // ================================================================
+                "param" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        // Parse type, name, optional marker, and default from value
+                        // Value format: "{Type} [name]=default" or just "name"
+                        if let Some(val) = &ann.value {
+                            let val = val.trim();
+                            let (type_expr, rest) = if val.starts_with('{') {
+                                // Extract type from {Type}
+                                if let Some(close_idx) = val.find('}') {
+                                    let type_str = val[1..close_idx].trim().to_string();
+                                    let remaining = val[close_idx + 1..].trim();
+                                    (Some(type_str), remaining)
+                                } else {
+                                    (None, val.as_ref())
+                                }
+                            } else {
+                                (None, val.as_ref())
+                            };
+
+                            // Parse optional marker and name: [name]=default or name
+                            let (optional, name, default) = if rest.starts_with('[') {
+                                // Optional parameter: [name] or [name=default]
+                                if let Some(close_idx) = rest.find(']') {
+                                    let inner = &rest[1..close_idx];
+                                    if let Some(eq_idx) = inner.find('=') {
+                                        let n = inner[..eq_idx].trim().to_string();
+                                        let d = inner[eq_idx + 1..].trim().to_string();
+                                        (true, n, Some(d))
+                                    } else {
+                                        (true, inner.trim().to_string(), None)
+                                    }
+                                } else {
+                                    (false, rest.trim_matches('"').to_string(), None)
+                                }
+                            } else {
+                                // Required parameter
+                                let name = rest.split_whitespace().next()
+                                    .unwrap_or("")
+                                    .trim_matches('"')
+                                    .to_string();
+                                (false, name, None)
+                            };
+
+                            if !name.is_empty() {
+                                builder.type_info.params.push(TypeParamInfo {
+                                    name,
+                                    r#type: type_expr.clone(),
+                                    type_source: type_expr.as_ref().map(|_| TypeSource::Acp),
+                                    optional,
+                                    default,
+                                    directive: ann.directive.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+                "returns" | "return" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        // Parse type from value: "{Type}" or empty
+                        let type_expr = if let Some(val) = &ann.value {
+                            let val = val.trim();
+                            if val.starts_with('{') {
+                                if let Some(close_idx) = val.find('}') {
+                                    Some(val[1..close_idx].trim().to_string())
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        builder.type_info.returns = Some(TypeReturnInfo {
+                            r#type: type_expr.clone(),
+                            type_source: type_expr.as_ref().map(|_| TypeSource::Acp),
+                            directive: ann.directive.clone(),
+                        });
+                    }
+                }
+                "template" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        // Parse @acp:template T [extends Constraint] from value
+                        if let Some(val) = &ann.value {
+                            let val = val.trim();
+                            // Check for "extends" keyword
+                            let (name, constraint) = if let Some(extends_idx) = val.find(" extends ") {
+                                let n = val[..extends_idx].trim().to_string();
+                                let c = val[extends_idx + 9..].trim().to_string();
+                                (n, Some(c))
+                            } else {
+                                (val.split_whitespace().next().unwrap_or("").to_string(), None)
+                            };
+
+                            if !name.is_empty() {
+                                builder.type_info.type_params.push(TypeTypeParam {
+                                    name,
+                                    constraint,
+                                    directive: ann.directive.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // ================================================================
+                // RFC-0009: Behavioral Annotations
+                // ================================================================
+                "pure" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.behavioral.pure = true;
+                    }
+                }
+                "idempotent" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.behavioral.idempotent = true;
+                    }
+                }
+                "memoized" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        if let Some(val) = &ann.value {
+                            builder.behavioral.memoized =
+                                Some(MemoizedValue::Duration(val.trim_matches('"').to_string()));
+                        } else {
+                            builder.behavioral.memoized = Some(MemoizedValue::Enabled(true));
+                        }
+                    }
+                }
+                "async" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.behavioral.r#async = true;
+                    }
+                }
+                "generator" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.behavioral.generator = true;
+                    }
+                }
+                "throttled" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        if let Some(val) = &ann.value {
+                            builder.behavioral.throttled = Some(val.trim_matches('"').to_string());
+                        }
+                    }
+                }
+                "transactional" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.behavioral.transactional = true;
+                    }
+                }
+                "side-effects" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        if let Some(val) = &ann.value {
+                            let effects: Vec<String> = val
+                                .split(',')
+                                .map(|s| s.trim().trim_matches('"').to_string())
+                                .collect();
+                            builder.behavioral.side_effects.extend(effects);
+                        }
+                    }
+                }
+
+                // ================================================================
+                // RFC-0009: Lifecycle Annotations (file and symbol level)
+                // ================================================================
+                "deprecated" => {
+                    let message = ann.directive.clone()
+                        .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
+                        .unwrap_or_else(|| "Deprecated".to_string());
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.lifecycle.deprecated = Some(message);
+                    } else {
+                        file_lifecycle.deprecated = Some(message);
+                    }
+                }
+                "experimental" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.lifecycle.experimental = true;
+                    } else {
+                        file_lifecycle.experimental = true;
+                    }
+                }
+                "beta" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.lifecycle.beta = true;
+                    } else {
+                        file_lifecycle.beta = true;
+                    }
+                }
+                "internal" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.lifecycle.internal = true;
+                    } else {
+                        file_lifecycle.internal = true;
+                    }
+                }
+                "public-api" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        builder.lifecycle.public_api = true;
+                    } else {
+                        file_lifecycle.public_api = true;
+                    }
+                }
+                "since" => {
+                    if let Some(val) = &ann.value {
+                        let version = val.trim_matches('"').to_string();
+                        if let Some(ref mut builder) = current_symbol {
+                            builder.lifecycle.since = Some(version);
+                        } else {
+                            file_since = Some(version);
+                        }
+                    }
+                }
+
+                // ================================================================
+                // RFC-0009: Documentation Annotations
+                // ================================================================
+                "example" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        let example_text = ann.directive.clone()
+                            .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
+                            .unwrap_or_default();
+                        if !example_text.is_empty() {
+                            builder.documentation.examples.push(example_text);
+                        }
+                    }
+                }
+                "see" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        if let Some(val) = &ann.value {
+                            builder.documentation.see_also.push(val.trim_matches('"').to_string());
+                        }
+                    }
+                }
+                "link" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        if let Some(val) = &ann.value {
+                            builder.documentation.links.push(val.trim_matches('"').to_string());
+                        }
+                    }
+                }
+                "note" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        let note_text = ann.directive.clone()
+                            .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
+                            .unwrap_or_default();
+                        if !note_text.is_empty() {
+                            builder.documentation.notes.push(note_text);
+                        }
+                    }
+                }
+                "warning" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        let warning_text = ann.directive.clone()
+                            .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
+                            .unwrap_or_default();
+                        if !warning_text.is_empty() {
+                            builder.documentation.warnings.push(warning_text);
+                        }
+                    }
+                }
+
+                // ================================================================
+                // RFC-0009: Performance Annotations (memory, cached)
+                // ================================================================
+                "memory" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        if let Some(val) = &ann.value {
+                            builder.performance.memory = Some(val.trim_matches('"').to_string());
+                        }
+                    }
+                }
+                "cached" => {
+                    if let Some(ref mut builder) = current_symbol {
+                        if let Some(val) = &ann.value {
+                            builder.performance.cached = Some(val.trim_matches('"').to_string());
+                        } else {
+                            builder.performance.cached = Some("true".to_string());
+                        }
+                    }
+                }
+
+                // ================================================================
+                // RFC-0009: File-Level Annotations
+                // ================================================================
+                "version" => {
+                    if let Some(val) = &ann.value {
+                        file_version = Some(val.trim_matches('"').to_string());
+                    }
+                }
+                "license" => {
+                    if let Some(val) = &ann.value {
+                        file_license = Some(val.trim_matches('"').to_string());
+                    }
+                }
+                "author" => {
+                    if let Some(val) = &ann.value {
+                        file_author = Some(val.trim_matches('"').to_string());
+                    }
+                }
+
                 _ => {}
             }
         }
@@ -423,6 +766,17 @@ impl Parser {
             ai_hints: ai_hints.clone(),
             git: None,
             annotations: std::collections::HashMap::new(), // RFC-0003: Populated during indexing
+            bridge: crate::cache::BridgeMetadata::default(), // RFC-0006: Populated during bridging
+            // RFC-0009: Extended file-level annotations
+            version: file_version,
+            since: file_since,
+            license: file_license,
+            author: file_author,
+            lifecycle: if file_lifecycle.is_empty() {
+                None
+            } else {
+                Some(file_lifecycle)
+            },
         };
 
         Ok(ParseResult {
@@ -655,6 +1009,13 @@ struct SymbolBuilder {
     purpose: Option<String>,
     calls: Vec<String>,
     symbol_type: SymbolType,
+    // RFC-0009: Extended annotation accumulators
+    behavioral: BehavioralAnnotations,
+    lifecycle: LifecycleAnnotations,
+    documentation: DocumentationAnnotations,
+    performance: PerformanceAnnotations,
+    // RFC-0008: Type annotation accumulator
+    type_info: TypeInfo,
 }
 
 impl SymbolBuilder {
@@ -668,6 +1029,13 @@ impl SymbolBuilder {
             purpose: None,
             calls: vec![],
             symbol_type: SymbolType::Function,
+            // RFC-0009: Initialize with defaults
+            behavioral: BehavioralAnnotations::default(),
+            lifecycle: LifecycleAnnotations::default(),
+            documentation: DocumentationAnnotations::default(),
+            performance: PerformanceAnnotations::default(),
+            // RFC-0008: Initialize with defaults
+            type_info: TypeInfo::default(),
         }
     }
 
@@ -682,13 +1050,232 @@ impl SymbolBuilder {
             signature: None,
             summary: self.summary,
             purpose: self.purpose,
-            async_fn: false,
+            async_fn: self.behavioral.r#async, // RFC-0009: Use behavioral async flag
             visibility: Visibility::Public,
             calls: self.calls,
             called_by: vec![], // Populated later by indexer
             git: None,
             constraints: None,
             annotations: std::collections::HashMap::new(), // RFC-0003
+            // RFC-0009: Extended annotation types (sparse serialization)
+            behavioral: if self.behavioral.is_empty() {
+                None
+            } else {
+                Some(self.behavioral)
+            },
+            lifecycle: if self.lifecycle.is_empty() {
+                None
+            } else {
+                Some(self.lifecycle)
+            },
+            documentation: if self.documentation.is_empty() {
+                None
+            } else {
+                Some(self.documentation)
+            },
+            performance: if self.performance.is_empty() {
+                None
+            } else {
+                Some(self.performance)
+            },
+            // RFC-0008: Type annotation info (sparse serialization)
+            type_info: if self.type_info.is_empty() {
+                None
+            } else {
+                Some(self.type_info)
+            },
         }
+    }
+}
+
+// ============================================================================
+// RFC-0008: Type Annotation Tests
+// ============================================================================
+
+#[cfg(test)]
+mod type_annotation_tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    fn parse_test_file(content: &str) -> ParseResult {
+        let mut file = NamedTempFile::with_suffix(".ts").unwrap();
+        write!(file, "{}", content).unwrap();
+        let parser = Parser::new();
+        parser.parse(file.path()).unwrap()
+    }
+
+    #[test]
+    fn test_param_with_type() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:param {string} name - User name
+// @acp:param {number} age - User age
+"#;
+        let result = parse_test_file(content);
+        assert_eq!(result.symbols.len(), 1);
+
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+        assert_eq!(type_info.params.len(), 2);
+
+        assert_eq!(type_info.params[0].name, "name");
+        assert_eq!(type_info.params[0].r#type, Some("string".to_string()));
+        assert_eq!(type_info.params[0].directive, Some("User name".to_string()));
+
+        assert_eq!(type_info.params[1].name, "age");
+        assert_eq!(type_info.params[1].r#type, Some("number".to_string()));
+    }
+
+    #[test]
+    fn test_param_optional() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:param {string} [name] - Optional name
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        assert_eq!(type_info.params[0].name, "name");
+        assert!(type_info.params[0].optional);
+    }
+
+    #[test]
+    fn test_param_with_default() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:param {number} [limit=10] - Limit with default
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        assert_eq!(type_info.params[0].name, "limit");
+        assert!(type_info.params[0].optional);
+        assert_eq!(type_info.params[0].default, Some("10".to_string()));
+    }
+
+    #[test]
+    fn test_param_without_type() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:param name - Just a name param
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        assert_eq!(type_info.params[0].name, "name");
+        assert!(type_info.params[0].r#type.is_none());
+    }
+
+    #[test]
+    fn test_returns_with_type() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:returns {Promise<User>} - Returns user promise
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        let returns = type_info.returns.as_ref().expect("Should have returns");
+        assert_eq!(returns.r#type, Some("Promise<User>".to_string()));
+        assert_eq!(returns.directive, Some("Returns user promise".to_string()));
+    }
+
+    #[test]
+    fn test_returns_without_type() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:returns - Returns nothing special
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        let returns = type_info.returns.as_ref().expect("Should have returns");
+        assert!(returns.r#type.is_none());
+    }
+
+    #[test]
+    fn test_template() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:template T - Type parameter
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        assert_eq!(type_info.type_params.len(), 1);
+        assert_eq!(type_info.type_params[0].name, "T");
+        assert!(type_info.type_params[0].constraint.is_none());
+    }
+
+    #[test]
+    fn test_template_with_constraint() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:template T extends BaseEntity - Entity type
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        assert_eq!(type_info.type_params[0].name, "T");
+        assert_eq!(type_info.type_params[0].constraint, Some("BaseEntity".to_string()));
+        assert_eq!(type_info.type_params[0].directive, Some("Entity type".to_string()));
+    }
+
+    #[test]
+    fn test_complex_type_expression() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:param {Map<string, User | null>} userMap - Complex type
+// @acp:returns {Promise<Array<User>>} - Returns users
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        assert_eq!(type_info.params[0].r#type, Some("Map<string, User | null>".to_string()));
+
+        let returns = type_info.returns.as_ref().unwrap();
+        assert_eq!(returns.r#type, Some("Promise<Array<User>>".to_string()));
+    }
+
+    #[test]
+    fn test_backward_compat_no_types() {
+        // Ensure old-style annotations without types still work
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:param userId - User ID
+// @acp:returns - User object or null
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        // Should still capture the param name and directive
+        assert_eq!(type_info.params[0].name, "userId");
+        assert!(type_info.params[0].r#type.is_none());
+    }
+
+    #[test]
+    fn test_type_source_is_acp() {
+        let content = r#"
+// @acp:fn "test" - Test function
+// @acp:param {string} name - Name param
+// @acp:returns {void} - Returns nothing
+"#;
+        let result = parse_test_file(content);
+        let sym = &result.symbols[0];
+        let type_info = sym.type_info.as_ref().expect("Should have type_info");
+
+        // When type is present, source should be Acp
+        assert_eq!(type_info.params[0].type_source, Some(TypeSource::Acp));
+        assert_eq!(type_info.returns.as_ref().unwrap().type_source, Some(TypeSource::Acp));
     }
 }

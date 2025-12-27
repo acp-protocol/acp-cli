@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use crate::bridge::config as bridge_config;
+
 fn default_config_schema() -> String {
     "https://acp-protocol.dev/schemas/v1/config.schema.json".to_string()
 }
@@ -63,6 +65,10 @@ pub struct Config {
     /// Output paths configuration (internal)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output: Option<OutputConfig>,
+
+    /// RFC-0006: Documentation bridging configuration
+    #[serde(default)]
+    pub bridge: bridge_config::BridgeConfig,
 }
 
 fn is_default_root(p: &std::path::Path) -> bool {
@@ -83,6 +89,7 @@ impl Default for Config {
             limits: None,
             root: default_root(),
             output: None,
+            bridge: bridge_config::BridgeConfig::default(),
         }
     }
 }

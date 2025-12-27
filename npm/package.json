@@ -1,0 +1,38 @@
+{
+  "name": "@acp-protocol/cli",
+  "version": "0.3.0",
+  "description": "AI Context Protocol CLI - Token-efficient code documentation for AI systems",
+  "bin": {
+    "acp": "bin/acp.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acp-protocol/acp-cli.git"
+  },
+  "keywords": [
+    "ai",
+    "documentation",
+    "code-analysis",
+    "context",
+    "llm",
+    "cli"
+  ],
+  "author": "ACP Contributors",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/acp-protocol/acp-cli/issues"
+  },
+  "homepage": "https://github.com/acp-protocol/acp-cli#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "optionalDependencies": {
+    "@acp-protocol/cli-darwin-arm64": "0.3.0",
+    "@acp-protocol/cli-darwin-x64": "0.3.0",
+    "@acp-protocol/cli-linux-x64-gnu": "0.3.0",
+    "@acp-protocol/cli-linux-x64-musl": "0.3.0",
+    "@acp-protocol/cli-linux-arm64-gnu": "0.3.0",
+    "@acp-protocol/cli-linux-arm64-musl": "0.3.0",
+    "@acp-protocol/cli-win32-x64": "0.3.0"
+  }
+}

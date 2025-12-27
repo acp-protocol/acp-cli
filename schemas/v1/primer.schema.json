@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft-07/schema#",
   "$id": "https://acp-protocol.dev/schemas/v1/primer.schema.json",
   "title": "ACP Primer Schema",
-  "description": "Defines the structure for AI context primers - the bootstrapping layer that teaches AI systems about ACP",
+  "description": "Defines the structure for AI context primers - the bootstrapping layer that teaches AI systems about ACP. Supports both legacy section-based format and RFC-0004 tiered interface format.",
   "type": "object",
   "properties": {
     "$schema": {
@@ -13,10 +13,22 @@
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+",
       "description": "Primer schema version (semver)",
-      "examples": ["1.0.0"]
+      "examples": ["1.0.0", "1.1.0"]
     },
     "metadata": {
       "$ref": "#/$defs/metadata"
+    },
+    "bootstrap": {
+      "$ref": "#/$defs/bootstrap",
+      "description": "RFC-0004: Core bootstrap block - always included regardless of budget"
+    },
+    "interface": {
+      "$ref": "#/$defs/interface",
+      "description": "RFC-0004: Tiered interface documentation for CLI, MCP, and daemon commands"
+    },
+    "project": {
+      "$ref": "#/$defs/projectConfig",
+      "description": "RFC-0004: Project-specific dynamic content configuration"
     },
     "capabilities": {
       "$ref": "#/$defs/capabilitiesRegistry"
@@ -26,14 +38,14 @@
       "items": {
         "$ref": "#/$defs/category"
       },
-      "description": "Section categories with metadata"
+      "description": "Legacy: Section categories with metadata"
     },
     "sections": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/section"
       },
-      "description": "All available primer sections"
+      "description": "Legacy: All available primer sections"
     },
     "selectionStrategy": {
       "$ref": "#/$defs/selectionStrategy"
@@ -45,7 +57,7 @@
       "$ref": "#/$defs/knowledgeStore"
     }
   },
-  "required": ["version", "sections"],
+  "required": ["version"],
   "additionalProperties": false,
 
   "$defs": {
@@ -769,6 +781,185 @@
         }
       },
       "required": ["id", "content"],
+      "additionalProperties": false
+    },
+
+    "bootstrap": {
+      "type": "object",
+      "description": "RFC-0004: Core bootstrap block (~20 tokens) - always included",
+      "properties": {
+        "awareness": {
+          "type": "string",
+          "description": "One-sentence ACP awareness statement",
+          "examples": ["This project uses ACP. @acp:* comments are directives for you."]
+        },
+        "workflow": {
+          "type": "string",
+          "description": "Critical workflow instruction",
+          "examples": ["Before editing: acp constraints <path>"]
+        },
+        "expansion": {
+          "type": "string",
+          "description": "How to get more context",
+          "examples": ["More: acp primer --budget N"]
+        },
+        "tokens": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 50,
+          "default": 20,
+          "description": "Token count for bootstrap block"
+        }
+      },
+      "required": ["awareness", "workflow", "expansion"],
+      "additionalProperties": false
+    },
+
+    "interface": {
+      "type": "object",
+      "description": "RFC-0004: Tiered interface documentation",
+      "properties": {
+        "cli": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command" },
+          "description": "CLI commands with tiered documentation"
+        },
+        "mcp": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command" },
+          "description": "MCP tools with tiered documentation"
+        },
+        "daemon": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command" },
+          "description": "Daemon API endpoints with tiered documentation"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "command": {
+      "type": "object",
+      "description": "RFC-0004: Command with tiered documentation",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Command name (e.g., 'constraints', 'query file')"
+        },
+        "critical": {
+          "type": "boolean",
+          "default": false,
+          "description": "Always include this command regardless of budget"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Selection priority (lower = higher priority)"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required capabilities (e.g., ['shell'], ['mcp'])"
+        },
+        "tiers": {
+          "$ref": "#/$defs/tierContent",
+          "description": "Content for each tier level"
+        }
+      },
+      "required": ["name", "priority", "tiers"],
+      "additionalProperties": false
+    },
+
+    "tierContent": {
+      "type": "object",
+      "description": "RFC-0004: Tiered content with escalating detail",
+      "properties": {
+        "minimal": {
+          "$ref": "#/$defs/tierLevel",
+          "description": "Minimal tier: command + one-line description"
+        },
+        "standard": {
+          "$ref": "#/$defs/tierLevel",
+          "description": "Standard tier: + key options, output shape"
+        },
+        "full": {
+          "$ref": "#/$defs/tierLevel",
+          "description": "Full tier: + examples, patterns, edge cases"
+        }
+      },
+      "required": ["minimal"],
+      "additionalProperties": false
+    },
+
+    "tierLevel": {
+      "type": "object",
+      "description": "RFC-0004: Single tier level content",
+      "properties": {
+        "tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Token count for this tier"
+        },
+        "template": {
+          "type": "string",
+          "description": "Template string with placeholders"
+        }
+      },
+      "required": ["tokens", "template"],
+      "additionalProperties": false
+    },
+
+    "projectConfig": {
+      "type": "object",
+      "description": "RFC-0004: Project-specific dynamic content",
+      "properties": {
+        "warnings": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Include project warnings in primer"
+            },
+            "source": {
+              "type": "string",
+              "enum": ["cache", "config"],
+              "default": "cache",
+              "description": "Where to read warnings from"
+            },
+            "maxItems": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 5,
+              "description": "Maximum warnings to include"
+            },
+            "tokensPerItem": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 15,
+              "description": "Estimated tokens per warning"
+            }
+          },
+          "additionalProperties": false
+        },
+        "variables": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Include variable hints in primer"
+            },
+            "maxItems": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10
+            }
+          },
+          "additionalProperties": false
+        }
+      },
       "additionalProperties": false
     }
   }

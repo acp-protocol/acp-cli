@@ -39,6 +39,7 @@
 
 pub mod annotate;
 pub mod ast;
+pub mod bridge;
 pub mod cache;
 pub mod commands;
 pub mod config;
@@ -81,6 +82,7 @@ pub use scan::{scan_project, ProjectScan};
 pub use vars::{VarResolver, VarExpander};
 pub use attempts::AttemptTracker;
 pub use sync::{SyncExecutor, Tool as SyncTool, BootstrapResult, BootstrapAction};
+pub use bridge::{BridgeConfig, BridgeMerger, BridgeResult, FormatDetector};
 
 /// Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
