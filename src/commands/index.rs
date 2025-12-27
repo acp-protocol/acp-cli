@@ -78,11 +78,11 @@ pub async fn execute_index(options: IndexOptions, config: Config) -> Result<()> 
     let indexer = Indexer::new(effective_config.clone())?;
     let cache = indexer.index(&options.root).await?;
 
-    // Fail if no files were found
+    // Warn if no files were found, but still create empty cache
     if cache.stats.files == 0 {
         eprintln!(
             "{} No files found matching include patterns",
-            style("✗").red()
+            style("⚠").yellow()
         );
         eprintln!("  Check your .acp.config.json include/exclude patterns");
         eprintln!("  Current patterns:");
@@ -92,7 +92,7 @@ pub async fn execute_index(options: IndexOptions, config: Config) -> Result<()> 
         for pattern in &effective_config.exclude {
             eprintln!("    exclude: {}", pattern);
         }
-        std::process::exit(1);
+        // Still create the cache file (empty but valid)
     }
 
     // Create output directory if needed

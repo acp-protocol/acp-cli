@@ -25,6 +25,8 @@ pub struct InitOptions {
     pub include: Vec<String>,
     /// File patterns to exclude
     pub exclude: Vec<String>,
+    /// Config file output path (default: .acp.config.json)
+    pub output: Option<PathBuf>,
     /// Cache file output path
     pub cache_path: Option<PathBuf>,
     /// Vars file output path
@@ -39,7 +41,7 @@ pub struct InitOptions {
 
 /// Execute the init command
 pub fn execute_init(options: InitOptions) -> Result<()> {
-    let config_path = PathBuf::from(".acp.config.json");
+    let config_path = options.output.clone().unwrap_or_else(|| PathBuf::from(".acp.config.json"));
 
     if config_path.exists() && !options.force {
         eprintln!(
@@ -56,6 +58,7 @@ pub fn execute_init(options: InitOptions) -> Result<()> {
         && std::io::stdin().is_terminal()
         && options.include.is_empty()
         && options.exclude.is_empty()
+        && options.output.is_none()
         && options.cache_path.is_none()
         && options.vars_path.is_none()
         && options.workers.is_none();

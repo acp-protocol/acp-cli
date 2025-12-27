@@ -777,6 +777,9 @@ impl Parser {
             } else {
                 Some(file_lifecycle)
             },
+            // RFC-0002: Populated during indexing with validation
+            refs: Vec::new(),
+            style: None,
         };
 
         Ok(ParseResult {

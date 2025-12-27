@@ -366,6 +366,52 @@ pub struct FileEntry {
     /// RFC-0009: Lifecycle status
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lifecycle: Option<LifecycleAnnotations>,
+    /// RFC-0002: Documentation references
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub refs: Vec<RefEntry>,
+    /// RFC-0002: Style guide configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub style: Option<StyleEntry>,
+}
+
+/// @acp:summary "RFC-0002: Documentation reference entry"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefEntry {
+    /// Documentation URL
+    pub url: String,
+    /// Approved source ID from config (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_id: Option<String>,
+    /// Documentation version (from @acp:ref-version)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Section within documentation (from @acp:ref-section)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+    /// Whether AI should fetch this reference (from @acp:ref-fetch)
+    #[serde(default)]
+    pub fetch: bool,
+}
+
+/// @acp:summary "RFC-0002: Style guide configuration entry"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StyleEntry {
+    /// Style guide name or ID
+    pub name: String,
+    /// Parent style guide (from @acp:style-extends)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extends: Option<String>,
+    /// Documentation source ID for this style
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    /// Direct URL to style guide documentation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// Style rules (from @acp:style-rules)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rules: Vec<String>,
 }
 
 /// @acp:summary "RFC-001: Inline annotation (hack, todo, fixme, critical, perf)"
@@ -1265,6 +1311,9 @@ mod tests {
             license: None,
             author: None,
             lifecycle: None,
+            // RFC-0002: Documentation references and style
+            refs: vec![],
+            style: None,
         });
         cache
     }
@@ -1342,6 +1391,9 @@ mod tests {
             license: None,
             author: None,
             lifecycle: None,
+            // RFC-0002: Documentation references and style
+            refs: vec![],
+            style: None,
         });
 
         // All formats should find it

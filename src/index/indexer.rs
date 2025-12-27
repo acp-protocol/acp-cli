@@ -104,8 +104,8 @@ impl Indexer {
         let annotation_parser = Arc::clone(&self.parser);
         let root_path = root.to_path_buf();
 
-        // RFC-0003: Get review threshold from config (default 0.8)
-        let review_threshold = 0.8; // TODO: Read from config when available
+        // RFC-0003: Get review threshold from config
+        let review_threshold = self.config.annotate.provenance.review_threshold;
 
         // RFC-0006: Clone bridge components for parallel access
         let format_detector = Arc::clone(&self.format_detector);

@@ -139,12 +139,27 @@ impl std::fmt::Display for SuggestionSource {
 }
 
 /// @acp:summary "Configuration for RFC-0003 provenance marker generation"
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ProvenanceConfig {
     /// Generation batch ID (e.g., "gen-20251222-123456-abc")
     pub generation_id: Option<String>,
     /// Whether to mark all generated annotations as needing review
     pub mark_needs_review: bool,
+    /// Confidence threshold below which annotations are flagged for review
+    pub review_threshold: f32,
+    /// Minimum confidence required to emit an annotation
+    pub min_confidence: f32,
+}
+
+impl Default for ProvenanceConfig {
+    fn default() -> Self {
+        Self {
+            generation_id: None,
+            mark_needs_review: false,
+            review_threshold: 0.8,
+            min_confidence: 0.5,
+        }
+    }
 }
 
 impl ProvenanceConfig {
@@ -162,6 +177,18 @@ impl ProvenanceConfig {
     /// @acp:summary "Sets whether to mark annotations as needing review"
     pub fn with_needs_review(mut self, needs_review: bool) -> Self {
         self.mark_needs_review = needs_review;
+        self
+    }
+
+    /// @acp:summary "Sets the review threshold for low-confidence annotations"
+    pub fn with_review_threshold(mut self, threshold: f32) -> Self {
+        self.review_threshold = threshold;
+        self
+    }
+
+    /// @acp:summary "Sets the minimum confidence required to emit annotations"
+    pub fn with_min_confidence(mut self, confidence: f32) -> Self {
+        self.min_confidence = confidence;
         self
     }
 }
@@ -273,8 +300,8 @@ impl Suggestion {
             lines.push(format!("@acp:source-confidence {:.2}", self.confidence));
         }
 
-        // Add reviewed marker (defaults to false for generated annotations)
-        let reviewed = !config.mark_needs_review;
+        // Add reviewed marker: false if explicitly marked for review OR below confidence threshold
+        let reviewed = !config.mark_needs_review && self.confidence >= config.review_threshold;
         lines.push(format!("@acp:source-reviewed {}", reviewed));
 
         // Add generation ID

@@ -115,15 +115,29 @@ pub fn execute_annotate(options: AnnotateOptions, config: Config) -> Result<()> 
     );
 
     // RFC-0003: Create provenance config if enabled
-    let provenance_config = if !options.no_provenance {
+    // CLI --no-provenance flag overrides config setting
+    let provenance_enabled = if options.no_provenance {
+        false
+    } else {
+        config.annotate.provenance.enabled
+    };
+
+    // CLI --mark-needs-review flag overrides config setting
+    let mark_needs_review = options.mark_needs_review || config.annotate.defaults.mark_needs_review;
+
+    let provenance_config = if provenance_enabled {
         let generation_id = generate_generation_id();
         if options.verbose {
             eprintln!("Provenance generation ID: {}", generation_id);
+            eprintln!("  Review threshold: {:.0}%", config.annotate.provenance.review_threshold * 100.0);
+            eprintln!("  Min confidence: {:.0}%", config.annotate.provenance.min_confidence * 100.0);
         }
         Some(
             ProvenanceConfig::new()
                 .with_generation_id(generation_id)
-                .with_needs_review(options.mark_needs_review),
+                .with_needs_review(mark_needs_review)
+                .with_review_threshold(config.annotate.provenance.review_threshold as f32)
+                .with_min_confidence(config.annotate.provenance.min_confidence as f32),
         )
     } else {
         None
@@ -169,6 +183,10 @@ pub fn execute_annotate(options: AnnotateOptions, config: Config) -> Result<()> 
             if options.symbols_only {
                 suggestions.retain(|s| !s.is_file_level());
             }
+
+            // Filter by minimum confidence (from config)
+            let min_conf = config.annotate.provenance.min_confidence as f32;
+            suggestions.retain(|s| s.confidence >= min_conf);
 
             Some((file_path.clone(), analysis, suggestions))
         })

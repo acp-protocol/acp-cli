@@ -53,6 +53,10 @@ enum Commands {
         #[arg(long)]
         exclude: Vec<String>,
 
+        /// Config file output path (default: .acp.config.json)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
         /// Cache file output path
         #[arg(long)]
         cache_path: Option<PathBuf>,
@@ -649,11 +653,12 @@ async fn main() -> anyhow::Result<()> {
     }
 
     match cli.command {
-        Commands::Init { force, include, exclude, cache_path, vars_path, workers, yes, no_bootstrap } => {
+        Commands::Init { force, include, exclude, output, cache_path, vars_path, workers, yes, no_bootstrap } => {
             let options = InitOptions {
                 force,
                 include,
                 exclude,
+                output,
                 cache_path,
                 vars_path,
                 workers,
