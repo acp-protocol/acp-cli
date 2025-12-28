@@ -32,7 +32,27 @@ pub fn execute_validate(options: ValidateOptions) -> Result<()> {
         );
     } else {
         // Try auto-detection from $schema field
-        let json: serde_json::Value = serde_json::from_str(&content)?;
+        let json: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(json) => json,
+            Err(e) => {
+                eprintln!(
+                    "{} File is not valid JSON: {}",
+                    style("✗").red(),
+                    e
+                );
+                eprintln!();
+                eprintln!("The validate command validates ACP JSON files:");
+                eprintln!("  - .acp/acp.cache.json  (cache)");
+                eprintln!("  - .acp/acp.vars.json   (vars)");
+                eprintln!("  - .acp.config.json     (config)");
+                eprintln!("  - .acp/acp.attempts.json (attempts)");
+                eprintln!("  - sync files           (sync)");
+                eprintln!("  - primer files         (primer)");
+                eprintln!();
+                eprintln!("For source code validation, use: acp annotate --check");
+                std::process::exit(1);
+            }
+        };
         if let Some(schema_url) = json.get("$schema").and_then(|s| s.as_str()) {
             let detected = if schema_url.contains("cache") {
                 "cache"
