@@ -67,7 +67,9 @@ impl GuardrailEnforcer {
                 rule: "ai-readonly".to_string(),
                 message: format!(
                     "File is marked as AI-readonly{}",
-                    guardrails.ai_behavior.readonly_reason
+                    guardrails
+                        .ai_behavior
+                        .readonly_reason
                         .as_ref()
                         .map(|r| format!(": {}", r))
                         .unwrap_or_default()
@@ -104,10 +106,7 @@ impl GuardrailEnforcer {
     }
 
     /// Check if proposed changes violate constraints
-    pub fn check_changes(
-        guardrails: &FileGuardrails,
-        proposed_content: &str,
-    ) -> GuardrailCheck {
+    pub fn check_changes(guardrails: &FileGuardrails, proposed_content: &str) -> GuardrailCheck {
         let mut check = Self::can_modify(guardrails);
 
         // Check forbids

@@ -5,8 +5,8 @@
 
 use std::path::{Path, PathBuf};
 
+use super::tool::{MergeStrategy, Tool};
 use crate::error::Result;
-use super::tool::{Tool, MergeStrategy};
 
 /// Result of tool detection
 #[derive(Debug)]
@@ -50,7 +50,7 @@ pub trait ToolAdapter: Send + Sync {
     fn section_markers(&self) -> (&'static str, &'static str) {
         (
             "<!-- BEGIN ACP GENERATED CONTENT - DO NOT EDIT -->",
-            "<!-- END ACP GENERATED CONTENT -->"
+            "<!-- END ACP GENERATED CONTENT -->",
         )
     }
 }

@@ -42,9 +42,8 @@ static JSDOC_TAG: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// @acp:summary "Matches inline {@link ...} references"
-static JSDOC_LINK: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\{@link\s+([^}]+)\}").expect("Invalid JSDoc link regex")
-});
+static JSDOC_LINK: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{@link\s+([^}]+)\}").expect("Invalid JSDoc link regex"));
 
 /// @acp:summary "Matches inline {@inheritDoc ...} references"
 static INHERIT_DOC: LazyLock<Regex> = LazyLock::new(|| {
@@ -196,9 +195,7 @@ impl DocStandardParser for JsDocParser {
                     .trim()
             } else {
                 // Remove leading * and whitespace for content lines
-                trimmed
-                    .trim_start_matches('*')
-                    .trim()
+                trimmed.trim_start_matches('*').trim()
             };
 
             // Skip empty lines at the start
@@ -261,7 +258,8 @@ impl DocStandardParser for JsDocParser {
                     "param" | "arg" | "argument" => {
                         if let Some(rest) = content {
                             // Parse "name description" or just "name"
-                            let parts: Vec<&str> = rest.splitn(2, |c: char| c.is_whitespace()).collect();
+                            let parts: Vec<&str> =
+                                rest.splitn(2, |c: char| c.is_whitespace()).collect();
                             let name = parts.first().unwrap_or(&"").to_string();
                             let desc = parts.get(1).map(|s| s.trim().to_string());
                             if !name.is_empty() {
@@ -273,9 +271,8 @@ impl DocStandardParser for JsDocParser {
                         doc.returns = Some((type_info, content));
                     }
                     "throws" | "exception" | "raise" => {
-                        let exc_type = type_info.unwrap_or_else(|| {
-                            content.clone().unwrap_or_default()
-                        });
+                        let exc_type =
+                            type_info.unwrap_or_else(|| content.clone().unwrap_or_default());
                         if !exc_type.is_empty() {
                             doc.throws.push((exc_type, content));
                         }
@@ -297,7 +294,8 @@ impl DocStandardParser for JsDocParser {
                         }
                         // Mark as package doc for TSDoc
                         if self.parse_tsdoc && tag == "packageDocumentation" {
-                            doc.custom_tags.push(("packageDocumentation".to_string(), "true".to_string()));
+                            doc.custom_tags
+                                .push(("packageDocumentation".to_string(), "true".to_string()));
                         }
                     }
                     "category" | "group" => {
@@ -306,19 +304,24 @@ impl DocStandardParser for JsDocParser {
                         }
                     }
                     "private" => {
-                        doc.custom_tags.push(("visibility".to_string(), "private".to_string()));
+                        doc.custom_tags
+                            .push(("visibility".to_string(), "private".to_string()));
                     }
                     "internal" => {
-                        doc.custom_tags.push(("visibility".to_string(), "internal".to_string()));
+                        doc.custom_tags
+                            .push(("visibility".to_string(), "internal".to_string()));
                     }
                     "protected" => {
-                        doc.custom_tags.push(("visibility".to_string(), "protected".to_string()));
+                        doc.custom_tags
+                            .push(("visibility".to_string(), "protected".to_string()));
                     }
                     "public" => {
-                        doc.custom_tags.push(("visibility".to_string(), "public".to_string()));
+                        doc.custom_tags
+                            .push(("visibility".to_string(), "public".to_string()));
                     }
                     "readonly" => {
-                        doc.custom_tags.push(("readonly".to_string(), "true".to_string()));
+                        doc.custom_tags
+                            .push(("readonly".to_string(), "true".to_string()));
                     }
                     "since" => {
                         doc.since = content;
@@ -338,10 +341,12 @@ impl DocStandardParser for JsDocParser {
                     }
                     // TSDoc-specific tags
                     "alpha" => {
-                        doc.custom_tags.push(("stability".to_string(), "alpha".to_string()));
+                        doc.custom_tags
+                            .push(("stability".to_string(), "alpha".to_string()));
                     }
                     "beta" => {
-                        doc.custom_tags.push(("stability".to_string(), "beta".to_string()));
+                        doc.custom_tags
+                            .push(("stability".to_string(), "beta".to_string()));
                     }
                     "remarks" => {
                         in_remarks = true;
@@ -366,26 +371,33 @@ impl DocStandardParser for JsDocParser {
                     "typeParam" | "typeparam" => {
                         if let Some(rest) = content {
                             // Parse "T description" or just "T"
-                            let parts: Vec<&str> = rest.splitn(2, |c: char| c.is_whitespace()).collect();
+                            let parts: Vec<&str> =
+                                rest.splitn(2, |c: char| c.is_whitespace()).collect();
                             let name = parts.first().unwrap_or(&"").to_string();
                             let desc = parts.get(1).map(|s| s.trim().to_string());
                             if !name.is_empty() {
-                                doc.custom_tags.push(("typeParam".to_string(),
-                                    format!("{}: {}", name, desc.unwrap_or_default())));
+                                doc.custom_tags.push((
+                                    "typeParam".to_string(),
+                                    format!("{}: {}", name, desc.unwrap_or_default()),
+                                ));
                             }
                         }
                     }
                     "override" => {
-                        doc.custom_tags.push(("override".to_string(), "true".to_string()));
+                        doc.custom_tags
+                            .push(("override".to_string(), "true".to_string()));
                     }
                     "virtual" => {
-                        doc.custom_tags.push(("virtual".to_string(), "true".to_string()));
+                        doc.custom_tags
+                            .push(("virtual".to_string(), "true".to_string()));
                     }
                     "sealed" => {
-                        doc.custom_tags.push(("sealed".to_string(), "true".to_string()));
+                        doc.custom_tags
+                            .push(("sealed".to_string(), "true".to_string()));
                     }
                     "eventProperty" => {
-                        doc.custom_tags.push(("eventProperty".to_string(), "true".to_string()));
+                        doc.custom_tags
+                            .push(("eventProperty".to_string(), "true".to_string()));
                     }
                     _ => {
                         // Store unknown tags (may include multiline content)
@@ -555,11 +567,7 @@ impl DocStandardParser for JsDocParser {
 
         // Convert throws to AI hint
         if !parsed.throws.is_empty() {
-            let throws_list: Vec<String> = parsed
-                .throws
-                .iter()
-                .map(|(t, _)| t.clone())
-                .collect();
+            let throws_list: Vec<String> = parsed.throws.iter().map(|(t, _)| t.clone()).collect();
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -571,7 +579,8 @@ impl DocStandardParser for JsDocParser {
         // TSDoc-specific conversions
         if self.parse_tsdoc {
             // Convert @alpha/@beta to @acp:stability
-            if let Some((_, stability)) = parsed.custom_tags.iter().find(|(k, _)| k == "stability") {
+            if let Some((_, stability)) = parsed.custom_tags.iter().find(|(k, _)| k == "stability")
+            {
                 suggestions.push(Suggestion::new(
                     target,
                     line,
@@ -704,17 +713,22 @@ mod tests {
     #[test]
     fn test_parse_basic_jsdoc() {
         let parser = JsDocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Validates a user session.
              * @param {string} token - The JWT token
              * @returns {Promise<User>} The user object
              * @deprecated Use validateSessionV2 instead
              */
-        "#);
+        "#,
+        );
 
         assert_eq!(doc.summary, Some("Validates a user session.".to_string()));
-        assert_eq!(doc.deprecated, Some("Use validateSessionV2 instead".to_string()));
+        assert_eq!(
+            doc.deprecated,
+            Some("Use validateSessionV2 instead".to_string())
+        );
         assert_eq!(doc.params.len(), 1);
         assert_eq!(doc.params[0].0, "token");
         assert!(doc.returns.is_some());
@@ -723,12 +737,14 @@ mod tests {
     #[test]
     fn test_parse_module_jsdoc() {
         let parser = JsDocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * @module Authentication
              * @category Security
              */
-        "#);
+        "#,
+        );
 
         assert_eq!(doc.get_module(), Some("Authentication"));
         assert_eq!(doc.get_category(), Some("Security"));
@@ -748,12 +764,14 @@ mod tests {
     #[test]
     fn test_parse_see_and_link() {
         let parser = JsDocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * See {@link OtherClass} for more info.
              * @see AnotherClass
              */
-        "#);
+        "#,
+        );
 
         assert!(doc.see_refs.contains(&"OtherClass".to_string()));
         assert!(doc.see_refs.contains(&"AnotherClass".to_string()));
@@ -762,12 +780,14 @@ mod tests {
     #[test]
     fn test_parse_throws() {
         let parser = JsDocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * @throws {Error} When something goes wrong
              * @throws {ValidationError} When validation fails
              */
-        "#);
+        "#,
+        );
 
         assert_eq!(doc.throws.len(), 2);
         assert_eq!(doc.throws[0].0, "Error");
@@ -777,12 +797,14 @@ mod tests {
     #[test]
     fn test_parse_todo() {
         let parser = JsDocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * @todo Add proper error handling
              * @fixme This is broken
              */
-        "#);
+        "#,
+        );
 
         assert_eq!(doc.todos.len(), 2);
         assert!(doc.todos[0].contains("error handling"));
@@ -791,14 +813,16 @@ mod tests {
     #[test]
     fn test_parse_example() {
         let parser = JsDocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Example function
              * @example
              * const result = myFunc();
              * console.log(result);
              */
-        "#);
+        "#,
+        );
 
         assert!(!doc.examples.is_empty());
         assert!(doc.examples[0].contains("myFunc"));
@@ -816,56 +840,73 @@ mod tests {
     #[test]
     fn test_parse_tsdoc_alpha() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Experimental API
              * @alpha
              */
-        "#);
+        "#,
+        );
 
-        let has_alpha = doc.custom_tags.iter().any(|(k, v)| k == "stability" && v == "alpha");
+        let has_alpha = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "stability" && v == "alpha");
         assert!(has_alpha);
     }
 
     #[test]
     fn test_parse_tsdoc_beta() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Preview API
              * @beta
              */
-        "#);
+        "#,
+        );
 
-        let has_beta = doc.custom_tags.iter().any(|(k, v)| k == "stability" && v == "beta");
+        let has_beta = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "stability" && v == "beta");
         assert!(has_beta);
     }
 
     #[test]
     fn test_parse_tsdoc_package_documentation() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * @packageDocumentation
              * This is the main module.
              */
-        "#);
+        "#,
+        );
 
-        let has_pkg_doc = doc.custom_tags.iter().any(|(k, v)| k == "packageDocumentation" && v == "true");
+        let has_pkg_doc = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "packageDocumentation" && v == "true");
         assert!(has_pkg_doc);
     }
 
     #[test]
     fn test_parse_tsdoc_remarks() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Brief summary.
              * @remarks
              * This is a longer explanation
              * that spans multiple lines.
              */
-        "#);
+        "#,
+        );
 
         assert!(!doc.notes.is_empty());
         assert!(doc.notes[0].contains("longer explanation"));
@@ -874,81 +915,108 @@ mod tests {
     #[test]
     fn test_parse_tsdoc_default_value() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * The timeout in milliseconds.
              * @defaultValue 5000
              */
-        "#);
+        "#,
+        );
 
-        let has_default = doc.custom_tags.iter().any(|(k, v)| k == "defaultValue" && v == "5000");
+        let has_default = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "defaultValue" && v == "5000");
         assert!(has_default);
     }
 
     #[test]
     fn test_parse_tsdoc_type_param() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * A generic container.
              * @typeParam T The type of contained value
              */
-        "#);
+        "#,
+        );
 
-        let has_type_param = doc.custom_tags.iter().any(|(k, v)| k == "typeParam" && v.contains("T:"));
+        let has_type_param = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "typeParam" && v.contains("T:"));
         assert!(has_type_param);
     }
 
     #[test]
     fn test_parse_tsdoc_override() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Overrides parent implementation.
              * @override
              */
-        "#);
+        "#,
+        );
 
-        let has_override = doc.custom_tags.iter().any(|(k, v)| k == "override" && v == "true");
+        let has_override = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "override" && v == "true");
         assert!(has_override);
     }
 
     #[test]
     fn test_parse_tsdoc_sealed() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * This class cannot be extended.
              * @sealed
              */
-        "#);
+        "#,
+        );
 
-        let has_sealed = doc.custom_tags.iter().any(|(k, v)| k == "sealed" && v == "true");
+        let has_sealed = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "sealed" && v == "true");
         assert!(has_sealed);
     }
 
     #[test]
     fn test_parse_tsdoc_virtual() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Can be overridden by subclasses.
              * @virtual
              */
-        "#);
+        "#,
+        );
 
-        let has_virtual = doc.custom_tags.iter().any(|(k, v)| k == "virtual" && v == "true");
+        let has_virtual = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "virtual" && v == "true");
         assert!(has_virtual);
     }
 
     #[test]
     fn test_parse_inherit_doc() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * {@inheritDoc ParentClass.method}
              */
-        "#);
+        "#,
+        );
 
         let has_inherit = doc.custom_tags.iter().any(|(k, _)| k == "inheritDoc");
         assert!(has_inherit);
@@ -957,75 +1025,87 @@ mod tests {
     #[test]
     fn test_tsdoc_to_suggestions_alpha() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Experimental feature.
              * @alpha
              */
-        "#);
+        "#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "myFunction", 10);
-        let has_stability = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Stability && s.value == "alpha"
-        });
+        let has_stability = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Stability && s.value == "alpha");
         assert!(has_stability);
     }
 
     #[test]
     fn test_tsdoc_to_suggestions_sealed() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Locked class.
              * @sealed
              */
-        "#);
+        "#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "MyClass", 10);
-        let has_strict_lock = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Lock && s.value == "strict"
-        });
+        let has_strict_lock = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Lock && s.value == "strict");
         assert!(has_strict_lock);
     }
 
     #[test]
     fn test_tsdoc_to_suggestions_default_value() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Timeout setting.
              * @defaultValue 3000
              */
-        "#);
+        "#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "timeout", 10);
-        let has_default_hint = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::AiHint && s.value.contains("default:")
-        });
+        let has_default_hint = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("default:"));
         assert!(has_default_hint);
     }
 
     #[test]
     fn test_tsdoc_parser_delegation() {
         let parser = TsDocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * API function.
              * @beta
              * @param {string} name The name
              */
-        "#);
+        "#,
+        );
 
         assert_eq!(doc.summary, Some("API function.".to_string()));
         assert_eq!(doc.params.len(), 1);
-        let has_beta = doc.custom_tags.iter().any(|(k, v)| k == "stability" && v == "beta");
+        let has_beta = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "stability" && v == "beta");
         assert!(has_beta);
     }
 
     #[test]
     fn test_multiline_remarks() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Summary line.
              *
@@ -1036,7 +1116,8 @@ mod tests {
              *
              * @param x A parameter
              */
-        "#);
+        "#,
+        );
 
         assert!(!doc.notes.is_empty());
         let remarks = &doc.notes[0];
@@ -1047,7 +1128,8 @@ mod tests {
     #[test]
     fn test_complex_tsdoc() {
         let parser = JsDocParser::with_tsdoc();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
             /**
              * Processes user authentication.
              *
@@ -1066,9 +1148,13 @@ mod tests {
              * const user = await authenticate(creds);
              * console.log(user.name);
              */
-        "#);
+        "#,
+        );
 
-        assert_eq!(doc.summary, Some("Processes user authentication.".to_string()));
+        assert_eq!(
+            doc.summary,
+            Some("Processes user authentication.".to_string())
+        );
         assert!(!doc.notes.is_empty());
         assert!(doc.notes[0].contains("OAuth2"));
         assert_eq!(doc.params.len(), 1);
@@ -1077,7 +1163,10 @@ mod tests {
         assert!(doc.see_refs.contains(&"OAuthProvider".to_string()));
         assert!(!doc.examples.is_empty());
 
-        let has_beta = doc.custom_tags.iter().any(|(k, v)| k == "stability" && v == "beta");
+        let has_beta = doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "stability" && v == "beta");
         assert!(has_beta);
 
         let has_type_param = doc.custom_tags.iter().any(|(k, _)| k == "typeParam");

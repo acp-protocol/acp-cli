@@ -363,16 +363,15 @@ pub fn execute_install(options: InstallOptions) -> Result<()> {
         println!("  Version: {}", style(&release.tag_name).dim());
 
         // Find asset for platform
-        let asset = find_asset_for_platform(&release, platform, target.binary_name()).ok_or_else(
-            || {
+        let asset =
+            find_asset_for_platform(&release, platform, target.binary_name()).ok_or_else(|| {
                 anyhow!(
                     "No binary found for {} on {}. Available: {:?}",
                     target.display_name(),
                     platform,
                     release.assets.iter().map(|a| &a.name).collect::<Vec<_>>()
                 )
-            },
-        )?;
+            })?;
 
         // Download and extract
         let binary_path = download_and_extract(

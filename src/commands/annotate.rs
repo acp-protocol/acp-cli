@@ -16,7 +16,9 @@ use console::style;
 use rand::Rng;
 use rayon::prelude::*;
 
-use crate::annotate::{AnnotateLevel, Analyzer, ConversionSource, OutputFormat, ProvenanceConfig, Suggester, Writer};
+use crate::annotate::{
+    Analyzer, AnnotateLevel, ConversionSource, OutputFormat, ProvenanceConfig, Suggester, Writer,
+};
 use crate::config::Config;
 use crate::git::GitRepository;
 
@@ -129,8 +131,14 @@ pub fn execute_annotate(options: AnnotateOptions, config: Config) -> Result<()> 
         let generation_id = generate_generation_id();
         if options.verbose {
             eprintln!("Provenance generation ID: {}", generation_id);
-            eprintln!("  Review threshold: {:.0}%", config.annotate.provenance.review_threshold * 100.0);
-            eprintln!("  Min confidence: {:.0}%", config.annotate.provenance.min_confidence * 100.0);
+            eprintln!(
+                "  Review threshold: {:.0}%",
+                config.annotate.provenance.review_threshold * 100.0
+            );
+            eprintln!(
+                "  Min confidence: {:.0}%",
+                config.annotate.provenance.min_confidence * 100.0
+            );
         }
         Some(
             ProvenanceConfig::new()

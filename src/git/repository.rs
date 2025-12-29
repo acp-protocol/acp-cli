@@ -3,9 +3,9 @@
 //! @acp:domain cli
 //! @acp:layer integration
 
-use std::path::Path;
-use git2::{Repository, StatusOptions, Status};
 use crate::error::{AcpError, Result};
+use git2::{Repository, Status, StatusOptions};
+use std::path::Path;
 
 /// File status in the git repository
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,7 +31,10 @@ pub enum FileStatus {
 impl FileStatus {
     /// Check if the file has uncommitted changes
     pub fn is_dirty(&self) -> bool {
-        matches!(self, Self::Modified | Self::Staged | Self::New | Self::Deleted | Self::Conflicted)
+        matches!(
+            self,
+            Self::Modified | Self::Staged | Self::New | Self::Deleted | Self::Conflicted
+        )
     }
 }
 
@@ -55,15 +58,19 @@ impl GitRepository {
 
     /// Get the repository root path (workdir)
     pub fn root(&self) -> Result<&Path> {
-        self.repo.workdir()
-            .ok_or_else(|| AcpError::Other("Repository has no working directory (bare repo)".into()))
+        self.repo.workdir().ok_or_else(|| {
+            AcpError::Other("Repository has no working directory (bare repo)".into())
+        })
     }
 
     /// Get the current HEAD commit SHA (full 40-character hex)
     pub fn head_commit(&self) -> Result<String> {
-        let head = self.repo.head()
+        let head = self
+            .repo
+            .head()
             .map_err(|e| AcpError::Other(format!("Failed to get HEAD: {}", e)))?;
-        let commit = head.peel_to_commit()
+        let commit = head
+            .peel_to_commit()
             .map_err(|e| AcpError::Other(format!("Failed to get HEAD commit: {}", e)))?;
         Ok(commit.id().to_string())
     }
@@ -76,7 +83,9 @@ impl GitRepository {
 
     /// Get the current branch name (None if detached HEAD)
     pub fn current_branch(&self) -> Result<Option<String>> {
-        let head = self.repo.head()
+        let head = self
+            .repo
+            .head()
             .map_err(|e| AcpError::Other(format!("Failed to get HEAD: {}", e)))?;
 
         if head.is_branch() {
@@ -109,7 +118,9 @@ impl GitRepository {
     pub fn file_status(&self, path: &Path) -> Result<FileStatus> {
         let relative_path = self.make_relative(path);
 
-        let status = self.repo.status_file(relative_path.as_ref())
+        let status = self
+            .repo
+            .status_file(relative_path.as_ref())
             .map_err(|e| AcpError::Other(format!("Failed to get file status: {}", e)))?;
 
         Ok(Self::convert_status(status))
@@ -118,10 +129,11 @@ impl GitRepository {
     /// Get list of modified files in the repository
     pub fn modified_files(&self) -> Result<Vec<String>> {
         let mut opts = StatusOptions::new();
-        opts.include_untracked(false)
-            .include_ignored(false);
+        opts.include_untracked(false).include_ignored(false);
 
-        let statuses = self.repo.statuses(Some(&mut opts))
+        let statuses = self
+            .repo
+            .statuses(Some(&mut opts))
             .map_err(|e| AcpError::Other(format!("Failed to get repository status: {}", e)))?;
 
         let files: Vec<String> = statuses
@@ -142,10 +154,11 @@ impl GitRepository {
     /// Check if the repository has uncommitted changes
     pub fn is_dirty(&self) -> Result<bool> {
         let mut opts = StatusOptions::new();
-        opts.include_untracked(false)
-            .include_ignored(false);
+        opts.include_untracked(false).include_ignored(false);
 
-        let statuses = self.repo.statuses(Some(&mut opts))
+        let statuses = self
+            .repo
+            .statuses(Some(&mut opts))
             .map_err(|e| AcpError::Other(format!("Failed to get repository status: {}", e)))?;
 
         Ok(statuses.iter().any(|entry| {

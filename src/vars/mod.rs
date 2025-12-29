@@ -4,13 +4,13 @@
 //! @acp:layer model
 //! @acp:stability stable
 
-mod resolver;
 mod expander;
+mod resolver;
 
 pub mod presets;
 
-pub use resolver::{VarResolver, VarReference};
-pub use expander::{VarExpander, ExpansionMode, ExpansionResult, InheritanceChain};
+pub use expander::{ExpansionMode, ExpansionResult, InheritanceChain, VarExpander};
+pub use resolver::{VarReference, VarResolver};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

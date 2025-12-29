@@ -5,7 +5,7 @@
 //!
 //! Provides type-safe queries similar to jq but in Rust.
 
-use crate::cache::{Cache, SymbolEntry, FileEntry, DomainEntry};
+use crate::cache::{Cache, DomainEntry, FileEntry, SymbolEntry};
 
 /// Query builder for cache
 pub struct Query<'a> {
@@ -34,14 +34,16 @@ impl<'a> Query<'a> {
 
     /// Get callers of a symbol
     pub fn callers(&self, symbol: &str) -> Vec<&str> {
-        self.cache.get_callers(symbol)
+        self.cache
+            .get_callers(symbol)
             .map(|v| v.iter().map(|s| s.as_str()).collect())
             .unwrap_or_default()
     }
 
     /// Get callees of a symbol
     pub fn callees(&self, symbol: &str) -> Vec<&str> {
-        self.cache.get_callees(symbol)
+        self.cache
+            .get_callees(symbol)
             .map(|v| v.iter().map(|s| s.as_str()).collect())
             .unwrap_or_default()
     }
@@ -58,14 +60,17 @@ impl<'a> Query<'a> {
 
     /// Get files by domain
     pub fn files_in_domain(&self, domain: &str) -> Vec<&str> {
-        self.cache.get_domain_files(domain)
+        self.cache
+            .get_domain_files(domain)
             .map(|v| v.iter().map(|s| s.as_str()).collect())
             .unwrap_or_default()
     }
 
     /// Get files by layer (from file entries)
     pub fn files_in_layer(&self, layer: &str) -> Vec<&str> {
-        self.cache.files.values()
+        self.cache
+            .files
+            .values()
             .filter(|f| f.layer.as_deref() == Some(layer))
             .map(|f| f.path.as_str())
             .collect()
@@ -74,7 +79,9 @@ impl<'a> Query<'a> {
     /// Search symbols by name pattern
     pub fn search_symbols(&self, pattern: &str) -> Vec<&SymbolEntry> {
         let p = pattern.to_lowercase();
-        self.cache.symbols.values()
+        self.cache
+            .symbols
+            .values()
             .filter(|s| s.name.to_lowercase().contains(&p))
             .collect()
     }
@@ -82,13 +89,15 @@ impl<'a> Query<'a> {
     /// Get hotpath symbols (symbols with many callers)
     pub fn hotpaths(&self) -> impl Iterator<Item = &str> {
         // Compute hotpaths from call graph
-        self.cache.graph.as_ref()
+        self.cache
+            .graph
+            .as_ref()
             .map(|g| {
-                let mut callee_counts: Vec<(&String, usize)> = g.reverse.iter()
-                    .map(|(k, v)| (k, v.len()))
-                    .collect();
+                let mut callee_counts: Vec<(&String, usize)> =
+                    g.reverse.iter().map(|(k, v)| (k, v.len())).collect();
                 callee_counts.sort_by(|a, b| b.1.cmp(&a.1));
-                callee_counts.into_iter()
+                callee_counts
+                    .into_iter()
                     .take(10)
                     .map(|(k, _)| k.as_str())
                     .collect::<Vec<_>>()

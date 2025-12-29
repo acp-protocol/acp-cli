@@ -5,14 +5,14 @@
 //!
 //! Manages troubleshooting attempts, checkpoints, and rollbacks.
 
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 
-use crate::error::Result;
 use crate::constraints::AttemptStatus;
+use crate::error::Result;
 
 fn default_attempts_schema() -> String {
     "https://acp-protocol.dev/schemas/v1/attempts.schema.json".to_string()
@@ -49,10 +49,10 @@ pub struct TrackedAttempt {
     pub status: AttemptStatus,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    
+
     /// Files modified in this attempt
     pub files: Vec<AttemptFile>,
-    
+
     /// Conditions that should trigger revert
     pub revert_if: Vec<String>,
 }
@@ -157,10 +157,9 @@ impl AttemptTracker {
         original_content: &str,
         new_content: &str,
     ) -> Result<()> {
-        let attempt = self.attempts.get_mut(attempt_id)
-            .ok_or_else(|| crate::error::AcpError::Other(
-                format!("Attempt not found: {}", attempt_id)
-            ))?;
+        let attempt = self.attempts.get_mut(attempt_id).ok_or_else(|| {
+            crate::error::AcpError::Other(format!("Attempt not found: {}", attempt_id))
+        })?;
 
         let original_hash = format!("{:x}", md5::compute(original_content));
         let modified_hash = format!("{:x}", md5::compute(new_content));
@@ -190,7 +189,7 @@ impl AttemptTracker {
         if let Some(attempt) = self.attempts.get_mut(id) {
             attempt.status = AttemptStatus::Failed;
             attempt.updated_at = Utc::now();
-            
+
             // Move to history
             self.history.push(AttemptHistoryEntry {
                 id: attempt.id.clone(),
@@ -211,7 +210,7 @@ impl AttemptTracker {
         if let Some(attempt) = self.attempts.get_mut(id) {
             attempt.status = AttemptStatus::Verified;
             attempt.updated_at = Utc::now();
-            
+
             // Move to history
             self.history.push(AttemptHistoryEntry {
                 id: attempt.id.clone(),
@@ -222,7 +221,7 @@ impl AttemptTracker {
                 files_modified: attempt.files.len(),
                 outcome: Some("Verified and kept".to_string()),
             });
-            
+
             // Remove from active attempts
             self.attempts.remove(id);
         }
@@ -232,10 +231,10 @@ impl AttemptTracker {
 
     /// Revert an attempt
     pub fn revert_attempt(&mut self, id: &str) -> Result<Vec<RevertAction>> {
-        let attempt = self.attempts.get(id)
-            .ok_or_else(|| crate::error::AcpError::Other(
-                format!("Attempt not found: {}", id)
-            ))?
+        let attempt = self
+            .attempts
+            .get(id)
+            .ok_or_else(|| crate::error::AcpError::Other(format!("Attempt not found: {}", id)))?
             .clone();
 
         let mut actions = Vec::new();
@@ -302,10 +301,13 @@ impl AttemptTracker {
                 };
 
                 file_data.push((file_path.to_string(), content, hash.clone()));
-                file_states.insert(file_path.to_string(), FileState {
-                    hash,
-                    content: stored_content,
-                });
+                file_states.insert(
+                    file_path.to_string(),
+                    FileState {
+                        hash,
+                        content: stored_content,
+                    },
+                );
             }
         }
 
@@ -319,16 +321,21 @@ impl AttemptTracker {
             .map(|s| s.trim().to_string())
             .filter(|s| s.len() == 40);
 
-        self.checkpoints.insert(name.to_string(), TrackedCheckpoint {
-            name: name.to_string(),
-            created_at: Utc::now(),
-            description: description.map(String::from),
-            git_commit,
-            files: file_states,
-        });
+        self.checkpoints.insert(
+            name.to_string(),
+            TrackedCheckpoint {
+                name: name.to_string(),
+                created_at: Utc::now(),
+                description: description.map(String::from),
+                git_commit,
+                files: file_states,
+            },
+        );
 
         // Also track these files in the most recent active attempt
-        if let Some(attempt) = self.attempts.values_mut()
+        if let Some(attempt) = self
+            .attempts
+            .values_mut()
             .filter(|a| a.status == AttemptStatus::Active)
             .max_by_key(|a| a.created_at)
         {
@@ -359,10 +366,12 @@ impl AttemptTracker {
 
     /// Restore to a checkpoint
     pub fn restore_checkpoint(&mut self, name: &str) -> Result<Vec<RevertAction>> {
-        let checkpoint = self.checkpoints.get(name)
-            .ok_or_else(|| crate::error::AcpError::Other(
-                format!("Checkpoint not found: {}", name)
-            ))?
+        let checkpoint = self
+            .checkpoints
+            .get(name)
+            .ok_or_else(|| {
+                crate::error::AcpError::Other(format!("Checkpoint not found: {}", name))
+            })?
             .clone();
 
         let mut actions = Vec::new();
@@ -392,21 +401,24 @@ impl AttemptTracker {
 
     /// Get all active attempts
     pub fn active_attempts(&self) -> Vec<&TrackedAttempt> {
-        self.attempts.values()
+        self.attempts
+            .values()
             .filter(|a| a.status == AttemptStatus::Active || a.status == AttemptStatus::Testing)
             .collect()
     }
 
     /// Get failed attempts
     pub fn failed_attempts(&self) -> Vec<&TrackedAttempt> {
-        self.attempts.values()
+        self.attempts
+            .values()
             .filter(|a| a.status == AttemptStatus::Failed)
             .collect()
     }
 
     /// Clean up failed attempts (revert all)
     pub fn cleanup_failed(&mut self) -> Result<Vec<RevertAction>> {
-        let failed_ids: Vec<_> = self.failed_attempts()
+        let failed_ids: Vec<_> = self
+            .failed_attempts()
             .iter()
             .map(|a| a.id.clone())
             .collect();
@@ -437,8 +449,11 @@ mod tests {
     fn test_start_attempt() {
         let mut tracker = AttemptTracker::load_or_create();
         tracker.start_attempt("test-001", Some("bug#123"), Some("Testing fix"));
-        
+
         assert!(tracker.attempts.contains_key("test-001"));
-        assert_eq!(tracker.attempts["test-001"].for_issue, Some("bug#123".to_string()));
+        assert_eq!(
+            tracker.attempts["test-001"].for_issue,
+            Some("bug#123".to_string())
+        );
     }
 }

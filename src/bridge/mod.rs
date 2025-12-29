@@ -52,12 +52,12 @@ pub mod config;
 pub mod detector;
 pub mod merger;
 
-pub use config::{BridgeConfig, JsDocConfig, PythonConfig, RustConfig, ProvenanceConfig};
+pub use config::{BridgeConfig, JsDocConfig, ProvenanceConfig, PythonConfig, RustConfig};
 pub use detector::FormatDetector;
 pub use merger::BridgeMerger;
 
-use crate::cache::{BridgeSource, SourceFormat, ParamEntry, ReturnsEntry, ThrowsEntry};
 use crate::annotate::converters::ParsedDocumentation;
+use crate::cache::{BridgeSource, ParamEntry, ReturnsEntry, SourceFormat, ThrowsEntry};
 
 /// @acp:summary "Result of bridging native documentation with ACP annotations"
 #[derive(Debug, Clone, Default)]
@@ -87,10 +87,7 @@ impl BridgeResult {
     }
 
     /// @acp:summary "Create from pure ACP annotations (explicit source)"
-    pub fn from_acp(
-        summary: Option<String>,
-        directive: Option<String>,
-    ) -> Self {
+    pub fn from_acp(summary: Option<String>, directive: Option<String>) -> Self {
         Self {
             summary,
             directive,
@@ -101,10 +98,7 @@ impl BridgeResult {
     }
 
     /// @acp:summary "Create from converted native documentation"
-    pub fn from_native(
-        parsed: &ParsedDocumentation,
-        format: SourceFormat,
-    ) -> Self {
+    pub fn from_native(parsed: &ParsedDocumentation, format: SourceFormat) -> Self {
         let mut result = Self {
             summary: parsed.summary.clone(),
             source: BridgeSource::Converted,
@@ -162,9 +156,9 @@ fn type_source_from_format(format: SourceFormat) -> Option<crate::cache::TypeSou
     use crate::cache::TypeSource;
     match format {
         SourceFormat::Jsdoc => Some(TypeSource::Jsdoc),
-        SourceFormat::DocstringGoogle | SourceFormat::DocstringNumpy | SourceFormat::DocstringSphinx => {
-            Some(TypeSource::Docstring)
-        }
+        SourceFormat::DocstringGoogle
+        | SourceFormat::DocstringNumpy
+        | SourceFormat::DocstringSphinx => Some(TypeSource::Docstring),
         SourceFormat::Rustdoc => Some(TypeSource::Rustdoc),
         SourceFormat::Javadoc => Some(TypeSource::Javadoc),
         SourceFormat::TypeHint => Some(TypeSource::TypeHint),
@@ -192,8 +186,15 @@ mod tests {
     fn test_bridge_result_from_native() {
         let mut parsed = ParsedDocumentation::new();
         parsed.summary = Some("Native summary".to_string());
-        parsed.params.push(("userId".to_string(), Some("string".to_string()), Some("User ID".to_string())));
-        parsed.returns = Some((Some("User".to_string()), Some("The user object".to_string())));
+        parsed.params.push((
+            "userId".to_string(),
+            Some("string".to_string()),
+            Some("User ID".to_string()),
+        ));
+        parsed.returns = Some((
+            Some("User".to_string()),
+            Some("The user object".to_string()),
+        ));
 
         let result = BridgeResult::from_native(&parsed, SourceFormat::Jsdoc);
 

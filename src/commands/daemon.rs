@@ -161,7 +161,12 @@ pub fn execute_daemon(cmd: DaemonSubcommand) -> Result<()> {
                 if is_process_running(pid) {
                     // Read port from PID file, default to 9222 for backwards compat
                     let port = read_port_from_pid_file(&pid_file).unwrap_or(9222);
-                    println!("{} Daemon is running (PID {}, port {})", style("✓").green(), pid, port);
+                    println!(
+                        "{} Daemon is running (PID {}, port {})",
+                        style("✓").green(),
+                        pid,
+                        port
+                    );
 
                     // Try to check health endpoint
                     if let Ok(health) = check_daemon_health(port) {
@@ -223,27 +228,26 @@ pub fn execute_daemon(cmd: DaemonSubcommand) -> Result<()> {
 
 /// Read PID file content. Format: "pid" or "pid:port"
 fn read_pid_file(path: &PathBuf) -> Option<u32> {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|s| {
-            let content = s.trim();
-            // Support format "pid" or "pid:port"
-            content.split(':').next().and_then(|pid_str| pid_str.parse().ok())
-        })
+    std::fs::read_to_string(path).ok().and_then(|s| {
+        let content = s.trim();
+        // Support format "pid" or "pid:port"
+        content
+            .split(':')
+            .next()
+            .and_then(|pid_str| pid_str.parse().ok())
+    })
 }
 
 /// Read port from PID file if stored. Format: "pid:port"
 fn read_port_from_pid_file(path: &PathBuf) -> Option<u16> {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|s| {
-            let parts: Vec<&str> = s.trim().split(':').collect();
-            if parts.len() >= 2 {
-                parts[1].parse().ok()
-            } else {
-                None
-            }
-        })
+    std::fs::read_to_string(path).ok().and_then(|s| {
+        let parts: Vec<&str> = s.trim().split(':').collect();
+        if parts.len() >= 2 {
+            parts[1].parse().ok()
+        } else {
+            None
+        }
+    })
 }
 
 fn is_process_running(pid: u32) -> bool {

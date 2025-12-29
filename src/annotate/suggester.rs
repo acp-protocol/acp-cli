@@ -19,9 +19,7 @@ use crate::git::GitRepository;
 
 use super::converters::DocStandardParser;
 use super::heuristics::HeuristicsEngine;
-use super::{
-    AnalysisResult, AnnotateLevel, AnnotationType, ConversionSource, Suggestion,
-};
+use super::{AnalysisResult, AnnotateLevel, AnnotationType, ConversionSource, Suggestion};
 
 /// @acp:summary "Generates and merges annotation suggestions"
 /// @acp:lock normal
@@ -164,24 +162,16 @@ impl Suggester {
 
     /// @acp:summary "Gets the appropriate doc parser for a conversion source"
     fn get_parser(&self, source: ConversionSource) -> Option<Box<dyn DocStandardParser>> {
-        use super::converters::{DocstringParser, JsDocParser, RustdocParser, GodocParser, JavadocParser};
+        use super::converters::{
+            DocstringParser, GodocParser, JavadocParser, JsDocParser, RustdocParser,
+        };
 
         match source {
-            ConversionSource::Jsdoc | ConversionSource::Tsdoc => {
-                Some(Box::new(JsDocParser::new()))
-            }
-            ConversionSource::Docstring => {
-                Some(Box::new(DocstringParser::new()))
-            }
-            ConversionSource::Rustdoc => {
-                Some(Box::new(RustdocParser::new()))
-            }
-            ConversionSource::Godoc => {
-                Some(Box::new(GodocParser::new()))
-            }
-            ConversionSource::Javadoc => {
-                Some(Box::new(JavadocParser::new()))
-            }
+            ConversionSource::Jsdoc | ConversionSource::Tsdoc => Some(Box::new(JsDocParser::new())),
+            ConversionSource::Docstring => Some(Box::new(DocstringParser::new())),
+            ConversionSource::Rustdoc => Some(Box::new(RustdocParser::new())),
+            ConversionSource::Godoc => Some(Box::new(GodocParser::new())),
+            ConversionSource::Javadoc => Some(Box::new(JavadocParser::new())),
             ConversionSource::Auto => None,
         }
     }

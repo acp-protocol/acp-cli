@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::error::Result;
-use crate::sync::adapter::{ToolAdapter, DetectionResult, BootstrapContext};
+use crate::sync::adapter::{BootstrapContext, DetectionResult, ToolAdapter};
 use crate::sync::content::generate_bootstrap_markdown;
 use crate::sync::tool::Tool;
 

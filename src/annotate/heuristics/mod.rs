@@ -166,7 +166,14 @@ impl HeuristicsEngine {
         visibility: Option<crate::ast::Visibility>,
         is_exported: bool,
     ) -> Vec<Suggestion> {
-        let mut suggestions = self.suggest_full(target, line, symbol_kind, file_path, visibility, is_exported);
+        let mut suggestions = self.suggest_full(
+            target,
+            line,
+            symbol_kind,
+            file_path,
+            visibility,
+            is_exported,
+        );
 
         // Add git-based suggestions if enabled and repo is available
         if self.use_git_heuristics {
@@ -201,7 +208,12 @@ mod tests {
     #[test]
     fn test_suggest_security_pattern() {
         let engine = HeuristicsEngine::new();
-        let suggestions = engine.suggest("authenticateUser", 10, Some(SymbolKind::Function), "src/auth/service.ts");
+        let suggestions = engine.suggest(
+            "authenticateUser",
+            10,
+            Some(SymbolKind::Function),
+            "src/auth/service.ts",
+        );
 
         // Should suggest security-related annotations
         let has_security = suggestions.iter().any(|s| {
@@ -215,12 +227,17 @@ mod tests {
     #[test]
     fn test_suggest_from_path() {
         let engine = HeuristicsEngine::new();
-        let suggestions = engine.suggest("processPayment", 10, Some(SymbolKind::Function), "src/billing/payments.ts");
+        let suggestions = engine.suggest(
+            "processPayment",
+            10,
+            Some(SymbolKind::Function),
+            "src/billing/payments.ts",
+        );
 
         // Should suggest billing domain from path
-        let has_billing = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Domain && s.value == "billing"
-        });
+        let has_billing = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Domain && s.value == "billing");
 
         assert!(has_billing);
     }
@@ -240,9 +257,9 @@ mod tests {
         );
 
         // Should suggest restricted lock for private symbols
-        let has_restricted = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Lock && s.value == "restricted"
-        });
+        let has_restricted = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Lock && s.value == "restricted");
 
         assert!(has_restricted, "Private symbols should get restricted lock");
     }
@@ -262,9 +279,9 @@ mod tests {
         );
 
         // Should suggest normal lock for public exported symbols
-        let has_normal = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Lock && s.value == "normal"
-        });
+        let has_normal = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Lock && s.value == "normal");
 
         assert!(has_normal, "Public exported symbols should get normal lock");
     }
@@ -287,9 +304,9 @@ mod tests {
         assert!(!suggestions.is_empty(), "Should have combined suggestions");
 
         // Should have naming-based security suggestion
-        let has_naming = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Domain
-        });
+        let has_naming = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Domain);
         assert!(has_naming, "Should have naming/path-based suggestions");
 
         // Should have visibility-based suggestions

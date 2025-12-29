@@ -93,7 +93,10 @@ fn test_schema_type_detection() {
     assert_eq!(detect_schema_type(".acp.config.json"), Some("config"));
 
     // Attempts schema
-    assert_eq!(detect_schema_type(".acp/acp.attempts.json"), Some("attempts"));
+    assert_eq!(
+        detect_schema_type(".acp/acp.attempts.json"),
+        Some("attempts")
+    );
 
     // Sync schema
     assert_eq!(detect_schema_type("acp.sync.json"), Some("sync"));
@@ -160,15 +163,8 @@ where
         tested += 1;
     }
 
-    assert!(
-        tested > 0,
-        "No valid fixtures found in {:?}",
-        fixtures_dir
-    );
-    println!(
-        "Validated {} valid {} fixtures",
-        tested, schema_type
-    );
+    assert!(tested > 0, "No valid fixtures found in {:?}", fixtures_dir);
+    println!("Validated {} valid {} fixtures", tested, schema_type);
 }
 
 fn test_invalid_fixtures<F>(schema_type: &str, validate_fn: F)
@@ -210,8 +206,5 @@ where
         "No invalid fixtures found in {:?}",
         fixtures_dir
     );
-    println!(
-        "Validated {} invalid {} fixtures",
-        tested, schema_type
-    );
+    println!("Validated {} invalid {} fixtures", tested, schema_type);
 }

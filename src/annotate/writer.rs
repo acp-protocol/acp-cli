@@ -80,27 +80,21 @@ impl CommentStyle {
                 lines.push(format!("{}\"\"\"", indent));
                 lines.join("\n")
             }
-            Self::RustDoc => {
-                annotations
-                    .iter()
-                    .map(|ann| format!("{}/// {}", indent, ann.to_annotation_string()))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
-            Self::RustModuleDoc => {
-                annotations
-                    .iter()
-                    .map(|ann| format!("{}//! {}", indent, ann.to_annotation_string()))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
-            Self::GoDoc => {
-                annotations
-                    .iter()
-                    .map(|ann| format!("{}// {}", indent, ann.to_annotation_string()))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
+            Self::RustDoc => annotations
+                .iter()
+                .map(|ann| format!("{}/// {}", indent, ann.to_annotation_string()))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            Self::RustModuleDoc => annotations
+                .iter()
+                .map(|ann| format!("{}//! {}", indent, ann.to_annotation_string()))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            Self::GoDoc => annotations
+                .iter()
+                .map(|ann| format!("{}// {}", indent, ann.to_annotation_string()))
+                .collect::<Vec<_>>()
+                .join("\n"),
         }
     }
 
@@ -108,36 +102,26 @@ impl CommentStyle {
     /// Places ACP annotations at the beginning of the comment.
     pub fn format_for_insertion(&self, annotations: &[Suggestion], indent: &str) -> Vec<String> {
         match self {
-            Self::JsDoc | Self::Javadoc => {
-                annotations
-                    .iter()
-                    .map(|ann| format!("{} * {}", indent, ann.to_annotation_string()))
-                    .collect()
-            }
-            Self::PyDocstring => {
-                annotations
-                    .iter()
-                    .map(|ann| format!("{}{}", indent, ann.to_annotation_string()))
-                    .collect()
-            }
-            Self::RustDoc => {
-                annotations
-                    .iter()
-                    .map(|ann| format!("{}/// {}", indent, ann.to_annotation_string()))
-                    .collect()
-            }
-            Self::RustModuleDoc => {
-                annotations
-                    .iter()
-                    .map(|ann| format!("{}//! {}", indent, ann.to_annotation_string()))
-                    .collect()
-            }
-            Self::GoDoc => {
-                annotations
-                    .iter()
-                    .map(|ann| format!("{}// {}", indent, ann.to_annotation_string()))
-                    .collect()
-            }
+            Self::JsDoc | Self::Javadoc => annotations
+                .iter()
+                .map(|ann| format!("{} * {}", indent, ann.to_annotation_string()))
+                .collect(),
+            Self::PyDocstring => annotations
+                .iter()
+                .map(|ann| format!("{}{}", indent, ann.to_annotation_string()))
+                .collect(),
+            Self::RustDoc => annotations
+                .iter()
+                .map(|ann| format!("{}/// {}", indent, ann.to_annotation_string()))
+                .collect(),
+            Self::RustModuleDoc => annotations
+                .iter()
+                .map(|ann| format!("{}//! {}", indent, ann.to_annotation_string()))
+                .collect(),
+            Self::GoDoc => annotations
+                .iter()
+                .map(|ann| format!("{}// {}", indent, ann.to_annotation_string()))
+                .collect(),
         }
     }
 
@@ -175,27 +159,21 @@ impl CommentStyle {
                 lines.push(format!("{}\"\"\"", indent));
                 lines.join("\n")
             }
-            Self::RustDoc => {
-                all_lines
-                    .iter()
-                    .map(|line| format!("{}/// {}", indent, line))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
-            Self::RustModuleDoc => {
-                all_lines
-                    .iter()
-                    .map(|line| format!("{}//! {}", indent, line))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
-            Self::GoDoc => {
-                all_lines
-                    .iter()
-                    .map(|line| format!("{}// {}", indent, line))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
+            Self::RustDoc => all_lines
+                .iter()
+                .map(|line| format!("{}/// {}", indent, line))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            Self::RustModuleDoc => all_lines
+                .iter()
+                .map(|line| format!("{}//! {}", indent, line))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            Self::GoDoc => all_lines
+                .iter()
+                .map(|line| format!("{}// {}", indent, line))
+                .collect::<Vec<_>>()
+                .join("\n"),
         }
     }
 
@@ -213,36 +191,26 @@ impl CommentStyle {
             .collect();
 
         match self {
-            Self::JsDoc | Self::Javadoc => {
-                all_lines
-                    .iter()
-                    .map(|line| format!("{} * {}", indent, line))
-                    .collect()
-            }
-            Self::PyDocstring => {
-                all_lines
-                    .iter()
-                    .map(|line| format!("{}{}", indent, line))
-                    .collect()
-            }
-            Self::RustDoc => {
-                all_lines
-                    .iter()
-                    .map(|line| format!("{}/// {}", indent, line))
-                    .collect()
-            }
-            Self::RustModuleDoc => {
-                all_lines
-                    .iter()
-                    .map(|line| format!("{}//! {}", indent, line))
-                    .collect()
-            }
-            Self::GoDoc => {
-                all_lines
-                    .iter()
-                    .map(|line| format!("{}// {}", indent, line))
-                    .collect()
-            }
+            Self::JsDoc | Self::Javadoc => all_lines
+                .iter()
+                .map(|line| format!("{} * {}", indent, line))
+                .collect(),
+            Self::PyDocstring => all_lines
+                .iter()
+                .map(|line| format!("{}{}", indent, line))
+                .collect(),
+            Self::RustDoc => all_lines
+                .iter()
+                .map(|line| format!("{}/// {}", indent, line))
+                .collect(),
+            Self::RustModuleDoc => all_lines
+                .iter()
+                .map(|line| format!("{}//! {}", indent, line))
+                .collect(),
+            Self::GoDoc => all_lines
+                .iter()
+                .map(|line| format!("{}// {}", indent, line))
+                .collect(),
         }
     }
 }
@@ -346,13 +314,10 @@ impl Writer {
     /// @acp:summary "Generates a unified diff for preview"
     pub fn generate_diff(&self, file_path: &Path, changes: &[FileChange]) -> Result<String> {
         let original = std::fs::read_to_string(file_path)?;
-        let modified = self.apply_to_content(&original, changes, &self.detect_language(file_path))?;
+        let modified =
+            self.apply_to_content(&original, changes, &self.detect_language(file_path))?;
 
-        let diff = generate_unified_diff(
-            &file_path.to_string_lossy(),
-            &original,
-            &modified,
-        );
+        let diff = generate_unified_diff(&file_path.to_string_lossy(), &original, &modified);
 
         Ok(diff)
     }
@@ -452,11 +417,7 @@ impl Writer {
                 };
 
                 if !comment_block.is_empty() {
-                    let insert_at = if change.line > 0 {
-                        change.line - 1
-                    } else {
-                        0
-                    };
+                    let insert_at = if change.line > 0 { change.line - 1 } else { 0 };
 
                     // Insert comment block lines
                     for (i, line) in comment_block.lines().enumerate() {
@@ -556,9 +517,12 @@ mod tests {
 
     #[test]
     fn test_format_annotations_rust() {
-        let annotations = vec![
-            Suggestion::summary("test", 1, "Test summary", SuggestionSource::Heuristic),
-        ];
+        let annotations = vec![Suggestion::summary(
+            "test",
+            1,
+            "Test summary",
+            SuggestionSource::Heuristic,
+        )];
 
         let formatted = CommentStyle::RustDoc.format_annotations(&annotations, "");
         assert!(formatted.contains("/// @acp:summary \"Test summary\""));

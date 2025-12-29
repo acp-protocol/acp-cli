@@ -18,45 +18,78 @@ use crate::annotate::{AnnotationType, Suggestion, SuggestionSource};
 
 /// @acp:summary "Security-related naming patterns"
 static SECURITY_PATTERNS: &[&str] = &[
-    "auth", "authenticate", "authorization", "authorize",
-    "token", "jwt", "session", "credential", "password",
-    "secret", "key", "encrypt", "decrypt", "hash", "verify",
-    "sign", "validate", "sanitize", "escape", "permission",
-    "role", "access", "grant", "revoke", "login", "logout",
+    "auth",
+    "authenticate",
+    "authorization",
+    "authorize",
+    "token",
+    "jwt",
+    "session",
+    "credential",
+    "password",
+    "secret",
+    "key",
+    "encrypt",
+    "decrypt",
+    "hash",
+    "verify",
+    "sign",
+    "validate",
+    "sanitize",
+    "escape",
+    "permission",
+    "role",
+    "access",
+    "grant",
+    "revoke",
+    "login",
+    "logout",
 ];
 
 /// @acp:summary "Database/storage naming patterns"
 static DATA_PATTERNS: &[&str] = &[
-    "repository", "repo", "store", "storage", "database", "db",
-    "query", "fetch", "save", "update", "delete", "insert",
-    "cache", "persist", "serialize", "deserialize",
+    "repository",
+    "repo",
+    "store",
+    "storage",
+    "database",
+    "db",
+    "query",
+    "fetch",
+    "save",
+    "update",
+    "delete",
+    "insert",
+    "cache",
+    "persist",
+    "serialize",
+    "deserialize",
 ];
 
 /// @acp:summary "Test-related naming patterns"
-static TEST_PATTERNS: &[&str] = &[
-    "test", "spec", "mock", "stub", "fake", "fixture",
-];
+static TEST_PATTERNS: &[&str] = &["test", "spec", "mock", "stub", "fake", "fixture"];
 
 /// @acp:summary "Experimental/temporary code patterns"
 static EXPERIMENTAL_PATTERNS: &[&str] = &[
-    "experimental", "beta", "alpha", "wip", "todo",
-    "hack", "temp", "temporary", "draft",
+    "experimental",
+    "beta",
+    "alpha",
+    "wip",
+    "todo",
+    "hack",
+    "temp",
+    "temporary",
+    "draft",
 ];
 
 /// @acp:summary "Handler/controller patterns"
-static HANDLER_PATTERNS: &[&str] = &[
-    "handler", "controller", "endpoint", "route",
-];
+static HANDLER_PATTERNS: &[&str] = &["handler", "controller", "endpoint", "route"];
 
 /// @acp:summary "Service patterns"
-static SERVICE_PATTERNS: &[&str] = &[
-    "service", "svc", "manager", "provider",
-];
+static SERVICE_PATTERNS: &[&str] = &["service", "svc", "manager", "provider"];
 
 /// @acp:summary "Middleware patterns"
-static MIDDLEWARE_PATTERNS: &[&str] = &[
-    "middleware", "interceptor", "filter", "guard",
-];
+static MIDDLEWARE_PATTERNS: &[&str] = &["middleware", "interceptor", "filter", "guard"];
 
 /// @acp:summary "Infers annotations from identifier naming patterns"
 /// @acp:lock normal
@@ -91,8 +124,13 @@ impl NamingHeuristics {
                     .with_confidence(0.8),
             );
             suggestions.push(
-                Suggestion::ai_hint(name, line, "security-sensitive", SuggestionSource::Heuristic)
-                    .with_confidence(0.8),
+                Suggestion::ai_hint(
+                    name,
+                    line,
+                    "security-sensitive",
+                    SuggestionSource::Heuristic,
+                )
+                .with_confidence(0.8),
             );
             suggestions.push(
                 Suggestion::domain(name, line, "security", SuggestionSource::Heuristic)
@@ -179,10 +217,7 @@ impl NamingHeuristics {
             Some(SymbolKind::Function) | Some(SymbolKind::Method) => {
                 // "getUserById" → "Gets user by ID"
                 let verb = &words[0];
-                let rest: Vec<String> = words[1..]
-                    .iter()
-                    .map(|w| w.to_lowercase())
-                    .collect();
+                let rest: Vec<String> = words[1..].iter().map(|w| w.to_lowercase()).collect();
 
                 let verb_third_person = to_third_person(verb);
                 if rest.is_empty() {
@@ -217,7 +252,11 @@ impl NamingHeuristics {
             Some(summary)
         } else {
             // Fallback to simple format
-            Some(format!("{} {}", capitalize(&name.to_lowercase()), kind_to_string(kind)))
+            Some(format!(
+                "{} {}",
+                capitalize(&name.to_lowercase()),
+                kind_to_string(kind)
+            ))
         }
     }
 
@@ -253,9 +292,9 @@ fn validate_summary(summary: &str) -> bool {
 
     // Check for common issues
     let problems = [
-        "eses ",  // Double pluralization like "Featureses"
-        "sses ",  // Double pluralization
-        "  ",     // Double spaces
+        "eses ", // Double pluralization like "Featureses"
+        "sses ", // Double pluralization
+        "  ",    // Double spaces
     ];
 
     for problem in &problems {
@@ -595,10 +634,7 @@ fn to_third_person(verb: &str) -> String {
 
         _ => {
             // Default: add 's' or 'es' with proper capitalization
-            let result = if lower.ends_with('x')
-                || lower.ends_with("ch")
-                || lower.ends_with("sh")
-            {
+            let result = if lower.ends_with('x') || lower.ends_with("ch") || lower.ends_with("sh") {
                 // Words ending in x, ch, sh → add 'es'
                 format!("{}es", lower)
             } else if lower.ends_with('s') {
@@ -614,7 +650,10 @@ fn to_third_person(verb: &str) -> String {
                 // Check for vowel + y pattern (display, play, etc.) → just add 's'
                 let chars: Vec<char> = lower.chars().collect();
                 let second_last = chars.get(chars.len() - 2);
-                if matches!(second_last, Some('a') | Some('e') | Some('i') | Some('o') | Some('u')) {
+                if matches!(
+                    second_last,
+                    Some('a') | Some('e') | Some('i') | Some('o') | Some('u')
+                ) {
                     format!("{}s", lower)
                 } else {
                     // Consonant + y → change y to ies
@@ -692,12 +731,12 @@ mod tests {
         let heuristics = NamingHeuristics::new();
         let suggestions = heuristics.suggest("validateToken", 10);
 
-        let has_security_domain = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Domain && s.value == "security"
-        });
-        let has_restricted_lock = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Lock && s.value == "restricted"
-        });
+        let has_security_domain = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Domain && s.value == "security");
+        let has_restricted_lock = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Lock && s.value == "restricted");
 
         assert!(has_security_domain);
         assert!(has_restricted_lock);

@@ -39,6 +39,7 @@
 
 pub mod annotate;
 pub mod ast;
+pub mod attempts;
 pub mod bridge;
 pub mod cache;
 pub mod commands;
@@ -52,37 +53,33 @@ pub mod parse;
 pub mod query;
 pub mod scan;
 pub mod schema;
+pub mod sync;
 pub mod vars;
 pub mod watch;
-pub mod attempts;
-pub mod sync;
 
 // Re-exports
 pub use annotate::{
-    Analyzer as AnnotationAnalyzer, Suggester as AnnotationSuggester,
-    Writer as AnnotationWriter, AnnotateLevel, ConversionSource, OutputFormat,
-    Suggestion, AnalysisResult, FileChange,
+    AnalysisResult, Analyzer as AnnotationAnalyzer, AnnotateLevel, ConversionSource, FileChange,
+    OutputFormat, Suggester as AnnotationSuggester, Suggestion, Writer as AnnotationWriter,
 };
+pub use ast::{AstParser, ExtractedSymbol, FunctionCall, Import, SymbolKind, Visibility};
+pub use attempts::AttemptTracker;
+pub use bridge::{BridgeConfig, BridgeMerger, BridgeResult, FormatDetector};
 pub use cache::{Cache, CacheBuilder, Language};
 pub use config::Config;
 pub use constraints::{
-    Constraints, ConstraintIndex,
-    StyleConstraint, MutationConstraint, BehaviorModifier, QualityGate,
-    HackMarker, DebugSession, DebugAttempt,
-    LockLevel, DebugStatus, DebugResult,
-    GuardrailEnforcer, FileGuardrails, GuardrailParser,
+    BehaviorModifier, ConstraintIndex, Constraints, DebugAttempt, DebugResult, DebugSession,
+    DebugStatus, FileGuardrails, GuardrailEnforcer, GuardrailParser, HackMarker, LockLevel,
+    MutationConstraint, QualityGate, StyleConstraint,
 };
 pub use error::{AcpError, Result};
-pub use git::{GitRepository, BlameInfo, FileHistory, GitFileInfo, GitSymbolInfo};
-pub use ast::{AstParser, ExtractedSymbol, SymbolKind, Visibility, Import, FunctionCall};
+pub use git::{BlameInfo, FileHistory, GitFileInfo, GitRepository, GitSymbolInfo};
 pub use index::Indexer;
 pub use parse::Parser;
 pub use query::Query;
 pub use scan::{scan_project, ProjectScan};
-pub use vars::{VarResolver, VarExpander};
-pub use attempts::AttemptTracker;
-pub use sync::{SyncExecutor, Tool as SyncTool, BootstrapResult, BootstrapAction};
-pub use bridge::{BridgeConfig, BridgeMerger, BridgeResult, FormatDetector};
+pub use sync::{BootstrapAction, BootstrapResult, SyncExecutor, Tool as SyncTool};
+pub use vars::{VarExpander, VarResolver};
 
 /// Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

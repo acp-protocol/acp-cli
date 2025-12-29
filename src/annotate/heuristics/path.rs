@@ -175,12 +175,10 @@ impl PathHeuristics {
         let mut seen_domains = std::collections::HashSet::new();
         let mut seen_layers = std::collections::HashSet::new();
 
-        suggestions.retain(|s| {
-            match s.annotation_type {
-                AnnotationType::Domain => seen_domains.insert(s.value.clone()),
-                AnnotationType::Layer => seen_layers.insert(s.value.clone()),
-                _ => true,
-            }
+        suggestions.retain(|s| match s.annotation_type {
+            AnnotationType::Domain => seen_domains.insert(s.value.clone()),
+            AnnotationType::Layer => seen_layers.insert(s.value.clone()),
+            _ => true,
         });
 
         suggestions
@@ -285,15 +283,15 @@ mod tests {
         let heuristics = PathHeuristics::new();
 
         let suggestions = heuristics.suggest("src/auth/service.ts", "AuthService", 10);
-        let has_auth_domain = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Domain && s.value == "authentication"
-        });
+        let has_auth_domain = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Domain && s.value == "authentication");
         assert!(has_auth_domain);
 
         let suggestions = heuristics.suggest("src/billing/payments.ts", "ProcessPayment", 10);
-        let has_billing_domain = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Domain && s.value == "billing"
-        });
+        let has_billing_domain = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Domain && s.value == "billing");
         assert!(has_billing_domain);
     }
 
@@ -302,15 +300,15 @@ mod tests {
         let heuristics = PathHeuristics::new();
 
         let suggestions = heuristics.suggest("src/handlers/user.ts", "UserHandler", 10);
-        let has_handler_layer = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Layer && s.value == "handler"
-        });
+        let has_handler_layer = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Layer && s.value == "handler");
         assert!(has_handler_layer);
 
         let suggestions = heuristics.suggest("src/services/auth.ts", "AuthService", 10);
-        let has_service_layer = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Layer && s.value == "service"
-        });
+        let has_service_layer = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Layer && s.value == "service");
         assert!(has_service_layer);
     }
 
@@ -353,9 +351,9 @@ mod tests {
         let heuristics = PathHeuristics::new().with_domain_mappings(mappings);
         let suggestions = heuristics.suggest("src/checkout/cart.ts", "Cart", 10);
 
-        let has_commerce = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Domain && s.value == "commerce"
-        });
+        let has_commerce = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Domain && s.value == "commerce");
         assert!(has_commerce);
     }
 }

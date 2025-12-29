@@ -10,13 +10,13 @@
 //! - Blame tracking (line-level authorship)
 //! - File history (commits, contributors)
 
-pub mod repository;
 pub mod blame;
 pub mod history;
+pub mod repository;
 
-pub use repository::{GitRepository, FileStatus};
 pub use blame::{BlameInfo, LineBlame};
 pub use history::{FileHistory, HistoryEntry};
+pub use repository::{FileStatus, GitRepository};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

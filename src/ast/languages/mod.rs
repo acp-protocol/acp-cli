@@ -3,16 +3,16 @@
 //! @acp:domain cli
 //! @acp:layer parsing
 
-pub mod typescript;
-pub mod javascript;
-pub mod rust;
-pub mod python;
 pub mod go;
 pub mod java;
+pub mod javascript;
+pub mod python;
+pub mod rust;
+pub mod typescript;
 
-use tree_sitter::{Language, Tree, Node};
+use super::{ExtractedSymbol, FunctionCall, Import};
 use crate::error::Result;
-use super::{ExtractedSymbol, Import, FunctionCall};
+use tree_sitter::{Language, Node, Tree};
 
 /// Trait for language-specific symbol extraction
 pub trait LanguageExtractor: Send + Sync {
@@ -32,7 +32,12 @@ pub trait LanguageExtractor: Send + Sync {
     fn extract_imports(&self, tree: &Tree, source: &str) -> Result<Vec<Import>>;
 
     /// Extract function calls from a parsed AST
-    fn extract_calls(&self, tree: &Tree, source: &str, current_function: Option<&str>) -> Result<Vec<FunctionCall>>;
+    fn extract_calls(
+        &self,
+        tree: &Tree,
+        source: &str,
+        current_function: Option<&str>,
+    ) -> Result<Vec<FunctionCall>>;
 
     /// Extract doc comment for a node (language-specific comment syntax)
     fn extract_doc_comment(&self, node: &Node, source: &str) -> Option<String>;

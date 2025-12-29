@@ -50,7 +50,10 @@ impl Constraints {
             mutation: other.mutation.clone().or_else(|| self.mutation.clone()),
             behavior: other.behavior.clone().or_else(|| self.behavior.clone()),
             quality: other.quality.clone().or_else(|| self.quality.clone()),
-            deprecation: other.deprecation.clone().or_else(|| self.deprecation.clone()),
+            deprecation: other
+                .deprecation
+                .clone()
+                .or_else(|| self.deprecation.clone()),
             references: {
                 let mut refs = self.references.clone();
                 refs.extend(other.references.clone());
@@ -58,8 +61,8 @@ impl Constraints {
             },
             // RFC-001: Aggregate directives - more specific (other) takes precedence
             directive: other.directive.clone().or_else(|| self.directive.clone()),
-            auto_generated: other.directive.is_some() && other.auto_generated ||
-                            other.directive.is_none() && self.auto_generated,
+            auto_generated: other.directive.is_some() && other.auto_generated
+                || other.directive.is_none() && self.auto_generated,
         }
     }
 
@@ -76,7 +79,10 @@ impl Constraints {
                     if let Some(allowed) = &mutation.allowed_operations {
                         if !allowed.iter().any(|op| op == operation) {
                             return ModifyPermission::Denied {
-                                reason: format!("Operation '{}' not allowed. Allowed: {:?}", operation, allowed),
+                                reason: format!(
+                                    "Operation '{}' not allowed. Allowed: {:?}",
+                                    operation, allowed
+                                ),
                             };
                         }
                     }
@@ -435,7 +441,11 @@ impl DebugSession {
         }
     }
 
-    pub fn add_attempt(&mut self, hypothesis: impl Into<String>, change: impl Into<String>) -> usize {
+    pub fn add_attempt(
+        &mut self,
+        hypothesis: impl Into<String>,
+        change: impl Into<String>,
+    ) -> usize {
         let attempt_id = self.attempts.len() + 1;
         self.attempts.push(DebugAttempt {
             attempt_id,
@@ -452,8 +462,17 @@ impl DebugSession {
         attempt_id
     }
 
-    pub fn record_result(&mut self, attempt_id: usize, result: DebugResult, observations: Option<String>) {
-        if let Some(attempt) = self.attempts.iter_mut().find(|a| a.attempt_id == attempt_id) {
+    pub fn record_result(
+        &mut self,
+        attempt_id: usize,
+        result: DebugResult,
+        observations: Option<String>,
+    ) {
+        if let Some(attempt) = self
+            .attempts
+            .iter_mut()
+            .find(|a| a.attempt_id == attempt_id)
+        {
             attempt.result = result;
             attempt.observations = observations;
 
@@ -464,7 +483,11 @@ impl DebugSession {
     }
 
     pub fn revert_attempt(&mut self, attempt_id: usize) -> Option<&DebugAttempt> {
-        if let Some(attempt) = self.attempts.iter_mut().find(|a| a.attempt_id == attempt_id) {
+        if let Some(attempt) = self
+            .attempts
+            .iter_mut()
+            .find(|a| a.attempt_id == attempt_id)
+        {
             attempt.reverted = true;
             attempt.keep = false;
             return Some(attempt);
@@ -479,7 +502,10 @@ impl DebugSession {
     }
 
     pub fn get_kept_attempts(&self) -> Vec<&DebugAttempt> {
-        self.attempts.iter().filter(|a| a.keep && !a.reverted).collect()
+        self.attempts
+            .iter()
+            .filter(|a| a.keep && !a.reverted)
+            .collect()
     }
 
     pub fn get_reverted_attempts(&self) -> Vec<&DebugAttempt> {
@@ -570,19 +596,24 @@ impl ConstraintIndex {
 
     /// Get active debug sessions
     pub fn get_active_debug_sessions(&self) -> Vec<&DebugSession> {
-        self.debug_sessions.iter().filter(|s| s.status == DebugStatus::Active).collect()
+        self.debug_sessions
+            .iter()
+            .filter(|s| s.status == DebugStatus::Active)
+            .collect()
     }
 
     /// Get all frozen files
     pub fn get_frozen_files(&self) -> Vec<&str> {
-        self.by_lock_level.get("frozen")
+        self.by_lock_level
+            .get("frozen")
             .map(|v| v.iter().map(|s| s.as_str()).collect())
             .unwrap_or_default()
     }
 
     /// Get all restricted files
     pub fn get_restricted_files(&self) -> Vec<&str> {
-        self.by_lock_level.get("restricted")
+        self.by_lock_level
+            .get("restricted")
             .map(|v| v.iter().map(|s| s.as_str()).collect())
             .unwrap_or_default()
     }
@@ -647,10 +678,18 @@ mod tests {
         let mut session = DebugSession::new("test-123", "Something is broken");
 
         let attempt1 = session.add_attempt("Maybe it's X", "Changed X");
-        session.record_result(attempt1, DebugResult::Failure, Some("Nope, not X".to_string()));
+        session.record_result(
+            attempt1,
+            DebugResult::Failure,
+            Some("Nope, not X".to_string()),
+        );
 
         let attempt2 = session.add_attempt("Maybe it's Y", "Changed Y");
-        session.record_result(attempt2, DebugResult::Success, Some("Yes, Y was the issue!".to_string()));
+        session.record_result(
+            attempt2,
+            DebugResult::Success,
+            Some("Yes, Y was the issue!".to_string()),
+        );
 
         // Revert the failed attempt
         session.revert_attempt(attempt1);

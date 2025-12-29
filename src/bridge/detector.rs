@@ -3,9 +3,9 @@
 //! @acp:domain cli
 //! @acp:layer service
 
-use regex::Regex;
-use crate::cache::SourceFormat;
 use super::config::{BridgeConfig, DocstringStyle};
+use crate::cache::SourceFormat;
+use regex::Regex;
 
 /// @acp:summary "Detects documentation format from content"
 pub struct FormatDetector {
@@ -135,17 +135,13 @@ impl FormatDetector {
     pub fn has_documentation(&self, content: &str, language: &str) -> bool {
         match language.to_lowercase().as_str() {
             "javascript" | "typescript" | "js" | "ts" => {
-                content.contains("/**") || content.contains("@param") || content.contains("@returns")
-            }
-            "python" | "py" => {
-                content.contains("\"\"\"") || content.contains("'''")
-            }
-            "rust" | "rs" => {
-                content.contains("///") || content.contains("//!")
-            }
-            "java" | "kotlin" => {
                 content.contains("/**")
+                    || content.contains("@param")
+                    || content.contains("@returns")
             }
+            "python" | "py" => content.contains("\"\"\"") || content.contains("'''"),
+            "rust" | "rs" => content.contains("///") || content.contains("//!"),
+            "java" | "kotlin" => content.contains("/**"),
             "go" => {
                 // Go doc comments are // directly before declaration
                 content.lines().any(|line| {
@@ -176,7 +172,10 @@ mod tests {
              * @returns {User} The user
              */
         "#;
-        assert_eq!(detector.detect(jsdoc, "typescript"), Some(SourceFormat::Jsdoc));
+        assert_eq!(
+            detector.detect(jsdoc, "typescript"),
+            Some(SourceFormat::Jsdoc)
+        );
     }
 
     #[test]
@@ -194,7 +193,10 @@ mod tests {
                 List of matching users.
             """
         "#;
-        assert_eq!(detector.detect(google, "python"), Some(SourceFormat::DocstringGoogle));
+        assert_eq!(
+            detector.detect(google, "python"),
+            Some(SourceFormat::DocstringGoogle)
+        );
     }
 
     #[test]
@@ -217,7 +219,10 @@ mod tests {
                 List of matching users.
             """
         "#;
-        assert_eq!(detector.detect(numpy, "python"), Some(SourceFormat::DocstringNumpy));
+        assert_eq!(
+            detector.detect(numpy, "python"),
+            Some(SourceFormat::DocstringNumpy)
+        );
     }
 
     #[test]
@@ -234,7 +239,10 @@ mod tests {
             :rtype: list
             """
         "#;
-        assert_eq!(detector.detect(sphinx, "python"), Some(SourceFormat::DocstringSphinx));
+        assert_eq!(
+            detector.detect(sphinx, "python"),
+            Some(SourceFormat::DocstringSphinx)
+        );
     }
 
     #[test]
@@ -253,7 +261,10 @@ mod tests {
             ///
             /// A vector of matching users.
         "#;
-        assert_eq!(detector.detect(rustdoc, "rust"), Some(SourceFormat::Rustdoc));
+        assert_eq!(
+            detector.detect(rustdoc, "rust"),
+            Some(SourceFormat::Rustdoc)
+        );
     }
 
     #[test]

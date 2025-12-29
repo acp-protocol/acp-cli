@@ -30,7 +30,7 @@ pub mod writer;
 pub use analyzer::Analyzer;
 pub use converters::{DocStandardParser, ParsedDocumentation};
 pub use suggester::Suggester;
-pub use writer::{Writer, CommentStyle};
+pub use writer::{CommentStyle, Writer};
 
 use serde::{Deserialize, Serialize};
 
@@ -236,32 +236,62 @@ impl Suggestion {
     }
 
     /// @acp:summary "Creates a summary annotation suggestion"
-    pub fn summary(target: impl Into<String>, line: usize, value: impl Into<String>, source: SuggestionSource) -> Self {
+    pub fn summary(
+        target: impl Into<String>,
+        line: usize,
+        value: impl Into<String>,
+        source: SuggestionSource,
+    ) -> Self {
         Self::new(target, line, AnnotationType::Summary, value, source)
     }
 
     /// @acp:summary "Creates a domain annotation suggestion"
-    pub fn domain(target: impl Into<String>, line: usize, value: impl Into<String>, source: SuggestionSource) -> Self {
+    pub fn domain(
+        target: impl Into<String>,
+        line: usize,
+        value: impl Into<String>,
+        source: SuggestionSource,
+    ) -> Self {
         Self::new(target, line, AnnotationType::Domain, value, source)
     }
 
     /// @acp:summary "Creates a lock annotation suggestion"
-    pub fn lock(target: impl Into<String>, line: usize, value: impl Into<String>, source: SuggestionSource) -> Self {
+    pub fn lock(
+        target: impl Into<String>,
+        line: usize,
+        value: impl Into<String>,
+        source: SuggestionSource,
+    ) -> Self {
         Self::new(target, line, AnnotationType::Lock, value, source)
     }
 
     /// @acp:summary "Creates a layer annotation suggestion"
-    pub fn layer(target: impl Into<String>, line: usize, value: impl Into<String>, source: SuggestionSource) -> Self {
+    pub fn layer(
+        target: impl Into<String>,
+        line: usize,
+        value: impl Into<String>,
+        source: SuggestionSource,
+    ) -> Self {
         Self::new(target, line, AnnotationType::Layer, value, source)
     }
 
     /// @acp:summary "Creates a deprecated annotation suggestion"
-    pub fn deprecated(target: impl Into<String>, line: usize, value: impl Into<String>, source: SuggestionSource) -> Self {
+    pub fn deprecated(
+        target: impl Into<String>,
+        line: usize,
+        value: impl Into<String>,
+        source: SuggestionSource,
+    ) -> Self {
         Self::new(target, line, AnnotationType::Deprecated, value, source)
     }
 
     /// @acp:summary "Creates an AI hint annotation suggestion"
-    pub fn ai_hint(target: impl Into<String>, line: usize, value: impl Into<String>, source: SuggestionSource) -> Self {
+    pub fn ai_hint(
+        target: impl Into<String>,
+        line: usize,
+        value: impl Into<String>,
+        source: SuggestionSource,
+    ) -> Self {
         Self::new(target, line, AnnotationType::AiHint, value, source)
     }
 
@@ -429,7 +459,12 @@ impl AnnotationGap {
     }
 
     /// @acp:summary "Sets the doc comment with its line range"
-    pub fn with_doc_comment_range(mut self, doc: impl Into<String>, start: usize, end: usize) -> Self {
+    pub fn with_doc_comment_range(
+        mut self,
+        doc: impl Into<String>,
+        start: usize,
+        end: usize,
+    ) -> Self {
         self.doc_comment = Some(doc.into());
         self.doc_comment_range = Some((start, end));
         self
@@ -473,10 +508,7 @@ impl AnnotateLevel {
     /// @acp:summary "Returns annotation types included at this level"
     pub fn included_types(&self) -> Vec<AnnotationType> {
         match self {
-            Self::Minimal => vec![
-                AnnotationType::Module,
-                AnnotationType::Summary,
-            ],
+            Self::Minimal => vec![AnnotationType::Module, AnnotationType::Summary],
             Self::Standard => vec![
                 AnnotationType::Module,
                 AnnotationType::Summary,
@@ -646,8 +678,10 @@ mod tests {
 
     #[test]
     fn test_suggestion_is_file_level() {
-        let file_suggestion = Suggestion::summary("src/main.rs", 1, "Test", SuggestionSource::Heuristic);
-        let symbol_suggestion = Suggestion::summary("MyClass", 10, "Test", SuggestionSource::Heuristic);
+        let file_suggestion =
+            Suggestion::summary("src/main.rs", 1, "Test", SuggestionSource::Heuristic);
+        let symbol_suggestion =
+            Suggestion::summary("MyClass", 10, "Test", SuggestionSource::Heuristic);
 
         assert!(file_suggestion.is_file_level());
         assert!(!symbol_suggestion.is_file_level());
@@ -655,9 +689,21 @@ mod tests {
 
     #[test]
     fn test_conversion_source_for_language() {
-        assert_eq!(ConversionSource::for_language("typescript"), ConversionSource::Tsdoc);
-        assert_eq!(ConversionSource::for_language("python"), ConversionSource::Docstring);
-        assert_eq!(ConversionSource::for_language("rust"), ConversionSource::Rustdoc);
-        assert_eq!(ConversionSource::for_language("unknown"), ConversionSource::Auto);
+        assert_eq!(
+            ConversionSource::for_language("typescript"),
+            ConversionSource::Tsdoc
+        );
+        assert_eq!(
+            ConversionSource::for_language("python"),
+            ConversionSource::Docstring
+        );
+        assert_eq!(
+            ConversionSource::for_language("rust"),
+            ConversionSource::Rustdoc
+        );
+        assert_eq!(
+            ConversionSource::for_language("unknown"),
+            ConversionSource::Auto
+        );
     }
 }

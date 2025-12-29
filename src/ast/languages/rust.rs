@@ -3,10 +3,12 @@
 //! @acp:domain cli
 //! @acp:layer parsing
 
-use tree_sitter::{Language, Tree, Node};
+use super::{node_text, LanguageExtractor};
+use crate::ast::{
+    ExtractedSymbol, FunctionCall, Import, ImportedName, Parameter, SymbolKind, Visibility,
+};
 use crate::error::Result;
-use super::{LanguageExtractor, node_text};
-use crate::ast::{ExtractedSymbol, Import, ImportedName, FunctionCall, Parameter, SymbolKind, Visibility};
+use tree_sitter::{Language, Node, Tree};
 
 /// Rust language extractor
 pub struct RustExtractor;
@@ -38,7 +40,12 @@ impl LanguageExtractor for RustExtractor {
         Ok(imports)
     }
 
-    fn extract_calls(&self, tree: &Tree, source: &str, current_function: Option<&str>) -> Result<Vec<FunctionCall>> {
+    fn extract_calls(
+        &self,
+        tree: &Tree,
+        source: &str,
+        current_function: Option<&str>,
+    ) -> Result<Vec<FunctionCall>> {
         let mut calls = Vec::new();
         let root = tree.root_node();
         self.extract_calls_recursive(&root, source, &mut calls, current_function);
@@ -171,7 +178,12 @@ impl RustExtractor {
         }
     }
 
-    fn extract_function(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_function(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -207,7 +219,12 @@ impl RustExtractor {
 
         // Extract return type
         if let Some(ret_type) = node.child_by_field_name("return_type") {
-            sym.return_type = Some(node_text(&ret_type, source).trim_start_matches("->").trim().to_string());
+            sym.return_type = Some(
+                node_text(&ret_type, source)
+                    .trim_start_matches("->")
+                    .trim()
+                    .to_string(),
+            );
         }
 
         sym.doc_comment = self.extract_doc_comment(node, source);
@@ -221,7 +238,12 @@ impl RustExtractor {
         Some(sym)
     }
 
-    fn extract_struct(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_struct(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -286,7 +308,12 @@ impl RustExtractor {
         }
     }
 
-    fn extract_enum(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_enum(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -345,7 +372,12 @@ impl RustExtractor {
         }
     }
 
-    fn extract_trait(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_trait(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -399,7 +431,12 @@ impl RustExtractor {
                     }
 
                     if let Some(ret_type) = child.child_by_field_name("return_type") {
-                        sym.return_type = Some(node_text(&ret_type, source).trim_start_matches("->").trim().to_string());
+                        sym.return_type = Some(
+                            node_text(&ret_type, source)
+                                .trim_start_matches("->")
+                                .trim()
+                                .to_string(),
+                        );
                     }
 
                     sym.doc_comment = self.extract_doc_comment(&child, source);
@@ -416,12 +453,14 @@ impl RustExtractor {
 
     fn extract_impl_block(&self, node: &Node, source: &str, symbols: &mut Vec<ExtractedSymbol>) {
         // Get the type being implemented
-        let type_name = node.child_by_field_name("type")
+        let type_name = node
+            .child_by_field_name("type")
             .map(|n| node_text(&n, source).to_string())
             .unwrap_or_default();
 
         // Check if this is a trait impl
-        let trait_name = node.child_by_field_name("trait")
+        let trait_name = node
+            .child_by_field_name("trait")
             .map(|n| node_text(&n, source).to_string());
 
         let impl_name = if let Some(ref trait_n) = trait_name {
@@ -461,7 +500,12 @@ impl RustExtractor {
         }
     }
 
-    fn extract_type_alias(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_type_alias(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -490,7 +534,12 @@ impl RustExtractor {
         Some(sym)
     }
 
-    fn extract_const(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_const(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -519,7 +568,12 @@ impl RustExtractor {
         Some(sym)
     }
 
-    fn extract_static(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_static(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -550,7 +604,12 @@ impl RustExtractor {
         Some(sym)
     }
 
-    fn extract_module(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_module(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -597,11 +656,13 @@ impl RustExtractor {
         for child in params.children(&mut cursor) {
             match child.kind() {
                 "parameter" => {
-                    let pattern = child.child_by_field_name("pattern")
+                    let pattern = child
+                        .child_by_field_name("pattern")
                         .map(|n| node_text(&n, source).to_string())
                         .unwrap_or_default();
 
-                    let type_info = child.child_by_field_name("type")
+                    let type_info = child
+                        .child_by_field_name("type")
                         .map(|n| node_text(&n, source).to_string());
 
                     sym.add_parameter(Parameter {
@@ -675,10 +736,12 @@ impl RustExtractor {
     fn parse_use_path(&self, node: &Node, source: &str, import: &mut Import, prefix: String) {
         match node.kind() {
             "scoped_identifier" => {
-                let path = node.child_by_field_name("path")
+                let path = node
+                    .child_by_field_name("path")
                     .map(|n| node_text(&n, source).to_string())
                     .unwrap_or_default();
-                let name = node.child_by_field_name("name")
+                let name = node
+                    .child_by_field_name("name")
                     .map(|n| node_text(&n, source).to_string())
                     .unwrap_or_default();
 
@@ -689,23 +752,19 @@ impl RustExtractor {
                 };
 
                 import.source = full_path;
-                import.names.push(ImportedName {
-                    name,
-                    alias: None,
-                });
+                import.names.push(ImportedName { name, alias: None });
             }
             "use_as_clause" => {
-                let path = node.child_by_field_name("path")
+                let path = node
+                    .child_by_field_name("path")
                     .map(|n| node_text(&n, source).to_string())
                     .unwrap_or_default();
-                let alias = node.child_by_field_name("alias")
+                let alias = node
+                    .child_by_field_name("alias")
                     .map(|n| node_text(&n, source).to_string());
 
                 import.source = prefix;
-                import.names.push(ImportedName {
-                    name: path,
-                    alias,
-                });
+                import.names.push(ImportedName { name: path, alias });
             }
             "use_wildcard" => {
                 import.source = prefix;
@@ -726,10 +785,7 @@ impl RustExtractor {
                 if import.source.is_empty() {
                     import.source = prefix;
                 }
-                import.names.push(ImportedName {
-                    name,
-                    alias: None,
-                });
+                import.names.push(ImportedName { name, alias: None });
             }
             _ => {}
         }
@@ -755,7 +811,9 @@ impl RustExtractor {
             None
         };
 
-        let current = func_name.map(String::from).or_else(|| current_function.map(String::from));
+        let current = func_name
+            .map(String::from)
+            .or_else(|| current_function.map(String::from));
 
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
@@ -763,26 +821,32 @@ impl RustExtractor {
         }
     }
 
-    fn parse_call(&self, node: &Node, source: &str, current_function: Option<&str>) -> Option<FunctionCall> {
+    fn parse_call(
+        &self,
+        node: &Node,
+        source: &str,
+        current_function: Option<&str>,
+    ) -> Option<FunctionCall> {
         let function = node.child_by_field_name("function")?;
 
         let (callee, is_method, receiver) = match function.kind() {
             "field_expression" => {
-                let value = function.child_by_field_name("value")
+                let value = function
+                    .child_by_field_name("value")
                     .map(|n| node_text(&n, source).to_string());
-                let field = function.child_by_field_name("field")
+                let field = function
+                    .child_by_field_name("field")
                     .map(|n| node_text(&n, source).to_string())?;
                 (field, true, value)
             }
             "scoped_identifier" => {
-                let name = function.child_by_field_name("name")
+                let name = function
+                    .child_by_field_name("name")
                     .map(|n| node_text(&n, source).to_string())
                     .unwrap_or_else(|| node_text(&function, source).to_string());
                 (name, false, None)
             }
-            "identifier" => {
-                (node_text(&function, source).to_string(), false, None)
-            }
+            "identifier" => (node_text(&function, source).to_string(), false, None),
             _ => return None,
         };
 
@@ -796,7 +860,8 @@ impl RustExtractor {
     }
 
     fn build_function_signature(&self, node: &Node, source: &str) -> String {
-        let vis = node.children(&mut node.walk())
+        let vis = node
+            .children(&mut node.walk())
             .find(|c| c.kind() == "visibility_modifier")
             .map(|n| format!("{} ", node_text(&n, source)))
             .unwrap_or_default();
@@ -807,29 +872,29 @@ impl RustExtractor {
             ""
         };
 
-        let name = node.child_by_field_name("name")
+        let name = node
+            .child_by_field_name("name")
             .map(|n| node_text(&n, source))
             .unwrap_or("unknown");
 
-        let generics = node.child_by_field_name("type_parameters")
+        let generics = node
+            .child_by_field_name("type_parameters")
             .map(|n| node_text(&n, source))
             .unwrap_or("");
 
-        let params = node.child_by_field_name("parameters")
+        let params = node
+            .child_by_field_name("parameters")
             .map(|n| node_text(&n, source))
             .unwrap_or("()");
 
-        let return_type = node.child_by_field_name("return_type")
+        let return_type = node
+            .child_by_field_name("return_type")
             .map(|n| format!(" {}", node_text(&n, source)))
             .unwrap_or_default();
 
-        format!("{}{}fn {}{}{}{}",
-            vis,
-            async_kw,
-            name,
-            generics,
-            params,
-            return_type
+        format!(
+            "{}{}fn {}{}{}{}",
+            vis, async_kw, name, generics, params, return_type
         )
     }
 
@@ -852,7 +917,9 @@ mod tests {
 
     fn parse_rs(source: &str) -> (Tree, String) {
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_rust::LANGUAGE.into()).unwrap();
+        parser
+            .set_language(&tree_sitter_rust::LANGUAGE.into())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         (tree, source.to_string())
     }
@@ -886,9 +953,15 @@ pub struct User {
         let extractor = RustExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "User" && s.kind == SymbolKind::Struct));
-        assert!(symbols.iter().any(|s| s.name == "name" && s.kind == SymbolKind::Field));
-        assert!(symbols.iter().any(|s| s.name == "age" && s.kind == SymbolKind::Field));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "User" && s.kind == SymbolKind::Struct));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "name" && s.kind == SymbolKind::Field));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "age" && s.kind == SymbolKind::Field));
     }
 
     #[test]
@@ -908,9 +981,15 @@ impl User {
         let extractor = RustExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "User" && s.kind == SymbolKind::Impl));
-        assert!(symbols.iter().any(|s| s.name == "new" && s.kind == SymbolKind::Function));
-        assert!(symbols.iter().any(|s| s.name == "greet" && s.kind == SymbolKind::Method));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "User" && s.kind == SymbolKind::Impl));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "new" && s.kind == SymbolKind::Function));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "greet" && s.kind == SymbolKind::Method));
     }
 
     #[test]
@@ -927,7 +1006,9 @@ pub trait Greeter {
         let extractor = RustExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "Greeter" && s.kind == SymbolKind::Trait));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "Greeter" && s.kind == SymbolKind::Trait));
     }
 
     #[test]
@@ -943,7 +1024,11 @@ pub enum Status {
         let extractor = RustExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "Status" && s.kind == SymbolKind::Enum));
-        assert!(symbols.iter().any(|s| s.name == "Active" && s.kind == SymbolKind::EnumVariant));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "Status" && s.kind == SymbolKind::Enum));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "Active" && s.kind == SymbolKind::EnumVariant));
     }
 }

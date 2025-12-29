@@ -125,11 +125,12 @@ fn list_for_review(cache: &Cache, options: &ReviewOptions) -> Result<()> {
 
     for (i, item) in items.iter().enumerate() {
         println!("{}. {}", i + 1, style(&item.target).cyan());
-        println!("   @acp:{} \"{}\"", item.annotation, truncate_value(&item.value, 50));
         println!(
-            "   Source: {:?}",
-            item.source
+            "   @acp:{} \"{}\"",
+            item.annotation,
+            truncate_value(&item.value, 50)
         );
+        println!("   Source: {:?}", item.source);
         if let Some(conf) = item.confidence {
             println!("   Confidence: {:.2}", conf);
         }
@@ -268,7 +269,10 @@ fn mark_reviewed(
 
         // Check file filter for symbol
         if let Some(filter_path) = file {
-            if !sym.file.contains(&filter_path.to_string_lossy().to_string()) {
+            if !sym
+                .file
+                .contains(&filter_path.to_string_lossy().to_string())
+            {
                 continue;
             }
         }
@@ -317,7 +321,11 @@ fn interactive_review(cache: &mut Cache, options: &ReviewOptions) -> Result<()> 
 
     for item in &items {
         println!("{}", style(&item.target).cyan());
-        println!("  @acp:{} \"{}\"", item.annotation, truncate_value(&item.value, 50));
+        println!(
+            "  @acp:{} \"{}\"",
+            item.annotation,
+            truncate_value(&item.value, 50)
+        );
         println!("  Source: {:?}", item.source);
         if let Some(conf) = item.confidence {
             println!("  Confidence: {:.2}", conf);

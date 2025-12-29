@@ -4,9 +4,7 @@
 
 use std::path::PathBuf;
 
-use acp::annotate::{
-    Analyzer, AnnotateLevel, AnnotationType, ConversionSource, Suggester, Writer,
-};
+use acp::annotate::{Analyzer, AnnotateLevel, AnnotationType, ConversionSource, Suggester, Writer};
 use acp::Config;
 
 /// Helper to get the fixtures directory
@@ -58,8 +56,8 @@ mod typescript_tests {
     fn test_suggest_from_jsdoc() {
         let config = test_config();
         let analyzer = Analyzer::new(&config).expect("Failed to create analyzer");
-        let suggester = Suggester::new(AnnotateLevel::Standard)
-            .with_conversion_source(ConversionSource::Jsdoc);
+        let suggester =
+            Suggester::new(AnnotateLevel::Standard).with_conversion_source(ConversionSource::Jsdoc);
 
         let fixture = fixtures_dir().join("sample.ts");
         if !fixture.exists() {
@@ -154,7 +152,10 @@ mod python_tests {
         let suggestions = suggester.suggest(&analysis);
 
         // Should have suggestions (at least from heuristics)
-        assert!(!suggestions.is_empty(), "Expected suggestions from Python file");
+        assert!(
+            !suggestions.is_empty(),
+            "Expected suggestions from Python file"
+        );
     }
 
     #[test]
@@ -199,7 +200,10 @@ mod rust_tests {
         let analysis = analyzer.analyze_file(&fixture).expect("Failed to analyze");
         let suggestions = suggester.suggest(&analysis);
 
-        assert!(!suggestions.is_empty(), "Expected suggestions from Rust file");
+        assert!(
+            !suggestions.is_empty(),
+            "Expected suggestions from Rust file"
+        );
     }
 
     #[test]
@@ -236,8 +240,8 @@ mod go_tests {
     fn test_suggest_from_godoc() {
         let config = test_config();
         let analyzer = Analyzer::new(&config).expect("Failed to create analyzer");
-        let suggester = Suggester::new(AnnotateLevel::Standard)
-            .with_conversion_source(ConversionSource::Godoc);
+        let suggester =
+            Suggester::new(AnnotateLevel::Standard).with_conversion_source(ConversionSource::Godoc);
 
         let fixture = fixtures_dir().join("sample.go");
         if !fixture.exists() {
@@ -292,7 +296,10 @@ mod java_tests {
         let analysis = analyzer.analyze_file(&fixture).expect("Failed to analyze");
         let suggestions = suggester.suggest(&analysis);
 
-        assert!(!suggestions.is_empty(), "Expected suggestions from Java file");
+        assert!(
+            !suggestions.is_empty(),
+            "Expected suggestions from Java file"
+        );
     }
 
     #[test]
@@ -406,8 +413,8 @@ mod pipeline_tests {
 
         let config = test_config();
         let analyzer = Analyzer::new(&config).expect("Failed to create analyzer");
-        let suggester = Suggester::new(AnnotateLevel::Standard)
-            .with_conversion_source(ConversionSource::Auto);
+        let suggester =
+            Suggester::new(AnnotateLevel::Standard).with_conversion_source(ConversionSource::Auto);
 
         let fixture = fixtures_dir().join("sample.ts");
         if !fixture.exists() {
@@ -467,7 +474,10 @@ mod pipeline_tests {
         }
 
         let coverage = Analyzer::calculate_total_coverage(&results);
-        assert!(coverage >= 0.0 && coverage <= 100.0, "Coverage should be 0-100%");
+        assert!(
+            coverage >= 0.0 && coverage <= 100.0,
+            "Coverage should be 0-100%"
+        );
     }
 }
 
@@ -553,15 +563,14 @@ mod heuristics_tests {
         for (path, expected_domain) in test_cases {
             let suggestions = engine.suggest("something", 1, None, path);
 
-            let has_domain = suggestions.iter().any(|s| {
-                s.annotation_type == AnnotationType::Domain && s.value == expected_domain
-            });
+            let has_domain = suggestions
+                .iter()
+                .any(|s| s.annotation_type == AnnotationType::Domain && s.value == expected_domain);
 
             assert!(
                 has_domain,
                 "Path {} should infer domain {}",
-                path,
-                expected_domain
+                path, expected_domain
             );
         }
     }

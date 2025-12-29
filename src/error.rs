@@ -25,7 +25,7 @@ pub enum AcpError {
     Parse {
         message: String,
         file: Option<String>,
-        line: Option<usize>
+        line: Option<usize>,
     },
 
     /// File not found

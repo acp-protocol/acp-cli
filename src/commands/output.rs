@@ -24,17 +24,29 @@ impl Default for TreeRenderer {
 impl TreeRenderer {
     /// Branch character for intermediate items
     pub fn branch(&self) -> &'static str {
-        if self.use_unicode { "├─" } else { "|-" }
+        if self.use_unicode {
+            "├─"
+        } else {
+            "|-"
+        }
     }
 
     /// Branch character for last item
     pub fn last_branch(&self) -> &'static str {
-        if self.use_unicode { "└─" } else { "`-" }
+        if self.use_unicode {
+            "└─"
+        } else {
+            "`-"
+        }
     }
 
     /// Vertical continuation line
     pub fn vertical(&self) -> &'static str {
-        if self.use_unicode { "│ " } else { "| " }
+        if self.use_unicode {
+            "│ "
+        } else {
+            "| "
+        }
     }
 
     /// Horizontal separator line

@@ -6,19 +6,19 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use console::style;
 
-use acp::{Config, Cache};
 use acp::annotate::{AnnotateLevel, ConversionSource, OutputFormat};
 use acp::commands::{
     execute_annotate, execute_attempt, execute_bridge, execute_chain, execute_check,
     execute_daemon, execute_expand, execute_index, execute_init, execute_install,
     execute_list_installed, execute_map, execute_migrate, execute_primer, execute_query,
-    execute_review, execute_revert, execute_uninstall, execute_validate, execute_vars,
+    execute_revert, execute_review, execute_uninstall, execute_validate, execute_vars,
     execute_watch, AnnotateOptions, AttemptSubcommand, BridgeOptions, BridgeSubcommand,
     ChainOptions, CheckOptions, DaemonSubcommand, ExpandOptions, IndexOptions, InitOptions,
     InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions, PrimerFormat,
-    PrimerOptions, QueryOptions, QuerySubcommand, ReviewOptions, ReviewSubcommand, RevertOptions,
+    PrimerOptions, QueryOptions, QuerySubcommand, RevertOptions, ReviewOptions, ReviewSubcommand,
     ValidateOptions, VarsOptions, WatchOptions,
 };
+use acp::{Cache, Config};
 
 #[derive(Parser)]
 #[command(name = "acp")]
@@ -640,12 +640,19 @@ async fn main() -> anyhow::Result<()> {
     // Check for config requirement (most commands require .acp.config.json)
     let requires_config = !matches!(
         cli.command,
-        Commands::Init { .. } | Commands::Install { .. } | Commands::Validate { .. } | Commands::Daemon { .. } | Commands::Primer { .. }
+        Commands::Init { .. }
+            | Commands::Install { .. }
+            | Commands::Validate { .. }
+            | Commands::Daemon { .. }
+            | Commands::Primer { .. }
     );
     if requires_config {
         let config_path = PathBuf::from(".acp.config.json");
         if !config_path.exists() {
-            eprintln!("{} No .acp.config.json found in project root", style("✗").red());
+            eprintln!(
+                "{} No .acp.config.json found in project root",
+                style("✗").red()
+            );
             eprintln!("  Run 'acp init' to initialize the project");
             eprintln!("  Use 'acp init --help' for configuration options");
             std::process::exit(1);
@@ -653,7 +660,17 @@ async fn main() -> anyhow::Result<()> {
     }
 
     match cli.command {
-        Commands::Init { force, include, exclude, output, cache_path, vars_path, workers, yes, no_bootstrap } => {
+        Commands::Init {
+            force,
+            include,
+            exclude,
+            output,
+            cache_path,
+            vars_path,
+            workers,
+            yes,
+            no_bootstrap,
+        } => {
             let options = InitOptions {
                 force,
                 include,
@@ -668,7 +685,13 @@ async fn main() -> anyhow::Result<()> {
             execute_init(options)?;
         }
 
-        Commands::Install { targets, force, version, list, uninstall } => {
+        Commands::Install {
+            targets,
+            force,
+            version,
+            list,
+            uninstall,
+        } => {
             if list {
                 execute_list_installed()?;
             } else if uninstall {
@@ -693,8 +716,20 @@ async fn main() -> anyhow::Result<()> {
             }
         }
 
-        Commands::Index { root, output, vars, bridge, no_bridge } => {
-            let options = IndexOptions { root, output, vars, bridge, no_bridge };
+        Commands::Index {
+            root,
+            output,
+            vars,
+            bridge,
+            no_bridge,
+        } => {
+            let options = IndexOptions {
+                root,
+                output,
+                vars,
+                bridge,
+                no_bridge,
+            };
             execute_index(options, config).await?;
         }
 
@@ -733,8 +768,18 @@ async fn main() -> anyhow::Result<()> {
             execute_query(options, subcommand)?;
         }
 
-        Commands::Expand { text, mode, vars, chains } => {
-            let options = ExpandOptions { text, mode, vars, chains };
+        Commands::Expand {
+            text,
+            mode,
+            vars,
+            chains,
+        } => {
+            let options = ExpandOptions {
+                text,
+                mode,
+                vars,
+                chains,
+            };
             execute_expand(options)?;
         }
 
@@ -750,21 +795,37 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Attempt { cmd } => {
             let subcommand = match cmd {
-                AttemptCommands::Start { id, for_issue, description } => {
-                    AttemptSubcommand::Start { id, for_issue, description }
-                }
-                AttemptCommands::List { active, failed, history } => {
-                    AttemptSubcommand::List { active, failed, history }
-                }
-                AttemptCommands::Fail { id, reason } => {
-                    AttemptSubcommand::Fail { id, reason }
-                }
+                AttemptCommands::Start {
+                    id,
+                    for_issue,
+                    description,
+                } => AttemptSubcommand::Start {
+                    id,
+                    for_issue,
+                    description,
+                },
+                AttemptCommands::List {
+                    active,
+                    failed,
+                    history,
+                } => AttemptSubcommand::List {
+                    active,
+                    failed,
+                    history,
+                },
+                AttemptCommands::Fail { id, reason } => AttemptSubcommand::Fail { id, reason },
                 AttemptCommands::Verify { id } => AttemptSubcommand::Verify { id },
                 AttemptCommands::Revert { id } => AttemptSubcommand::Revert { id },
                 AttemptCommands::Cleanup => AttemptSubcommand::Cleanup,
-                AttemptCommands::Checkpoint { name, files, description } => {
-                    AttemptSubcommand::Checkpoint { name, files, description }
-                }
+                AttemptCommands::Checkpoint {
+                    name,
+                    files,
+                    description,
+                } => AttemptSubcommand::Checkpoint {
+                    name,
+                    files,
+                    description,
+                },
                 AttemptCommands::Checkpoints => AttemptSubcommand::Checkpoints,
                 AttemptCommands::Restore { name } => AttemptSubcommand::Restore { name },
             };
@@ -776,8 +837,14 @@ async fn main() -> anyhow::Result<()> {
             execute_check(options)?;
         }
 
-        Commands::Revert { attempt, checkpoint } => {
-            let options = RevertOptions { attempt, checkpoint };
+        Commands::Revert {
+            attempt,
+            checkpoint,
+        } => {
+            let options = RevertOptions {
+                attempt,
+                checkpoint,
+            };
             execute_revert(options)?;
         }
 
@@ -793,9 +860,7 @@ async fn main() -> anyhow::Result<()> {
                 }
                 DaemonCommands::Stop => DaemonSubcommand::Stop,
                 DaemonCommands::Status => DaemonSubcommand::Status,
-                DaemonCommands::Logs { lines, follow } => {
-                    DaemonSubcommand::Logs { lines, follow }
-                }
+                DaemonCommands::Logs { lines, follow } => DaemonSubcommand::Logs { lines, follow },
             };
             execute_daemon(subcommand)?;
         }
@@ -863,7 +928,13 @@ async fn main() -> anyhow::Result<()> {
             execute_annotate(options, config)?;
         }
 
-        Commands::Review { cmd, source, confidence, cache, json } => {
+        Commands::Review {
+            cmd,
+            source,
+            confidence,
+            cache,
+            json,
+        } => {
             let options = ReviewOptions {
                 cache,
                 source: source.and_then(|s| s.parse().ok()),
@@ -880,7 +951,13 @@ async fn main() -> anyhow::Result<()> {
             execute_review(options, subcommand)?;
         }
 
-        Commands::Map { path, depth, inline, format, cache } => {
+        Commands::Map {
+            path,
+            depth,
+            inline,
+            format,
+            cache,
+        } => {
             let cache_data = Cache::from_json(&cache)?;
 
             let map_format = match format {
@@ -898,9 +975,19 @@ async fn main() -> anyhow::Result<()> {
             execute_map(&cache_data, &path, options)?;
         }
 
-        Commands::Migrate { add_directives, paths, dry_run, interactive, backup, cache } => {
+        Commands::Migrate {
+            add_directives,
+            paths,
+            dry_run,
+            interactive,
+            backup,
+            cache,
+        } => {
             if !add_directives {
-                eprintln!("{} Currently only --add-directives is supported", style("!").yellow());
+                eprintln!(
+                    "{} Currently only --add-directives is supported",
+                    style("!").yellow()
+                );
                 eprintln!("  Run: acp migrate --add-directives");
                 std::process::exit(1);
             }
@@ -917,11 +1004,20 @@ async fn main() -> anyhow::Result<()> {
             execute_migrate(&cache_data, options)?;
         }
 
-        Commands::Primer { budget, capabilities, json, cache } => {
+        Commands::Primer {
+            budget,
+            capabilities,
+            json,
+            cache,
+        } => {
             let options = PrimerOptions {
                 budget,
                 capabilities,
-                format: if json { PrimerFormat::Json } else { PrimerFormat::Text },
+                format: if json {
+                    PrimerFormat::Json
+                } else {
+                    PrimerFormat::Text
+                },
                 cache: if cache.exists() { Some(cache) } else { None },
                 json,
             };
@@ -931,4 +1027,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-

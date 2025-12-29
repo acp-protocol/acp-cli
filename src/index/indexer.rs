@@ -9,33 +9,35 @@
 //! Supports RFC-0006 documentation system bridging.
 
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use std::fs;
 
 use chrono::{DateTime, Utc};
+use glob::Pattern;
 use rayon::prelude::*;
 use walkdir::WalkDir;
-use glob::Pattern;
 
 use crate::annotate::converters::{
-    DocStandardParser, ParsedDocumentation,
-    JsDocParser, DocstringParser, RustdocParser, GodocParser, JavadocParser,
+    DocStandardParser, DocstringParser, GodocParser, JavadocParser, JsDocParser,
+    ParsedDocumentation, RustdocParser,
 };
 use crate::ast::{AstParser, ExtractedSymbol, SymbolKind, Visibility as AstVisibility};
-use crate::bridge::{BridgeConfig, FormatDetector, BridgeMerger};
 use crate::bridge::merger::AcpAnnotations;
+use crate::bridge::{BridgeConfig, BridgeMerger, FormatDetector};
 use crate::cache::{
-    Cache, CacheBuilder, DomainEntry, Language, SymbolEntry, SymbolType, Visibility,
-    AnnotationProvenance, ProvenanceStats, LowConfidenceEntry,
-    BridgeMetadata, BridgeStats, BridgeSummary, SourceFormat, BridgeSource,
+    AnnotationProvenance, BridgeMetadata, BridgeSource, BridgeStats, BridgeSummary, Cache,
+    CacheBuilder, DomainEntry, Language, LowConfidenceEntry, ProvenanceStats, SourceFormat,
+    SymbolEntry, SymbolType, Visibility,
 };
 use crate::config::Config;
-use crate::constraints::{ConstraintIndex, Constraints, MutationConstraint, LockLevel, HackMarker, HackType};
+use crate::constraints::{
+    ConstraintIndex, Constraints, HackMarker, HackType, LockLevel, MutationConstraint,
+};
 use crate::error::Result;
-use crate::git::{GitRepository, BlameInfo, FileHistory, GitFileInfo, GitSymbolInfo};
-use crate::parse::{Parser, AnnotationWithProvenance, SourceOrigin};
-use crate::vars::{VarsFile, VarEntry};
+use crate::git::{BlameInfo, FileHistory, GitFileInfo, GitRepository, GitSymbolInfo};
+use crate::parse::{AnnotationWithProvenance, Parser, SourceOrigin};
+use crate::vars::{VarEntry, VarsFile};
 
 /// @acp:summary "Codebase indexer with parallel file processing"
 /// Uses tree-sitter AST parsing for accurate symbol extraction and git2 for metadata.
@@ -126,8 +128,10 @@ impl Indexer {
                 // Try AST parsing for accurate symbol extraction
                 if let Ok(source) = std::fs::read_to_string(path) {
                     // RFC-0003: Parse annotations with provenance support
-                    let annotations_with_prov = annotation_parser.parse_annotations_with_provenance(&source);
-                    let file_provenance = extract_provenance(&annotations_with_prov, review_threshold);
+                    let annotations_with_prov =
+                        annotation_parser.parse_annotations_with_provenance(&source);
+                    let file_provenance =
+                        extract_provenance(&annotations_with_prov, review_threshold);
 
                     // Add provenance to file entry
                     parse_result.file.annotations = file_provenance;
@@ -147,13 +151,19 @@ impl Indexer {
                         };
 
                         // Count explicit ACP annotations
-                        let explicit_count = parse_result.file.annotations.values()
+                        let explicit_count = parse_result
+                            .file
+                            .annotations
+                            .values()
                             .filter(|p| matches!(p.source, SourceOrigin::Explicit))
                             .count() as u64;
                         parse_result.file.bridge.explicit_count = explicit_count;
 
                         // Count converted annotations (from provenance tracking)
-                        let converted_count = parse_result.file.annotations.values()
+                        let converted_count = parse_result
+                            .file
+                            .annotations
+                            .values()
                             .filter(|p| matches!(p.source, SourceOrigin::Converted))
                             .count() as u64;
                         parse_result.file.bridge.converted_count = converted_count;
@@ -171,10 +181,13 @@ impl Indexer {
                         // Merge: prefer AST symbols but keep annotation metadata
                         if !converted.is_empty() {
                             // Keep summaries from annotation parser
-                            let annotation_summaries: HashMap<_, _> =
-                                parse_result.symbols.iter()
-                                    .filter_map(|s| s.summary.as_ref().map(|sum| (s.name.clone(), sum.clone())))
-                                    .collect();
+                            let annotation_summaries: HashMap<_, _> = parse_result
+                                .symbols
+                                .iter()
+                                .filter_map(|s| {
+                                    s.summary.as_ref().map(|sum| (s.name.clone(), sum.clone()))
+                                })
+                                .collect();
 
                             parse_result.symbols = converted;
 
@@ -189,20 +202,33 @@ impl Indexer {
 
                             // RFC-0006: Apply bridge merging for symbols with doc comments
                             if bridge_enabled {
-                                if let Some(ref detected_format) = parse_result.file.bridge.detected_format {
+                                if let Some(ref detected_format) =
+                                    parse_result.file.bridge.detected_format
+                                {
                                     // Build map of AST symbols by name for doc_comment lookup
-                                    let ast_doc_comments: HashMap<_, _> = ast_symbols.iter()
-                                        .filter_map(|s| s.doc_comment.as_ref().map(|doc| (s.name.clone(), doc.clone())))
+                                    let ast_doc_comments: HashMap<_, _> = ast_symbols
+                                        .iter()
+                                        .filter_map(|s| {
+                                            s.doc_comment
+                                                .as_ref()
+                                                .map(|doc| (s.name.clone(), doc.clone()))
+                                        })
                                         .collect();
 
                                     let mut merged_count = 0u64;
                                     for symbol in &mut parse_result.symbols {
-                                        if let Some(doc_comment) = ast_doc_comments.get(&symbol.name) {
+                                        if let Some(doc_comment) =
+                                            ast_doc_comments.get(&symbol.name)
+                                        {
                                             // Parse native documentation
-                                            let native_docs = parse_native_docs(doc_comment, detected_format);
+                                            let native_docs =
+                                                parse_native_docs(doc_comment, detected_format);
 
                                             // Extract ACP annotations from doc comment
-                                            let acp_annotations = extract_acp_annotations(doc_comment, &annotation_parser);
+                                            let acp_annotations = extract_acp_annotations(
+                                                doc_comment,
+                                                &annotation_parser,
+                                            );
 
                                             // Merge using bridge merger
                                             let bridge_result = bridge_merger.merge(
@@ -220,7 +246,8 @@ impl Indexer {
                                             }
 
                                             // Track merged count
-                                            if matches!(bridge_result.source, BridgeSource::Merged) {
+                                            if matches!(bridge_result.source, BridgeSource::Merged)
+                                            {
                                                 merged_count += 1;
                                             }
                                         }
@@ -234,7 +261,9 @@ impl Indexer {
                         if let Ok(calls) = ast_parser.parse_calls(Path::new(path), &source) {
                             for call in calls {
                                 if !call.caller.is_empty() {
-                                    parse_result.calls.push((call.caller.clone(), vec![call.callee.clone()]));
+                                    parse_result
+                                        .calls
+                                        .push((call.caller.clone(), vec![call.callee.clone()]));
                                 }
                             }
                         }
@@ -270,8 +299,11 @@ impl Indexer {
                 // Add git metadata for symbols using blame
                 if let Ok(blame) = BlameInfo::for_file(repo, relative_path) {
                     for symbol in &mut parse_result.symbols {
-                        if let Some(line_blame) = blame.last_modified(symbol.lines[0], symbol.lines[1]) {
-                            let age_days = (Utc::now() - line_blame.timestamp).num_days().max(0) as u32;
+                        if let Some(line_blame) =
+                            blame.last_modified(symbol.lines[0], symbol.lines[1])
+                        {
+                            let age_days =
+                                (Utc::now() - line_blame.timestamp).num_days().max(0) as u32;
                             symbol.git = Some(GitSymbolInfo {
                                 last_commit: line_blame.commit.clone(),
                                 last_author: line_blame.author.clone(),
@@ -312,8 +344,10 @@ impl Indexer {
 
             // Build constraints from parse result (RFC-001 compliant)
             if result.lock_level.is_some() || !result.ai_hints.is_empty() {
-                let lock_level = result.lock_level.as_ref().map(|l| {
-                    match l.to_lowercase().as_str() {
+                let lock_level = result
+                    .lock_level
+                    .as_ref()
+                    .map(|l| match l.to_lowercase().as_str() {
                         "frozen" => LockLevel::Frozen,
                         "restricted" => LockLevel::Restricted,
                         "approval-required" => LockLevel::ApprovalRequired,
@@ -321,8 +355,8 @@ impl Indexer {
                         "docs-required" => LockLevel::DocsRequired,
                         "experimental" => LockLevel::Experimental,
                         _ => LockLevel::Normal,
-                    }
-                }).unwrap_or(LockLevel::Normal);
+                    })
+                    .unwrap_or(LockLevel::Normal);
 
                 let constraints = Constraints {
                     mutation: Some(MutationConstraint {
@@ -341,11 +375,14 @@ impl Indexer {
                     auto_generated: result.lock_directive.is_none(),
                     ..Default::default()
                 };
-                constraint_index.by_file.insert(result.file.path.clone(), constraints);
+                constraint_index
+                    .by_file
+                    .insert(result.file.path.clone(), constraints);
 
                 // Track by lock level
                 let level_str = format!("{:?}", lock_level).to_lowercase();
-                constraint_index.by_lock_level
+                constraint_index
+                    .by_lock_level
                     .entry(level_str)
                     .or_default()
                     .push(result.file.path.clone());
@@ -360,7 +397,10 @@ impl Indexer {
                     line: Some(hack.line),
                     created_at: Utc::now(),
                     author: None,
-                    reason: hack.reason.clone().unwrap_or_else(|| "Temporary hack".to_string()),
+                    reason: hack
+                        .reason
+                        .clone()
+                        .unwrap_or_else(|| "Temporary hack".to_string()),
                     ticket: hack.ticket.clone(),
                     expires: hack.expires.as_ref().and_then(|e| {
                         chrono::NaiveDate::parse_from_str(e, "%Y-%m-%d")
@@ -406,12 +446,16 @@ impl Indexer {
     /// @acp:summary "Find all files matching include/exclude patterns"
     fn find_files<P: AsRef<Path>>(&self, root: P) -> Result<Vec<String>> {
         let root = root.as_ref();
-        let include_patterns: Vec<_> = self.config.include
+        let include_patterns: Vec<_> = self
+            .config
+            .include
             .iter()
             .filter_map(|p| Pattern::new(p).ok())
             .collect();
 
-        let exclude_patterns: Vec<_> = self.config.exclude
+        let exclude_patterns: Vec<_> = self
+            .config
+            .exclude
             .iter()
             .filter_map(|p| Pattern::new(p).ok())
             .collect();
@@ -423,7 +467,8 @@ impl Indexer {
             .filter_map(|e| {
                 // Get path relative to root for pattern matching
                 let full_path = e.path().to_string_lossy().to_string();
-                let relative_path = e.path()
+                let relative_path = e
+                    .path()
                     .strip_prefix(root)
                     .map(|p| p.to_string_lossy().to_string())
                     .unwrap_or_else(|_| full_path.clone());
@@ -434,10 +479,14 @@ impl Indexer {
                     require_literal_separator: false,
                     require_literal_leading_dot: false,
                 };
-                let included = include_patterns.is_empty() ||
-                    include_patterns.iter().any(|p| p.matches_with(&relative_path, match_opts));
+                let included = include_patterns.is_empty()
+                    || include_patterns
+                        .iter()
+                        .any(|p| p.matches_with(&relative_path, match_opts));
                 // Must not match any exclude pattern
-                let excluded = exclude_patterns.iter().any(|p| p.matches_with(&relative_path, match_opts));
+                let excluded = exclude_patterns
+                    .iter()
+                    .any(|p| p.matches_with(&relative_path, match_opts));
 
                 if included && !excluded {
                     Some(full_path)
@@ -455,7 +504,8 @@ impl Indexer {
         let mut vars_file = VarsFile::new();
 
         // Build a map of symbol names to var names for ref resolution
-        let mut symbol_to_var: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut symbol_to_var: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
         for (name, symbol) in &cache.symbols {
             if symbol.exported {
                 let var_name = format!("SYM_{}", name.to_uppercase().replace('.', "_"));
@@ -469,7 +519,9 @@ impl Indexer {
                 let var_name = format!("SYM_{}", name.to_uppercase().replace('.', "_"));
 
                 // Build refs from symbols this one calls
-                let refs: Vec<String> = symbol.calls.iter()
+                let refs: Vec<String> = symbol
+                    .calls
+                    .iter()
                     .filter_map(|callee| symbol_to_var.get(callee).cloned())
                     .collect();
 
@@ -502,9 +554,7 @@ impl Indexer {
         for (path, file) in &cache.files {
             // Only generate vars for files with modules or summaries
             if file.module.is_some() || file.summary.is_some() {
-                let var_name = format!("FILE_{}",
-                    path.replace(['/', '.'], "_")
-                        .to_uppercase());
+                let var_name = format!("FILE_{}", path.replace(['/', '.'], "_").to_uppercase());
                 vars_file.add_variable(
                     var_name,
                     VarEntry::file(
@@ -524,7 +574,9 @@ impl Indexer {
         }
         for layer in layers {
             let var_name = format!("LAYER_{}", layer.to_uppercase().replace('-', "_"));
-            let file_count = cache.files.values()
+            let file_count = cache
+                .files
+                .values()
                 .filter(|f| f.layer.as_ref() == Some(&layer))
                 .count();
             vars_file.add_variable(
@@ -565,62 +617,67 @@ pub fn detect_language(path: &str) -> Option<Language> {
 
 /// Convert AST-extracted symbols to cache SymbolEntry format
 fn convert_ast_symbols(ast_symbols: &[ExtractedSymbol], file_path: &str) -> Vec<SymbolEntry> {
-    ast_symbols.iter().map(|sym| {
-        let symbol_type = match sym.kind {
-            SymbolKind::Function => SymbolType::Function,
-            SymbolKind::Method => SymbolType::Method,
-            SymbolKind::Class => SymbolType::Class,
-            SymbolKind::Struct => SymbolType::Struct,
-            SymbolKind::Interface => SymbolType::Interface,
-            SymbolKind::Trait => SymbolType::Trait,
-            SymbolKind::Enum => SymbolType::Enum,
-            SymbolKind::EnumVariant => SymbolType::Enum,
-            SymbolKind::Constant => SymbolType::Const,
-            SymbolKind::Variable => SymbolType::Const,
-            SymbolKind::TypeAlias => SymbolType::Type,
-            SymbolKind::Module => SymbolType::Function, // No direct mapping
-            SymbolKind::Namespace => SymbolType::Function, // No direct mapping
-            SymbolKind::Property => SymbolType::Function, // No direct mapping
-            SymbolKind::Field => SymbolType::Function, // No direct mapping
-            SymbolKind::Impl => SymbolType::Class, // Map impl to class
-        };
+    ast_symbols
+        .iter()
+        .map(|sym| {
+            let symbol_type = match sym.kind {
+                SymbolKind::Function => SymbolType::Function,
+                SymbolKind::Method => SymbolType::Method,
+                SymbolKind::Class => SymbolType::Class,
+                SymbolKind::Struct => SymbolType::Struct,
+                SymbolKind::Interface => SymbolType::Interface,
+                SymbolKind::Trait => SymbolType::Trait,
+                SymbolKind::Enum => SymbolType::Enum,
+                SymbolKind::EnumVariant => SymbolType::Enum,
+                SymbolKind::Constant => SymbolType::Const,
+                SymbolKind::Variable => SymbolType::Const,
+                SymbolKind::TypeAlias => SymbolType::Type,
+                SymbolKind::Module => SymbolType::Function, // No direct mapping
+                SymbolKind::Namespace => SymbolType::Function, // No direct mapping
+                SymbolKind::Property => SymbolType::Function, // No direct mapping
+                SymbolKind::Field => SymbolType::Function,  // No direct mapping
+                SymbolKind::Impl => SymbolType::Class,      // Map impl to class
+            };
 
-        let visibility = match sym.visibility {
-            AstVisibility::Public => Visibility::Public,
-            AstVisibility::Private => Visibility::Private,
-            AstVisibility::Protected => Visibility::Protected,
-            AstVisibility::Internal | AstVisibility::Crate => Visibility::Private,
-        };
+            let visibility = match sym.visibility {
+                AstVisibility::Public => Visibility::Public,
+                AstVisibility::Private => Visibility::Private,
+                AstVisibility::Protected => Visibility::Protected,
+                AstVisibility::Internal | AstVisibility::Crate => Visibility::Private,
+            };
 
-        let qualified_name = sym.qualified_name.clone()
-            .unwrap_or_else(|| format!("{}:{}", file_path, sym.name));
+            let qualified_name = sym
+                .qualified_name
+                .clone()
+                .unwrap_or_else(|| format!("{}:{}", file_path, sym.name));
 
-        SymbolEntry {
-            name: sym.name.clone(),
-            qualified_name,
-            symbol_type,
-            file: file_path.to_string(),
-            lines: [sym.start_line, sym.end_line],
-            exported: matches!(sym.visibility, AstVisibility::Public),
-            signature: sym.signature.clone(),
-            summary: sym.doc_comment.clone(),
-            purpose: None, // RFC-001: Populated from @acp:fn/@acp:class annotations
-            constraints: None, // RFC-001: Populated from symbol-level constraints
-            async_fn: sym.is_async,
-            visibility,
-            calls: vec![], // Populated separately from call graph
-            called_by: vec![], // Populated by graph builder
-            git: None, // Populated after symbol creation
-            annotations: HashMap::new(), // RFC-0003: Populated during indexing
-            // RFC-0009: Extended annotation types
-            behavioral: None,
-            lifecycle: None,
-            documentation: None,
-            performance: None,
-            // RFC-0008: Type annotation info
-            type_info: None,
-        }
-    }).collect()
+            SymbolEntry {
+                name: sym.name.clone(),
+                qualified_name,
+                symbol_type,
+                file: file_path.to_string(),
+                lines: [sym.start_line, sym.end_line],
+                exported: matches!(sym.visibility, AstVisibility::Public),
+                signature: sym.signature.clone(),
+                summary: sym.doc_comment.clone(),
+                purpose: None, // RFC-001: Populated from @acp:fn/@acp:class annotations
+                constraints: None, // RFC-001: Populated from symbol-level constraints
+                async_fn: sym.is_async,
+                visibility,
+                calls: vec![],               // Populated separately from call graph
+                called_by: vec![],           // Populated by graph builder
+                git: None,                   // Populated after symbol creation
+                annotations: HashMap::new(), // RFC-0003: Populated during indexing
+                // RFC-0009: Extended annotation types
+                behavioral: None,
+                lifecycle: None,
+                documentation: None,
+                performance: None,
+                // RFC-0008: Type annotation info
+                type_info: None,
+            }
+        })
+        .collect()
 }
 
 // ============================================================================
@@ -718,7 +775,10 @@ fn compute_provenance_stats(cache: &Cache, low_conf_threshold: f64) -> Provenanc
     // Calculate average confidence per source type
     for (source, (sum, count)) in confidence_sums {
         if count > 0 {
-            stats.summary.average_confidence.insert(source, sum / count as f64);
+            stats
+                .summary
+                .average_confidence
+                .insert(source, sum / count as f64);
         }
     }
 
@@ -862,9 +922,9 @@ fn format_to_string(format: &SourceFormat) -> String {
 fn parse_native_docs(doc_comment: &str, format: &SourceFormat) -> Option<ParsedDocumentation> {
     let parsed = match format {
         SourceFormat::Jsdoc => JsDocParser::new().parse(doc_comment),
-        SourceFormat::DocstringGoogle | SourceFormat::DocstringNumpy | SourceFormat::DocstringSphinx => {
-            DocstringParser::new().parse(doc_comment)
-        }
+        SourceFormat::DocstringGoogle
+        | SourceFormat::DocstringNumpy
+        | SourceFormat::DocstringSphinx => DocstringParser::new().parse(doc_comment),
         SourceFormat::Rustdoc => RustdocParser::new().parse(doc_comment),
         SourceFormat::Javadoc => JavadocParser::new().parse(doc_comment),
         SourceFormat::Godoc => GodocParser::new().parse(doc_comment),
@@ -1041,4 +1101,3 @@ fn parse_returns_annotation(value: &str) -> Option<String> {
         Some(directive)
     }
 }
-

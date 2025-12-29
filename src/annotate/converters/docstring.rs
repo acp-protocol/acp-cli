@@ -149,10 +149,7 @@ impl DocstringParser {
             // Check for NumPy style (sections with underlines)
             if i + 1 < lines.len() {
                 let next = lines[i + 1].trim();
-                if !trimmed.is_empty()
-                    && next.chars().all(|c| c == '-')
-                    && next.len() >= 3
-                {
+                if !trimmed.is_empty() && next.chars().all(|c| c == '-') && next.len() >= 3 {
                     return DocstringStyle::NumPy;
                 }
             }
@@ -246,15 +243,19 @@ impl DocstringParser {
             "Other Parameters" => {
                 // Parse as additional parameters with custom tag marker
                 for param in self.parse_params(&text) {
-                    doc.custom_tags.push(("other_param".to_string(),
-                        format!("{}: {}", param.0, param.2.unwrap_or_default())));
+                    doc.custom_tags.push((
+                        "other_param".to_string(),
+                        format!("{}: {}", param.0, param.2.unwrap_or_default()),
+                    ));
                 }
             }
             "Keyword Args" | "Keyword Arguments" => {
                 // Parse keyword arguments
                 for param in self.parse_params(&text) {
-                    doc.custom_tags.push(("kwarg".to_string(),
-                        format!("{}: {}", param.0, param.2.unwrap_or_default())));
+                    doc.custom_tags.push((
+                        "kwarg".to_string(),
+                        format!("{}: {}", param.0, param.2.unwrap_or_default()),
+                    ));
                 }
             }
             "Returns" | "Return" => {
@@ -263,12 +264,14 @@ impl DocstringParser {
             "Yields" | "Yield" => {
                 // Yields indicates a generator function
                 doc.returns = Some((None, Some(format!("Yields: {}", text))));
-                doc.custom_tags.push(("generator".to_string(), "true".to_string()));
+                doc.custom_tags
+                    .push(("generator".to_string(), "true".to_string()));
             }
             "Receives" => {
                 // For async generators
                 doc.custom_tags.push(("receives".to_string(), text));
-                doc.custom_tags.push(("async_generator".to_string(), "true".to_string()));
+                doc.custom_tags
+                    .push(("async_generator".to_string(), "true".to_string()));
             }
             "Raises" | "Exceptions" => {
                 // Handle both Google style "ExcType: description" and
@@ -361,7 +364,11 @@ impl DocstringParser {
                 for attr in self.parse_params(&text) {
                     doc.custom_tags.push((
                         format!("attr:{}", attr.0),
-                        format!("{}: {}", attr.1.unwrap_or_default(), attr.2.unwrap_or_default()),
+                        format!(
+                            "{}: {}",
+                            attr.1.unwrap_or_default(),
+                            attr.2.unwrap_or_default()
+                        ),
                     ));
                 }
             }
@@ -498,7 +505,8 @@ impl DocstringParser {
                     // Tag with no content
                     self.save_sphinx_tag(&mut doc, tag, name.as_deref(), "");
                 }
-            } else if current_tag.is_some() && (line.starts_with("    ") || line.starts_with("\t")) {
+            } else if current_tag.is_some() && (line.starts_with("    ") || line.starts_with("\t"))
+            {
                 // Continuation of multiline content
                 current_content.push_str(trimmed);
                 current_content.push('\n');
@@ -533,13 +541,21 @@ impl DocstringParser {
         match tag {
             "param" => {
                 if let Some(n) = name {
-                    doc.params.push((n.to_string(), None, if content.is_empty() { None } else { Some(content) }));
+                    doc.params.push((
+                        n.to_string(),
+                        None,
+                        if content.is_empty() {
+                            None
+                        } else {
+                            Some(content)
+                        },
+                    ));
                 }
             }
             "keyword" | "kwarg" | "kwparam" => {
                 if let Some(n) = name {
-                    doc.custom_tags.push(("kwarg".to_string(),
-                        format!("{}: {}", n, content)));
+                    doc.custom_tags
+                        .push(("kwarg".to_string(), format!("{}: {}", n, content)));
                 }
             }
             "type" => {
@@ -554,7 +570,14 @@ impl DocstringParser {
                 }
             }
             "returns" => {
-                doc.returns = Some((None, if content.is_empty() { None } else { Some(content) }));
+                doc.returns = Some((
+                    None,
+                    if content.is_empty() {
+                        None
+                    } else {
+                        Some(content)
+                    },
+                ));
             }
             "rtype" => {
                 if let Some(ret) = &mut doc.returns {
@@ -565,11 +588,22 @@ impl DocstringParser {
             }
             "raises" | "raise" => {
                 if let Some(exc) = name {
-                    doc.throws.push((exc.to_string(), if content.is_empty() { None } else { Some(content) }));
+                    doc.throws.push((
+                        exc.to_string(),
+                        if content.is_empty() {
+                            None
+                        } else {
+                            Some(content)
+                        },
+                    ));
                 }
             }
             "deprecated" => {
-                doc.deprecated = Some(if content.is_empty() { "Deprecated".to_string() } else { content });
+                doc.deprecated = Some(if content.is_empty() {
+                    "Deprecated".to_string()
+                } else {
+                    content
+                });
             }
             "version" => {
                 doc.custom_tags.push(("version".to_string(), content));
@@ -653,10 +687,7 @@ impl DocstringParser {
             // Check if next line is underline (indicates section header)
             if i + 1 < lines.len() {
                 let next = lines[i + 1].trim();
-                if !line.is_empty()
-                    && next.chars().all(|c| c == '-')
-                    && next.len() >= 3
-                {
+                if !line.is_empty() && next.chars().all(|c| c == '-') && next.len() >= 3 {
                     // Save previous section
                     self.save_section(&mut doc, current_section.as_deref(), &section_content);
                     section_content.clear();
@@ -761,11 +792,7 @@ impl DocStandardParser for DocstringParser {
 
         // Convert throws to AI hint
         if !parsed.throws.is_empty() {
-            let throws_list: Vec<String> = parsed
-                .throws
-                .iter()
-                .map(|(t, _)| t.clone())
-                .collect();
+            let throws_list: Vec<String> = parsed.throws.iter().map(|(t, _)| t.clone()).collect();
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -795,7 +822,11 @@ impl DocStandardParser for DocstringParser {
         }
 
         // Python-specific: Convert generator hints from custom tags
-        if parsed.custom_tags.iter().any(|(k, v)| k == "generator" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "generator" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -805,7 +836,11 @@ impl DocStandardParser for DocstringParser {
         }
 
         // Python-specific: Convert async generator hints
-        if parsed.custom_tags.iter().any(|(k, v)| k == "async_generator" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "async_generator" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -835,11 +870,14 @@ impl DocStandardParser for DocstringParser {
         }
 
         // Python-specific: Convert keyword arguments summary
-        let kwargs: Vec<_> = parsed.custom_tags.iter()
+        let kwargs: Vec<_> = parsed
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k == "kwarg")
             .collect();
         if !kwargs.is_empty() {
-            let kwarg_names: Vec<_> = kwargs.iter()
+            let kwarg_names: Vec<_> = kwargs
+                .iter()
                 .filter_map(|(_, v)| v.split(':').next())
                 .map(|s| s.trim())
                 .collect();
@@ -852,11 +890,14 @@ impl DocStandardParser for DocstringParser {
         }
 
         // Python-specific: Convert class attributes summary
-        let attrs: Vec<_> = parsed.custom_tags.iter()
+        let attrs: Vec<_> = parsed
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k.starts_with("attr:"))
             .collect();
         if !attrs.is_empty() {
-            let attr_names: Vec<_> = attrs.iter()
+            let attr_names: Vec<_> = attrs
+                .iter()
                 .map(|(k, _)| k.strip_prefix("attr:").unwrap_or(k))
                 .collect();
             suggestions.push(Suggestion::ai_hint(
@@ -868,11 +909,14 @@ impl DocStandardParser for DocstringParser {
         }
 
         // Python-specific: Convert methods summary (for class docstrings)
-        let methods: Vec<_> = parsed.custom_tags.iter()
+        let methods: Vec<_> = parsed
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k.starts_with("method:"))
             .collect();
         if !methods.is_empty() {
-            let method_names: Vec<_> = methods.iter()
+            let method_names: Vec<_> = methods
+                .iter()
                 .map(|(k, _)| k.strip_prefix("method:").unwrap_or(k))
                 .collect();
             suggestions.push(Suggestion::ai_hint(
@@ -884,11 +928,14 @@ impl DocStandardParser for DocstringParser {
         }
 
         // Python-specific: Convert instance variables
-        let ivars: Vec<_> = parsed.custom_tags.iter()
+        let ivars: Vec<_> = parsed
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k.starts_with("ivar:"))
             .collect();
         if !ivars.is_empty() {
-            let ivar_names: Vec<_> = ivars.iter()
+            let ivar_names: Vec<_> = ivars
+                .iter()
                 .map(|(k, _)| k.strip_prefix("ivar:").unwrap_or(k))
                 .collect();
             suggestions.push(Suggestion::ai_hint(
@@ -900,11 +947,14 @@ impl DocStandardParser for DocstringParser {
         }
 
         // Python-specific: Convert class variables
-        let cvars: Vec<_> = parsed.custom_tags.iter()
+        let cvars: Vec<_> = parsed
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k.starts_with("cvar:"))
             .collect();
         if !cvars.is_empty() {
-            let cvar_names: Vec<_> = cvars.iter()
+            let cvar_names: Vec<_> = cvars
+                .iter()
                 .map(|(k, _)| k.strip_prefix("cvar:").unwrap_or(k))
                 .collect();
             suggestions.push(Suggestion::ai_hint(
@@ -916,7 +966,9 @@ impl DocStandardParser for DocstringParser {
         }
 
         // Python-specific: Convert meta tags
-        let metas: Vec<_> = parsed.custom_tags.iter()
+        let metas: Vec<_> = parsed
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k.starts_with("meta:"))
             .collect();
         for (key, value) in metas {
@@ -939,9 +991,7 @@ fn truncate_for_summary(s: &str, max_len: usize) -> String {
     if trimmed.len() <= max_len {
         trimmed.to_string()
     } else {
-        let truncate_at = trimmed[..max_len]
-            .rfind(' ')
-            .unwrap_or(max_len);
+        let truncate_at = trimmed[..max_len].rfind(' ').unwrap_or(max_len);
         format!("{}...", &trimmed[..truncate_at])
     }
 }
@@ -953,13 +1003,19 @@ mod tests {
     #[test]
     fn test_detect_style_google() {
         let google = "Summary line.\n\nArgs:\n    x: description";
-        assert_eq!(DocstringParser::detect_style(google), DocstringStyle::Google);
+        assert_eq!(
+            DocstringParser::detect_style(google),
+            DocstringStyle::Google
+        );
     }
 
     #[test]
     fn test_detect_style_sphinx() {
         let sphinx = "Summary line.\n\n:param x: description";
-        assert_eq!(DocstringParser::detect_style(sphinx), DocstringStyle::Sphinx);
+        assert_eq!(
+            DocstringParser::detect_style(sphinx),
+            DocstringStyle::Sphinx
+        );
     }
 
     #[test]
@@ -977,7 +1033,8 @@ mod tests {
     #[test]
     fn test_parse_google_style() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Process a payment transaction.
 
 Args:
@@ -989,9 +1046,13 @@ Returns:
 
 Raises:
     PaymentError: If payment fails
-"#);
+"#,
+        );
 
-        assert_eq!(doc.summary, Some("Process a payment transaction.".to_string()));
+        assert_eq!(
+            doc.summary,
+            Some("Process a payment transaction.".to_string())
+        );
         assert_eq!(doc.params.len(), 2);
         assert_eq!(doc.params[0].0, "amount");
         assert!(doc.returns.is_some());
@@ -1002,7 +1063,8 @@ Raises:
     #[test]
     fn test_parse_sphinx_style() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Process a payment.
 
 :param amount: The payment amount
@@ -1010,7 +1072,8 @@ Process a payment.
 :returns: The result
 :raises PaymentError: If payment fails
 :deprecated: Use process_payment_v2 instead
-"#);
+"#,
+        );
 
         assert_eq!(doc.summary, Some("Process a payment.".to_string()));
         assert_eq!(doc.params.len(), 1);
@@ -1032,12 +1095,14 @@ Process a payment.
     #[test]
     fn test_parse_deprecated_section() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Old function.
 
 Deprecated:
     Use new_function instead.
-"#);
+"#,
+        );
 
         assert!(doc.deprecated.is_some());
         assert!(doc.deprecated.unwrap().contains("new_function"));
@@ -1046,7 +1111,8 @@ Deprecated:
     #[test]
     fn test_parse_notes_and_warnings() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Summary.
 
 Note:
@@ -1054,7 +1120,8 @@ Note:
 
 Warning:
     Be careful with this.
-"#);
+"#,
+        );
 
         assert_eq!(doc.notes.len(), 2);
     }
@@ -1066,25 +1133,31 @@ Warning:
     #[test]
     fn test_parse_google_yields_generator() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Generator function that yields items.
 
 Yields:
     int: The next item in the sequence
-"#);
+"#,
+        );
 
         assert!(doc.returns.is_some());
         let (_, desc) = doc.returns.as_ref().unwrap();
         assert!(desc.as_ref().unwrap().contains("Yields"));
 
         // Check generator flag in custom_tags
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "generator" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "generator" && v == "true"));
     }
 
     #[test]
     fn test_parse_google_receives_async_generator() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Async generator that receives values.
 
 Yields:
@@ -1092,17 +1165,25 @@ Yields:
 
 Receives:
     int: Value sent to generator
-"#);
+"#,
+        );
 
         // Check async_generator flag
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "async_generator" && v == "true"));
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "receives" && !v.is_empty()));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "async_generator" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "receives" && !v.is_empty()));
     }
 
     #[test]
     fn test_parse_google_keyword_args() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function with keyword arguments.
 
 Args:
@@ -1111,13 +1192,16 @@ Args:
 Keyword Args:
     timeout: Connection timeout
     retries: Number of retries
-"#);
+"#,
+        );
 
         assert_eq!(doc.params.len(), 1);
         assert_eq!(doc.params[0].0, "x");
 
         // Check kwargs in custom_tags
-        let kwargs: Vec<_> = doc.custom_tags.iter()
+        let kwargs: Vec<_> = doc
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k == "kwarg")
             .collect();
         assert_eq!(kwargs.len(), 2);
@@ -1126,7 +1210,8 @@ Keyword Args:
     #[test]
     fn test_parse_google_other_parameters() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function with other parameters.
 
 Args:
@@ -1135,11 +1220,14 @@ Args:
 Other Parameters:
     debug: Enable debug mode
     verbose: Verbosity level
-"#);
+"#,
+        );
 
         assert_eq!(doc.params.len(), 1);
 
-        let other_params: Vec<_> = doc.custom_tags.iter()
+        let other_params: Vec<_> = doc
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k == "other_param")
             .collect();
         assert_eq!(other_params.len(), 2);
@@ -1148,15 +1236,19 @@ Other Parameters:
     #[test]
     fn test_parse_google_attributes() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 A class that does something.
 
 Attributes:
     name (str): The name
     value (int): The value
-"#);
+"#,
+        );
 
-        let attrs: Vec<_> = doc.custom_tags.iter()
+        let attrs: Vec<_> = doc
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k.starts_with("attr:"))
             .collect();
         assert_eq!(attrs.len(), 2);
@@ -1165,16 +1257,20 @@ Attributes:
     #[test]
     fn test_parse_google_methods() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 A utility class.
 
 Methods:
     process: Processes the input
     validate: Validates the data
     cleanup: Cleans up resources
-"#);
+"#,
+        );
 
-        let methods: Vec<_> = doc.custom_tags.iter()
+        let methods: Vec<_> = doc
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k.starts_with("method:"))
             .collect();
         assert_eq!(methods.len(), 3);
@@ -1183,13 +1279,15 @@ Methods:
     #[test]
     fn test_parse_google_warns() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function that may emit warnings.
 
 Warns:
     DeprecationWarning: If using old API
     UserWarning: If input is unusual
-"#);
+"#,
+        );
 
         // Warns become notes
         assert!(doc.notes.len() >= 2);
@@ -1199,7 +1297,8 @@ Warns:
     #[test]
     fn test_parse_google_version_since() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 New feature function.
 
 Version:
@@ -1207,36 +1306,47 @@ Version:
 
 Since:
     2023-01-15
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "version" && v == "1.2.0"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "version" && v == "1.2.0"));
         assert_eq!(doc.since, Some("2023-01-15".to_string()));
     }
 
     #[test]
     fn test_parse_sphinx_version_since() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 New feature.
 
 :version: 2.0.0
 :since: 1.5.0
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "version" && v == "2.0.0"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "version" && v == "2.0.0"));
         assert_eq!(doc.since, Some("1.5.0".to_string()));
     }
 
     #[test]
     fn test_parse_sphinx_seealso_note_warning() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function summary.
 
 :seealso: other_function
 :note: Important note
 :warning: Be careful
-"#);
+"#,
+        );
 
         assert_eq!(doc.see_refs.len(), 1);
         assert_eq!(doc.see_refs[0], "other_function");
@@ -1246,12 +1356,14 @@ Function summary.
     #[test]
     fn test_parse_sphinx_example_todo() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function summary.
 
 :example: result = my_func(1, 2)
 :todo: Add more examples
-"#);
+"#,
+        );
 
         assert_eq!(doc.examples.len(), 1);
         assert!(doc.examples[0].contains("my_func"));
@@ -1261,13 +1373,15 @@ Function summary.
     #[test]
     fn test_parse_sphinx_var_ivar_cvar() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Class summary.
 
 :ivar name: Instance variable
 :cvar count: Class variable
 :var value: Generic variable
-"#);
+"#,
+        );
 
         assert!(doc.custom_tags.iter().any(|(k, _)| k == "ivar:name"));
         assert!(doc.custom_tags.iter().any(|(k, _)| k == "cvar:count"));
@@ -1277,31 +1391,43 @@ Class summary.
     #[test]
     fn test_parse_sphinx_meta() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function summary.
 
 :meta author: John Doe
 :meta license: MIT
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "meta:author" && v == "John Doe"));
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "meta:license" && v == "MIT"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "meta:author" && v == "John Doe"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "meta:license" && v == "MIT"));
     }
 
     #[test]
     fn test_parse_sphinx_keyword_args() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function with kwargs.
 
 :param x: Regular param
 :keyword timeout: Timeout in seconds
 :kwarg retries: Number of retries
-"#);
+"#,
+        );
 
         assert_eq!(doc.params.len(), 1);
 
-        let kwargs: Vec<_> = doc.custom_tags.iter()
+        let kwargs: Vec<_> = doc
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k == "kwarg")
             .collect();
         assert_eq!(kwargs.len(), 2);
@@ -1310,7 +1436,8 @@ Function with kwargs.
     #[test]
     fn test_parse_numpy_comprehensive() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Calculate the distance between two points.
 
 A longer description that spans
@@ -1341,9 +1468,13 @@ Examples
 --------
 >>> distance(0, 0, 3, 4)
 5.0
-"#);
+"#,
+        );
 
-        assert_eq!(doc.summary, Some("Calculate the distance between two points.".to_string()));
+        assert_eq!(
+            doc.summary,
+            Some("Calculate the distance between two points.".to_string())
+        );
         assert_eq!(doc.params.len(), 2);
         assert!(doc.returns.is_some());
         assert_eq!(doc.throws.len(), 1);
@@ -1354,22 +1485,28 @@ Examples
     #[test]
     fn test_parse_numpy_yields() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Generate items.
 
 Yields
 ------
 int
     The next number
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "generator" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "generator" && v == "true"));
     }
 
     #[test]
     fn test_parse_numpy_attributes() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 A data container class.
 
 Attributes
@@ -1378,9 +1515,12 @@ data : array-like
     The stored data
 shape : tuple
     Shape of the data
-"#);
+"#,
+        );
 
-        let attrs: Vec<_> = doc.custom_tags.iter()
+        let attrs: Vec<_> = doc
+            .custom_tags
+            .iter()
             .filter(|(k, _)| k.starts_with("attr:"))
             .collect();
         assert_eq!(attrs.len(), 2);
@@ -1393,7 +1533,8 @@ shape : tuple
     #[test]
     fn test_to_suggestions_basic() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Process data efficiently.
 
 Args:
@@ -1401,218 +1542,237 @@ Args:
 
 Returns:
     Processed result
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "process", 10);
 
         // Should have summary
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Summary &&
-            s.value.contains("Process data")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Summary
+                && s.value.contains("Process data")));
     }
 
     #[test]
     fn test_to_suggestions_deprecated() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Old function.
 
 Deprecated:
     Use new_function instead
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "old_func", 5);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Deprecated
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Deprecated));
     }
 
     #[test]
     fn test_to_suggestions_raises() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 May raise errors.
 
 Raises:
     ValueError: Bad value
     TypeError: Wrong type
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "risky", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("raises")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("raises")));
     }
 
     #[test]
     fn test_to_suggestions_generator() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Generate numbers.
 
 Yields:
     int: Next number
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "gen", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("generator")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("generator")));
     }
 
     #[test]
     fn test_to_suggestions_version_since() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 New feature.
 
 :version: 1.0.0
 :since: 0.9.0
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "feature", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("version:")
-        ));
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("since:")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("version:")));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("since:")));
     }
 
     #[test]
     fn test_to_suggestions_kwargs() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function with kwargs.
 
 Keyword Args:
     timeout: Timeout value
     retries: Retry count
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "func", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("accepts kwargs")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint
+                && s.value.contains("accepts kwargs")));
     }
 
     #[test]
     fn test_to_suggestions_attributes() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Data class.
 
 Attributes:
     name: The name
     value: The value
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "DataClass", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("attributes:")
+        assert!(suggestions.iter().any(
+            |s| s.annotation_type == AnnotationType::AiHint && s.value.contains("attributes:")
         ));
     }
 
     #[test]
     fn test_to_suggestions_methods() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Utility class.
 
 Methods:
     process: Process data
     validate: Validate input
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "UtilClass", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("methods:")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("methods:")));
     }
 
     #[test]
     fn test_to_suggestions_instance_class_vars() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Class with variables.
 
 :ivar name: Instance variable
 :cvar count: Class variable
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "MyClass", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("instance vars:")
-        ));
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("class vars:")
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint
+                && s.value.contains("instance vars:")));
+        assert!(suggestions.iter().any(
+            |s| s.annotation_type == AnnotationType::AiHint && s.value.contains("class vars:")
         ));
     }
 
     #[test]
     fn test_to_suggestions_meta() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function with meta.
 
 :meta author: Jane Doe
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "func", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("author:")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("author:")));
     }
 
     #[test]
     fn test_to_suggestions_see_refs() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function with references.
 
 See Also:
     other_function
     related_module
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "func", 1);
 
-        assert!(suggestions.iter().any(|s| s.annotation_type == AnnotationType::Ref));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Ref));
     }
 
     #[test]
     fn test_to_suggestions_todos() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Work in progress.
 
 Todo:
     Finish implementation
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "func", 1);
 
-        assert!(suggestions.iter().any(|s| s.annotation_type == AnnotationType::Hack));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Hack));
     }
 
     #[test]
@@ -1627,14 +1787,16 @@ Todo:
     #[test]
     fn test_multiline_sphinx_content() {
         let parser = DocstringParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 Function summary.
 
 :note: This is a note that spans
     multiple lines and should be
     combined into one.
 :param x: A parameter
-"#);
+"#,
+        );
 
         assert!(!doc.notes.is_empty());
         assert_eq!(doc.params.len(), 1);

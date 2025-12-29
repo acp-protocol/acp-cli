@@ -3,10 +3,10 @@
 //! @acp:domain cli
 //! @acp:layer service
 
-use crate::cache::{BridgeSource, SourceFormat, ParamEntry, ReturnsEntry, ThrowsEntry};
-use crate::annotate::converters::ParsedDocumentation;
 use super::config::{BridgeConfig, Precedence};
 use super::BridgeResult;
+use crate::annotate::converters::ParsedDocumentation;
+use crate::cache::{BridgeSource, ParamEntry, ReturnsEntry, SourceFormat, ThrowsEntry};
 
 /// @acp:summary "Parsed ACP annotations for a symbol"
 #[derive(Debug, Clone, Default)]
@@ -239,7 +239,9 @@ impl BridgeMerger {
 
         // Start with native params
         for (name, type_str, desc) in &native.params {
-            let directive = acp.params.iter()
+            let directive = acp
+                .params
+                .iter()
                 .find(|(n, _)| n == name)
                 .map(|(_, d)| d.clone());
 
@@ -264,7 +266,11 @@ impl BridgeMerger {
                 optional: false,
                 default: None,
                 source,
-                source_format: if source_formats.is_empty() { Some(native_format) } else { None },
+                source_format: if source_formats.is_empty() {
+                    Some(native_format)
+                } else {
+                    None
+                },
                 source_formats,
             });
         }
@@ -349,7 +355,9 @@ impl BridgeMerger {
 
         // Start with native throws
         for (exc_type, desc) in &native.throws {
-            let directive = acp.throws.iter()
+            let directive = acp
+                .throws
+                .iter()
                 .find(|(e, _)| e == exc_type)
                 .map(|(_, d)| d.clone());
 
@@ -390,9 +398,9 @@ fn type_source_from_format(format: SourceFormat) -> Option<crate::cache::TypeSou
     use crate::cache::TypeSource;
     match format {
         SourceFormat::Jsdoc => Some(TypeSource::Jsdoc),
-        SourceFormat::DocstringGoogle | SourceFormat::DocstringNumpy | SourceFormat::DocstringSphinx => {
-            Some(TypeSource::Docstring)
-        }
+        SourceFormat::DocstringGoogle
+        | SourceFormat::DocstringNumpy
+        | SourceFormat::DocstringSphinx => Some(TypeSource::Docstring),
         SourceFormat::Rustdoc => Some(TypeSource::Rustdoc),
         SourceFormat::Javadoc => Some(TypeSource::Javadoc),
         SourceFormat::TypeHint => Some(TypeSource::TypeHint),
@@ -433,7 +441,11 @@ mod tests {
         let merger = BridgeMerger::new(&test_config());
         let mut native = ParsedDocumentation::new();
         native.summary = Some("Native summary".to_string());
-        native.params.push(("userId".to_string(), Some("string".to_string()), Some("User ID".to_string())));
+        native.params.push((
+            "userId".to_string(),
+            Some("string".to_string()),
+            Some("User ID".to_string()),
+        ));
 
         let acp = AcpAnnotations::default();
         let result = merger.merge(Some(&native), SourceFormat::Jsdoc, &acp);
@@ -451,8 +463,15 @@ mod tests {
 
         let mut native = ParsedDocumentation::new();
         native.summary = Some("Native summary".to_string());
-        native.params.push(("userId".to_string(), Some("string".to_string()), Some("User ID".to_string())));
-        native.returns = Some((Some("User".to_string()), Some("The user object".to_string())));
+        native.params.push((
+            "userId".to_string(),
+            Some("string".to_string()),
+            Some("User ID".to_string()),
+        ));
+        native.returns = Some((
+            Some("User".to_string()),
+            Some("The user object".to_string()),
+        ));
 
         let acp = AcpAnnotations {
             summary: Some("ACP summary".to_string()),
@@ -490,7 +509,11 @@ mod tests {
 
         let mut native = ParsedDocumentation::new();
         native.summary = Some("Native summary".to_string());
-        native.params.push(("userId".to_string(), Some("string".to_string()), Some("User ID".to_string())));
+        native.params.push((
+            "userId".to_string(),
+            Some("string".to_string()),
+            Some("User ID".to_string()),
+        ));
 
         let acp = AcpAnnotations {
             directive: Some("MUST authenticate".to_string()),

@@ -3,13 +3,13 @@
 //! @acp:domain cli
 //! @acp:layer parsing
 
+use super::languages::{extractor_for_extension, get_extractor, LanguageExtractor};
+use super::{ExtractedSymbol, FunctionCall, Import};
+use crate::error::{AcpError, Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
 use tree_sitter::{Parser, Tree};
-use crate::error::{AcpError, Result};
-use super::{ExtractedSymbol, Import, FunctionCall};
-use super::languages::{get_extractor, extractor_for_extension, LanguageExtractor};
 
 /// Multi-language AST parser using tree-sitter
 /// Thread-safe via interior mutability for parser caching.
@@ -46,7 +46,8 @@ impl AstParser {
 
     /// Parse a file and extract symbols (convenience method for indexer)
     pub fn parse_file(&self, path: &Path, source: &str) -> Result<Vec<ExtractedSymbol>> {
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|e| e.to_str())
             .ok_or_else(|| AcpError::UnsupportedLanguage("no extension".to_string()))?;
         self.parse_by_extension(source, ext)
@@ -54,7 +55,8 @@ impl AstParser {
 
     /// Parse a file and extract function calls (convenience method for indexer)
     pub fn parse_calls(&self, path: &Path, source: &str) -> Result<Vec<FunctionCall>> {
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|e| e.to_str())
             .ok_or_else(|| AcpError::UnsupportedLanguage("no extension".to_string()))?;
 
@@ -93,17 +95,21 @@ impl AstParser {
         let lang_name = extractor.name().to_string();
 
         // Lock the mutex to access/modify parsers
-        let mut parsers = self.parsers.lock()
+        let mut parsers = self
+            .parsers
+            .lock()
             .map_err(|_| AcpError::parse("Parser lock poisoned".to_string()))?;
 
         // Get or create parser for this language
         let parser = parsers.entry(lang_name.clone()).or_insert_with(|| {
             let mut p = Parser::new();
-            p.set_language(&extractor.language()).expect("Failed to set language");
+            p.set_language(&extractor.language())
+                .expect("Failed to set language");
             p
         });
 
-        parser.parse(source, None)
+        parser
+            .parse(source, None)
             .ok_or_else(|| AcpError::parse(format!("Failed to parse {} source", lang_name)))
     }
 
@@ -114,7 +120,9 @@ impl AstParser {
 
     /// Get supported file extensions
     pub fn supported_extensions() -> &'static [&'static str] {
-        &["ts", "tsx", "js", "jsx", "mjs", "cjs", "rs", "py", "pyi", "go", "java"]
+        &[
+            "ts", "tsx", "js", "jsx", "mjs", "cjs", "rs", "py", "pyi", "go", "java",
+        ]
     }
 
     /// Check if a language is supported

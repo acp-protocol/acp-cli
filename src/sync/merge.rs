@@ -16,9 +16,7 @@ pub fn merge_content(
     match strategy {
         MergeStrategy::Replace => generated.to_string(),
 
-        MergeStrategy::Section => {
-            merge_with_markers(existing, generated, start_marker, end_marker)
-        }
+        MergeStrategy::Section => merge_with_markers(existing, generated, start_marker, end_marker),
 
         MergeStrategy::Append => {
             format!("{}\n\n{}", existing.trim_end(), generated)
@@ -42,10 +40,9 @@ pub fn merge_with_markers(
     start_marker: &str,
     end_marker: &str,
 ) -> String {
-    if let (Some(start_pos), Some(end_pos)) = (
-        existing.find(start_marker),
-        existing.find(end_marker),
-    ) {
+    if let (Some(start_pos), Some(end_pos)) =
+        (existing.find(start_marker), existing.find(end_marker))
+    {
         if start_pos < end_pos {
             // Replace existing ACP section
             let before = &existing[..start_pos];
@@ -54,9 +51,17 @@ pub fn merge_with_markers(
             format!(
                 "{}{}\n{}\n{}{}",
                 before.trim_end(),
-                if before.trim_end().is_empty() { "" } else { "\n\n" },
+                if before.trim_end().is_empty() {
+                    ""
+                } else {
+                    "\n\n"
+                },
                 wrap_with_markers(generated, start_marker, end_marker),
-                if after.trim_start().is_empty() { "" } else { "\n" },
+                if after.trim_start().is_empty() {
+                    ""
+                } else {
+                    "\n"
+                },
                 after.trim_start()
             )
         } else {
@@ -75,12 +80,7 @@ fn wrap_with_markers(content: &str, start_marker: &str, end_marker: &str) -> Str
 }
 
 /// Append a new section to existing content
-fn append_section(
-    existing: &str,
-    generated: &str,
-    start_marker: &str,
-    end_marker: &str,
-) -> String {
+fn append_section(existing: &str, generated: &str, start_marker: &str, end_marker: &str) -> String {
     let trimmed = existing.trim_end();
     if trimmed.is_empty() {
         wrap_with_markers(generated, start_marker, end_marker)
@@ -99,10 +99,9 @@ pub fn merge_json(existing: &str, generated: &str) -> Result<String, serde_json:
     let generated_json: serde_json::Value = serde_json::from_str(generated)?;
 
     // Merge generated keys into existing
-    if let (Some(existing_obj), Some(generated_obj)) = (
-        existing_json.as_object_mut(),
-        generated_json.as_object(),
-    ) {
+    if let (Some(existing_obj), Some(generated_obj)) =
+        (existing_json.as_object_mut(), generated_json.as_object())
+    {
         for (key, value) in generated_obj {
             existing_obj.insert(key.clone(), value.clone());
         }
@@ -180,13 +179,7 @@ mod tests {
 
     #[test]
     fn test_merge_strategy_append() {
-        let result = merge_content(
-            MergeStrategy::Append,
-            "Existing",
-            "Appended",
-            START,
-            END,
-        );
+        let result = merge_content(MergeStrategy::Append, "Existing", "Appended", START, END);
         assert!(result.contains("Existing"));
         assert!(result.contains("Appended"));
         assert!(result.find("Existing").unwrap() < result.find("Appended").unwrap());

@@ -3,9 +3,9 @@
 use std::path::Path;
 
 use crate::error::Result;
-use crate::sync::adapter::{ToolAdapter, DetectionResult, BootstrapContext};
+use crate::sync::adapter::{BootstrapContext, DetectionResult, ToolAdapter};
 use crate::sync::content::generate_bootstrap_yaml;
-use crate::sync::tool::{Tool, MergeStrategy};
+use crate::sync::tool::{MergeStrategy, Tool};
 
 /// Aider adapter - generates .aider.conf.yml
 pub struct AiderAdapter;
@@ -51,7 +51,7 @@ impl ToolAdapter for AiderAdapter {
     fn section_markers(&self) -> (&'static str, &'static str) {
         (
             "# BEGIN ACP GENERATED CONTENT - DO NOT EDIT",
-            "# END ACP GENERATED CONTENT"
+            "# END ACP GENERATED CONTENT",
         )
     }
 }

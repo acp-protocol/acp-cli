@@ -2,7 +2,9 @@
 //!
 //! Tests for annotation provenance parsing, caching, and command functionality.
 
-use acp::cache::{AnnotationProvenance, ProvenanceStats, SourceCounts, ProvenanceSummary, LowConfidenceEntry};
+use acp::cache::{
+    AnnotationProvenance, LowConfidenceEntry, ProvenanceStats, ProvenanceSummary, SourceCounts,
+};
 use acp::commands::ConfidenceFilter;
 use acp::parse::SourceOrigin;
 
@@ -15,15 +17,36 @@ mod parser_tests {
 
     #[test]
     fn test_source_origin_from_str() {
-        assert_eq!("explicit".parse::<SourceOrigin>().unwrap(), SourceOrigin::Explicit);
-        assert_eq!("converted".parse::<SourceOrigin>().unwrap(), SourceOrigin::Converted);
-        assert_eq!("heuristic".parse::<SourceOrigin>().unwrap(), SourceOrigin::Heuristic);
-        assert_eq!("refined".parse::<SourceOrigin>().unwrap(), SourceOrigin::Refined);
-        assert_eq!("inferred".parse::<SourceOrigin>().unwrap(), SourceOrigin::Inferred);
+        assert_eq!(
+            "explicit".parse::<SourceOrigin>().unwrap(),
+            SourceOrigin::Explicit
+        );
+        assert_eq!(
+            "converted".parse::<SourceOrigin>().unwrap(),
+            SourceOrigin::Converted
+        );
+        assert_eq!(
+            "heuristic".parse::<SourceOrigin>().unwrap(),
+            SourceOrigin::Heuristic
+        );
+        assert_eq!(
+            "refined".parse::<SourceOrigin>().unwrap(),
+            SourceOrigin::Refined
+        );
+        assert_eq!(
+            "inferred".parse::<SourceOrigin>().unwrap(),
+            SourceOrigin::Inferred
+        );
 
         // Case insensitive
-        assert_eq!("EXPLICIT".parse::<SourceOrigin>().unwrap(), SourceOrigin::Explicit);
-        assert_eq!("Heuristic".parse::<SourceOrigin>().unwrap(), SourceOrigin::Heuristic);
+        assert_eq!(
+            "EXPLICIT".parse::<SourceOrigin>().unwrap(),
+            SourceOrigin::Explicit
+        );
+        assert_eq!(
+            "Heuristic".parse::<SourceOrigin>().unwrap(),
+            SourceOrigin::Heuristic
+        );
 
         // Invalid
         assert!("invalid".parse::<SourceOrigin>().is_err());
@@ -369,8 +392,12 @@ mod provenance_summary_tests {
     fn test_provenance_summary_with_confidence() {
         let mut summary = ProvenanceSummary::default();
         summary.total = 50;
-        summary.average_confidence.insert("heuristic".to_string(), 0.72);
-        summary.average_confidence.insert("converted".to_string(), 0.85);
+        summary
+            .average_confidence
+            .insert("heuristic".to_string(), 0.72);
+        summary
+            .average_confidence
+            .insert("converted".to_string(), 0.85);
 
         let json = serde_json::to_string(&summary).unwrap();
         assert!(json.contains("\"averageConfidence\""));

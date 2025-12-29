@@ -14,7 +14,7 @@ use serde::Serialize;
 use crate::cache::{Cache, FileEntry};
 use crate::error::Result;
 
-use super::output::{TreeRenderer, constraint_level_str};
+use super::output::{constraint_level_str, TreeRenderer};
 
 /// Output format for map command
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -105,7 +105,10 @@ impl<'a> MapBuilder<'a> {
             let normalized = self.normalize_path(path);
 
             // Check if file is under the root path
-            if normalized.starts_with(&normalized_root) || normalized_root.is_empty() || normalized_root == "." {
+            if normalized.starts_with(&normalized_root)
+                || normalized_root.is_empty()
+                || normalized_root == "."
+            {
                 let dir = self.get_directory(&normalized);
                 dir_files.entry(dir).or_default().push(file);
             }
@@ -190,36 +193,46 @@ impl<'a> MapBuilder<'a> {
         // Get constraint level from cache
         let constraint_level = self.cache.constraints.as_ref().and_then(|c| {
             c.by_file.get(&file.path).and_then(|constraints| {
-                constraints.mutation.as_ref().map(|m| constraint_level_str(&m.level).to_string())
+                constraints
+                    .mutation
+                    .as_ref()
+                    .map(|m| constraint_level_str(&m.level).to_string())
             })
         });
 
         // Build symbol list
-        let symbols: Vec<SymbolNode> = file.exports.iter().filter_map(|sym_name| {
-            self.cache.symbols.get(sym_name).map(|sym| {
-                let is_frozen = sym.constraints.as_ref()
-                    .map(|c| c.level == "frozen")
-                    .unwrap_or(false);
-                SymbolNode {
-                    name: sym.name.clone(),
-                    symbol_type: format!("{:?}", sym.symbol_type).to_lowercase(),
-                    line: sym.lines[0],
-                    is_frozen,
-                }
+        let symbols: Vec<SymbolNode> = file
+            .exports
+            .iter()
+            .filter_map(|sym_name| {
+                self.cache.symbols.get(sym_name).map(|sym| {
+                    let is_frozen = sym
+                        .constraints
+                        .as_ref()
+                        .map(|c| c.level == "frozen")
+                        .unwrap_or(false);
+                    SymbolNode {
+                        name: sym.name.clone(),
+                        symbol_type: format!("{:?}", sym.symbol_type).to_lowercase(),
+                        line: sym.lines[0],
+                        is_frozen,
+                    }
+                })
             })
-        }).collect();
+            .collect();
 
         // Build inline issues
         let inline_issues: Vec<InlineIssue> = if self.options.show_inline {
-            file.inline.iter().map(|ann| {
-                InlineIssue {
+            file.inline
+                .iter()
+                .map(|ann| InlineIssue {
                     file: file.path.clone(),
                     line: ann.line,
                     issue_type: ann.annotation_type.clone(),
                     message: ann.directive.clone(),
                     expires: ann.expires.clone(),
-                }
-            }).collect()
+                })
+                .collect()
         } else {
             vec![]
         };
@@ -243,7 +256,10 @@ impl<'a> MapBuilder<'a> {
 
         for (path, file) in &self.cache.files {
             let normalized = self.normalize_path(path);
-            if normalized.starts_with(&normalized_root) || normalized_root.is_empty() || normalized_root == "." {
+            if normalized.starts_with(&normalized_root)
+                || normalized_root.is_empty()
+                || normalized_root == "."
+            {
                 for ann in &file.inline {
                     issues.push(InlineIssue {
                         file: file.path.clone(),
@@ -257,9 +273,7 @@ impl<'a> MapBuilder<'a> {
         }
 
         // Sort by file and line
-        issues.sort_by(|a, b| {
-            a.file.cmp(&b.file).then(a.line.cmp(&b.line))
-        });
+        issues.sort_by(|a, b| a.file.cmp(&b.file).then(a.line.cmp(&b.line)));
 
         issues
     }
@@ -301,15 +315,14 @@ fn render_tree(node: &DirectoryNode, options: &MapOptions, all_issues: &[InlineI
         println!();
         println!("{}:", style("Active Issues").bold());
         for issue in all_issues {
-            let expires_str = issue.expires.as_ref()
+            let expires_str = issue
+                .expires
+                .as_ref()
                 .map(|e| format!(" expires {}", e))
                 .unwrap_or_default();
             println!(
                 "  {}:{} - @acp:{}{}",
-                issue.file,
-                issue.line,
-                issue.issue_type,
-                expires_str
+                issue.file, issue.line, issue.issue_type, expires_str
             );
         }
     }
@@ -317,7 +330,9 @@ fn render_tree(node: &DirectoryNode, options: &MapOptions, all_issues: &[InlineI
 
 fn render_file_tree(file: &FileNode, renderer: &TreeRenderer, indent: &str) {
     // File header with constraint level
-    let constraint_str = file.constraint_level.as_ref()
+    let constraint_str = file
+        .constraint_level
+        .as_ref()
         .map(|l| format!(" ({})", l))
         .unwrap_or_default();
 
@@ -332,17 +347,16 @@ fn render_file_tree(file: &FileNode, renderer: &TreeRenderer, indent: &str) {
     let symbol_count = file.symbols.len();
     for (i, sym) in file.symbols.iter().enumerate() {
         let is_last = i == symbol_count - 1;
-        let branch = if is_last { renderer.last_branch() } else { renderer.branch() };
+        let branch = if is_last {
+            renderer.last_branch()
+        } else {
+            renderer.branch()
+        };
 
         let frozen_marker = if sym.is_frozen { " [frozen]" } else { "" };
         println!(
             "{}  {} {} ({}:{}){}",
-            indent,
-            branch,
-            sym.name,
-            sym.symbol_type,
-            sym.line,
-            frozen_marker
+            indent, branch, sym.name, sym.symbol_type, sym.line, frozen_marker
         );
     }
 }
@@ -356,7 +370,9 @@ fn render_flat_recursive(node: &DirectoryNode, depth: usize) {
     let indent = "  ".repeat(depth);
 
     for file in &node.files {
-        let constraint_str = file.constraint_level.as_ref()
+        let constraint_str = file
+            .constraint_level
+            .as_ref()
             .map(|l| format!(" [{}]", l))
             .unwrap_or_default();
         println!("{}{}{}", indent, file.path, constraint_str);

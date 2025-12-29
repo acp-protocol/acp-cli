@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::cache::{
     BehavioralAnnotations, DocumentationAnnotations, FileEntry, InlineAnnotation,
-    LifecycleAnnotations, MemoizedValue, PerformanceAnnotations, SymbolEntry, SymbolType,
-    TypeInfo, TypeParamInfo, TypeReturnInfo, TypeSource, TypeTypeParam, Visibility,
+    LifecycleAnnotations, MemoizedValue, PerformanceAnnotations, SymbolEntry, SymbolType, TypeInfo,
+    TypeParamInfo, TypeReturnInfo, TypeSource, TypeTypeParam, Visibility,
 };
 use crate::error::{AcpError, Result};
 use crate::index::detect_language;
@@ -25,14 +25,12 @@ use crate::index::detect_language;
 /// Regex pattern for parsing @acp: annotations with directive support (RFC-001)
 /// Matches: @acp:name [value] [- directive]
 /// Groups: 1=name, 2=value (before dash), 3=directive (after dash)
-static ANNOTATION_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"@acp:([\w-]+)(?:\s+([^-\n]+?))?(?:\s+-\s+(.+))?$").unwrap()
-});
+static ANNOTATION_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"@acp:([\w-]+)(?:\s+([^-\n]+?))?(?:\s+-\s+(.+))?$").unwrap());
 
 /// Regex for detecting comment continuation lines (for multiline directives)
-static CONTINUATION_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^(?://|#|/?\*)\s{2,}(.+)$").unwrap()
-});
+static CONTINUATION_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(?://|#|/?\*)\s{2,}(.+)$").unwrap());
 
 // ============================================================================
 // RFC-0003: Annotation Provenance Tracking
@@ -45,19 +43,16 @@ static SOURCE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Regex for @acp:source-confidence annotation (RFC-0003)
-static CONFIDENCE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"@acp:source-confidence\s+(\d+\.?\d*)(?:\s+-\s+(.+))?$").unwrap()
-});
+static CONFIDENCE_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"@acp:source-confidence\s+(\d+\.?\d*)(?:\s+-\s+(.+))?$").unwrap());
 
 /// Regex for @acp:source-reviewed annotation (RFC-0003)
-static REVIEWED_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"@acp:source-reviewed\s+(true|false)(?:\s+-\s+(.+))?$").unwrap()
-});
+static REVIEWED_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"@acp:source-reviewed\s+(true|false)(?:\s+-\s+(.+))?$").unwrap());
 
 /// Regex for @acp:source-id annotation (RFC-0003)
-static ID_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"@acp:source-id\s+([a-zA-Z0-9\-]+)(?:\s+-\s+(.+))?$").unwrap()
-});
+static ID_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"@acp:source-id\s+([a-zA-Z0-9\-]+)(?:\s+-\s+(.+))?$").unwrap());
 
 /// Source origin for annotation provenance (RFC-0003)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -142,13 +137,13 @@ pub struct ParseResult {
     pub file: FileEntry,
     pub symbols: Vec<SymbolEntry>,
     pub calls: Vec<(String, Vec<String>)>, // (caller, callees)
-    pub lock_level: Option<String>,         // from @acp:lock
-    pub lock_directive: Option<String>,     // RFC-001: directive text for lock
-    pub ai_hints: Vec<String>,              // from @acp:ai-careful, @acp:ai-readonly, etc.
-    pub hacks: Vec<HackAnnotation>,         // from @acp:hack
+    pub lock_level: Option<String>,        // from @acp:lock
+    pub lock_directive: Option<String>,    // RFC-001: directive text for lock
+    pub ai_hints: Vec<String>,             // from @acp:ai-careful, @acp:ai-readonly, etc.
+    pub hacks: Vec<HackAnnotation>,        // from @acp:hack
     pub inline_annotations: Vec<InlineAnnotation>, // RFC-001: inline annotations (todo, fixme, critical, perf)
-    pub purpose: Option<String>,            // RFC-001: file purpose from @acp:purpose
-    pub owner: Option<String>,              // RFC-001: file owner from @acp:owner
+    pub purpose: Option<String>,                   // RFC-001: file purpose from @acp:purpose
+    pub owner: Option<String>,                     // RFC-001: file owner from @acp:owner
 }
 
 /// @acp:summary "Parsed hack annotation"
@@ -177,15 +172,17 @@ impl Parser {
         let content = std::fs::read_to_string(path)?;
         let file_path = path.to_string_lossy().to_string();
 
-        let language = detect_language(&file_path)
-            .ok_or_else(|| AcpError::UnsupportedLanguage(
+        let language = detect_language(&file_path).ok_or_else(|| {
+            AcpError::UnsupportedLanguage(
                 path.extension()
                     .map(|e| e.to_string_lossy().to_string())
-                    .unwrap_or_default()
-            ))?;
+                    .unwrap_or_default(),
+            )
+        })?;
 
         let lines = content.lines().count();
-        let _file_name = path.file_stem()
+        let _file_name = path
+            .file_stem()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
 
@@ -309,7 +306,10 @@ impl Parser {
                         line: ann.line,
                         annotation_type: "hack".to_string(),
                         value: ann.value.clone(),
-                        directive: ann.directive.clone().unwrap_or_else(|| "Temporary workaround".to_string()),
+                        directive: ann
+                            .directive
+                            .clone()
+                            .unwrap_or_else(|| "Temporary workaround".to_string()),
                         expires,
                         ticket,
                         auto_generated: ann.auto_generated,
@@ -325,7 +325,9 @@ impl Parser {
                             match ann.name.as_str() {
                                 "todo" => "Pending work item".to_string(),
                                 "fixme" => "Known issue requiring fix".to_string(),
-                                "critical" => "Critical section - extra review required".to_string(),
+                                "critical" => {
+                                    "Critical section - extra review required".to_string()
+                                }
                                 _ => "".to_string(),
                             }
                         }),
@@ -336,8 +338,12 @@ impl Parser {
                     // RFC-0009: Also add to symbol documentation.todos
                     if ann.name == "todo" {
                         if let Some(ref mut builder) = current_symbol {
-                            let todo_text = ann.directive.clone()
-                                .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
+                            let todo_text = ann
+                                .directive
+                                .clone()
+                                .or_else(|| {
+                                    ann.value.clone().map(|v| v.trim_matches('"').to_string())
+                                })
                                 .unwrap_or_else(|| "Pending work item".to_string());
                             builder.documentation.todos.push(todo_text);
                         }
@@ -349,7 +355,10 @@ impl Parser {
                         line: ann.line,
                         annotation_type: ann.name.clone(),
                         value: ann.value.clone(),
-                        directive: ann.directive.clone().unwrap_or_else(|| "Performance-sensitive code".to_string()),
+                        directive: ann
+                            .directive
+                            .clone()
+                            .unwrap_or_else(|| "Performance-sensitive code".to_string()),
                         expires: None,
                         ticket: None,
                         auto_generated: ann.auto_generated,
@@ -357,7 +366,8 @@ impl Parser {
                     // RFC-0009: Also set symbol performance.complexity
                     if let Some(ref mut builder) = current_symbol {
                         if let Some(val) = &ann.value {
-                            builder.performance.complexity = Some(val.trim_matches('"').to_string());
+                            builder.performance.complexity =
+                                Some(val.trim_matches('"').to_string());
                         }
                     }
                 }
@@ -462,7 +472,9 @@ impl Parser {
                                 }
                             } else {
                                 // Required parameter
-                                let name = rest.split_whitespace().next()
+                                let name = rest
+                                    .split_whitespace()
+                                    .next()
                                     .unwrap_or("")
                                     .trim_matches('"')
                                     .to_string();
@@ -488,7 +500,8 @@ impl Parser {
                         let type_expr = ann.value.as_ref().and_then(|val| {
                             let val = val.trim();
                             if val.starts_with('{') {
-                                val.find('}').map(|close_idx| val[1..close_idx].trim().to_string())
+                                val.find('}')
+                                    .map(|close_idx| val[1..close_idx].trim().to_string())
                             } else {
                                 None
                             }
@@ -507,13 +520,17 @@ impl Parser {
                         if let Some(val) = &ann.value {
                             let val = val.trim();
                             // Check for "extends" keyword
-                            let (name, constraint) = if let Some(extends_idx) = val.find(" extends ") {
-                                let n = val[..extends_idx].trim().to_string();
-                                let c = val[extends_idx + 9..].trim().to_string();
-                                (n, Some(c))
-                            } else {
-                                (val.split_whitespace().next().unwrap_or("").to_string(), None)
-                            };
+                            let (name, constraint) =
+                                if let Some(extends_idx) = val.find(" extends ") {
+                                    let n = val[..extends_idx].trim().to_string();
+                                    let c = val[extends_idx + 9..].trim().to_string();
+                                    (n, Some(c))
+                                } else {
+                                    (
+                                        val.split_whitespace().next().unwrap_or("").to_string(),
+                                        None,
+                                    )
+                                };
 
                             if !name.is_empty() {
                                 builder.type_info.type_params.push(TypeTypeParam {
@@ -587,7 +604,9 @@ impl Parser {
                 // RFC-0009: Lifecycle Annotations (file and symbol level)
                 // ================================================================
                 "deprecated" => {
-                    let message = ann.directive.clone()
+                    let message = ann
+                        .directive
+                        .clone()
                         .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
                         .unwrap_or_else(|| "Deprecated".to_string());
                     if let Some(ref mut builder) = current_symbol {
@@ -640,7 +659,9 @@ impl Parser {
                 // ================================================================
                 "example" => {
                     if let Some(ref mut builder) = current_symbol {
-                        let example_text = ann.directive.clone()
+                        let example_text = ann
+                            .directive
+                            .clone()
                             .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
                             .unwrap_or_default();
                         if !example_text.is_empty() {
@@ -651,20 +672,28 @@ impl Parser {
                 "see" => {
                     if let Some(ref mut builder) = current_symbol {
                         if let Some(val) = &ann.value {
-                            builder.documentation.see_also.push(val.trim_matches('"').to_string());
+                            builder
+                                .documentation
+                                .see_also
+                                .push(val.trim_matches('"').to_string());
                         }
                     }
                 }
                 "link" => {
                     if let Some(ref mut builder) = current_symbol {
                         if let Some(val) = &ann.value {
-                            builder.documentation.links.push(val.trim_matches('"').to_string());
+                            builder
+                                .documentation
+                                .links
+                                .push(val.trim_matches('"').to_string());
                         }
                     }
                 }
                 "note" => {
                     if let Some(ref mut builder) = current_symbol {
-                        let note_text = ann.directive.clone()
+                        let note_text = ann
+                            .directive
+                            .clone()
                             .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
                             .unwrap_or_default();
                         if !note_text.is_empty() {
@@ -674,7 +703,9 @@ impl Parser {
                 }
                 "warning" => {
                     if let Some(ref mut builder) = current_symbol {
-                        let warning_text = ann.directive.clone()
+                        let warning_text = ann
+                            .directive
+                            .clone()
                             .or_else(|| ann.value.clone().map(|v| v.trim_matches('"').to_string()))
                             .unwrap_or_default();
                         if !warning_text.is_empty() {
@@ -850,13 +881,25 @@ impl Parser {
         match name {
             "lock" => match value {
                 Some("frozen") => Some("MUST NOT modify this code under any circumstances".into()),
-                Some("restricted") => Some("Explain proposed changes and wait for explicit approval".into()),
-                Some("approval-required") => Some("Propose changes and request confirmation before applying".into()),
-                Some("tests-required") => Some("All changes must include corresponding tests".into()),
+                Some("restricted") => {
+                    Some("Explain proposed changes and wait for explicit approval".into())
+                }
+                Some("approval-required") => {
+                    Some("Propose changes and request confirmation before applying".into())
+                }
+                Some("tests-required") => {
+                    Some("All changes must include corresponding tests".into())
+                }
                 Some("docs-required") => Some("All changes must update documentation".into()),
-                Some("review-required") => Some("Changes require code review before merging".into()),
-                Some("normal") | None => Some("Safe to modify following project conventions".into()),
-                Some("experimental") => Some("Experimental code - changes welcome but may be unstable".into()),
+                Some("review-required") => {
+                    Some("Changes require code review before merging".into())
+                }
+                Some("normal") | None => {
+                    Some("Safe to modify following project conventions".into())
+                }
+                Some("experimental") => {
+                    Some("Experimental code - changes welcome but may be unstable".into())
+                }
                 _ => None,
             },
             "ref" => value.map(|url| format!("Consult {} before making changes", url)),
@@ -946,7 +989,10 @@ impl Parser {
     ///
     /// Returns annotations paired with their provenance metadata if present.
     /// Provenance is detected from @acp:source* annotations following the main annotation.
-    pub fn parse_annotations_with_provenance(&self, content: &str) -> Vec<AnnotationWithProvenance> {
+    pub fn parse_annotations_with_provenance(
+        &self,
+        content: &str,
+    ) -> Vec<AnnotationWithProvenance> {
         let annotations = self.parse_annotations(content);
         let lines: Vec<&str> = content.lines().collect();
 
@@ -1222,8 +1268,14 @@ mod type_annotation_tests {
         let type_info = sym.type_info.as_ref().expect("Should have type_info");
 
         assert_eq!(type_info.type_params[0].name, "T");
-        assert_eq!(type_info.type_params[0].constraint, Some("BaseEntity".to_string()));
-        assert_eq!(type_info.type_params[0].directive, Some("Entity type".to_string()));
+        assert_eq!(
+            type_info.type_params[0].constraint,
+            Some("BaseEntity".to_string())
+        );
+        assert_eq!(
+            type_info.type_params[0].directive,
+            Some("Entity type".to_string())
+        );
     }
 
     #[test]
@@ -1237,7 +1289,10 @@ mod type_annotation_tests {
         let sym = &result.symbols[0];
         let type_info = sym.type_info.as_ref().expect("Should have type_info");
 
-        assert_eq!(type_info.params[0].r#type, Some("Map<string, User | null>".to_string()));
+        assert_eq!(
+            type_info.params[0].r#type,
+            Some("Map<string, User | null>".to_string())
+        );
 
         let returns = type_info.returns.as_ref().unwrap();
         assert_eq!(returns.r#type, Some("Promise<Array<User>>".to_string()));
@@ -1273,6 +1328,9 @@ mod type_annotation_tests {
 
         // When type is present, source should be Acp
         assert_eq!(type_info.params[0].type_source, Some(TypeSource::Acp));
-        assert_eq!(type_info.returns.as_ref().unwrap().type_source, Some(TypeSource::Acp));
+        assert_eq!(
+            type_info.returns.as_ref().unwrap().type_source,
+            Some(TypeSource::Acp)
+        );
     }
 }

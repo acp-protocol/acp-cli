@@ -128,7 +128,10 @@ mod tests {
     fn test_tool_output_paths() {
         assert_eq!(Tool::Cursor.output_path(), ".cursorrules");
         assert_eq!(Tool::ClaudeCode.output_path(), "CLAUDE.md");
-        assert_eq!(Tool::Copilot.output_path(), ".github/copilot-instructions.md");
+        assert_eq!(
+            Tool::Copilot.output_path(),
+            ".github/copilot-instructions.md"
+        );
         assert_eq!(Tool::Generic.output_path(), "AGENTS.md");
     }
 

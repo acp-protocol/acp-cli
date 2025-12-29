@@ -6,10 +6,10 @@
 //! Provides comprehensive validation of ACP JSON files against their schemas.
 //! Uses embedded schemas compiled once at runtime for efficient repeated validation.
 
-use std::sync::OnceLock;
-use jsonschema::{Validator, Draft, Retrieve, Uri};
-use crate::error::{AcpError, Result};
 use crate::attempts::AttemptTracker;
+use crate::error::{AcpError, Result};
+use jsonschema::{Draft, Retrieve, Uri, Validator};
+use std::sync::OnceLock;
 
 // Embed schemas at compile time from acp-spec submodule (source of truth)
 static CACHE_SCHEMA_STR: &str = include_str!("../acp-spec/schemas/v1/cache.schema.json");
@@ -102,7 +102,9 @@ fn get_primer_validator() -> &'static Validator {
 }
 
 /// Collect validation errors into a formatted string
-fn collect_errors<'a>(errors: impl Iterator<Item = jsonschema::error::ValidationError<'a>>) -> String {
+fn collect_errors<'a>(
+    errors: impl Iterator<Item = jsonschema::error::ValidationError<'a>>,
+) -> String {
     errors
         .map(|e| format!("{}", e))
         .collect::<Vec<_>>()
@@ -116,7 +118,9 @@ pub fn validate_cache(json: &str) -> Result<()> {
 
     let errors: Vec<_> = validator.iter_errors(&value).collect();
     if !errors.is_empty() {
-        return Err(AcpError::SchemaValidation(collect_errors(errors.into_iter())));
+        return Err(AcpError::SchemaValidation(collect_errors(
+            errors.into_iter(),
+        )));
     }
 
     // Also validate with serde for type checking
@@ -131,7 +135,9 @@ pub fn validate_vars(json: &str) -> Result<()> {
 
     let errors: Vec<_> = validator.iter_errors(&value).collect();
     if !errors.is_empty() {
-        return Err(AcpError::SchemaValidation(collect_errors(errors.into_iter())));
+        return Err(AcpError::SchemaValidation(collect_errors(
+            errors.into_iter(),
+        )));
     }
 
     // Also validate with serde for type checking
@@ -146,7 +152,9 @@ pub fn validate_config(json: &str) -> Result<()> {
 
     let errors: Vec<_> = validator.iter_errors(&value).collect();
     if !errors.is_empty() {
-        return Err(AcpError::SchemaValidation(collect_errors(errors.into_iter())));
+        return Err(AcpError::SchemaValidation(collect_errors(
+            errors.into_iter(),
+        )));
     }
 
     // Also validate with serde for type checking
@@ -161,7 +169,9 @@ pub fn validate_attempts(json: &str) -> Result<()> {
 
     let errors: Vec<_> = validator.iter_errors(&value).collect();
     if !errors.is_empty() {
-        return Err(AcpError::SchemaValidation(collect_errors(errors.into_iter())));
+        return Err(AcpError::SchemaValidation(collect_errors(
+            errors.into_iter(),
+        )));
     }
 
     // Also validate with serde for type checking
@@ -180,7 +190,9 @@ pub fn validate_sync(json: &str) -> Result<()> {
 
     let errors: Vec<_> = validator.iter_errors(&value).collect();
     if !errors.is_empty() {
-        return Err(AcpError::SchemaValidation(collect_errors(errors.into_iter())));
+        return Err(AcpError::SchemaValidation(collect_errors(
+            errors.into_iter(),
+        )));
     }
 
     // Semantic validation via JSON value (no Rust struct yet)
@@ -196,7 +208,9 @@ pub fn validate_primer(json: &str) -> Result<()> {
 
     let errors: Vec<_> = validator.iter_errors(&value).collect();
     if !errors.is_empty() {
-        return Err(AcpError::SchemaValidation(collect_errors(errors.into_iter())));
+        return Err(AcpError::SchemaValidation(collect_errors(
+            errors.into_iter(),
+        )));
     }
 
     // Semantic validation via JSON value (no Rust struct yet)
@@ -245,11 +259,11 @@ fn validate_sync_semantic(value: &serde_json::Value) -> Result<()> {
         value.get("tools").and_then(|v| v.as_array()),
         value.get("exclude").and_then(|v| v.as_array()),
     ) {
-        let tool_set: std::collections::HashSet<_> = tools.iter()
-            .filter_map(|v| v.as_str())
-            .collect();
+        let tool_set: std::collections::HashSet<_> =
+            tools.iter().filter_map(|v| v.as_str()).collect();
 
-        let overlap: Vec<_> = exclude.iter()
+        let overlap: Vec<_> = exclude
+            .iter()
             .filter_map(|v| v.as_str())
             .filter(|t| tool_set.contains(t))
             .collect();
@@ -268,13 +282,15 @@ fn validate_sync_semantic(value: &serde_json::Value) -> Result<()> {
 /// @acp:summary "Semantic validation for primer definitions"
 fn validate_primer_semantic(value: &serde_json::Value) -> Result<()> {
     if let Some(sections) = value.get("sections").and_then(|v| v.as_array()) {
-        let section_ids: std::collections::HashSet<_> = sections.iter()
+        let section_ids: std::collections::HashSet<_> = sections
+            .iter()
             .filter_map(|s| s.get("id"))
             .filter_map(|id| id.as_str())
             .collect();
 
         for section in sections {
-            let section_id = section.get("id")
+            let section_id = section
+                .get("id")
                 .and_then(|id| id.as_str())
                 .unwrap_or("unknown");
 
@@ -299,7 +315,8 @@ fn validate_primer_semantic(value: &serde_json::Value) -> Result<()> {
                         if !section_ids.contains(dep_id) {
                             tracing::warn!(
                                 "Section '{}' depends on '{}' which does not exist",
-                                section_id, dep_id
+                                section_id,
+                                dep_id
                             );
                         }
                     }
@@ -328,7 +345,8 @@ fn detect_dependency_cycles(sections: &[serde_json::Value]) -> std::result::Resu
 
     for section in sections {
         if let Some(id) = section.get("id").and_then(|v| v.as_str()) {
-            let dep_list = section.get("dependsOn")
+            let dep_list = section
+                .get("dependsOn")
                 .and_then(|v| v.as_array())
                 .map(|arr| arr.iter().filter_map(|d| d.as_str()).collect())
                 .unwrap_or_default();
@@ -409,7 +427,10 @@ pub fn validate_by_type(json: &str, schema_type: &str) -> Result<()> {
         "attempts" => validate_attempts(json),
         "sync" => validate_sync(json),
         "primer" => validate_primer(json),
-        _ => Err(AcpError::Other(format!("Unknown schema type: {}", schema_type))),
+        _ => Err(AcpError::Other(format!(
+            "Unknown schema type: {}",
+            schema_type
+        ))),
     }
 }
 
@@ -422,7 +443,10 @@ mod tests {
         assert_eq!(detect_schema_type(".acp.cache.json"), Some("cache"));
         assert_eq!(detect_schema_type(".acp/acp.vars.json"), Some("vars"));
         assert_eq!(detect_schema_type(".acp.config.json"), Some("config"));
-        assert_eq!(detect_schema_type(".acp/acp.attempts.json"), Some("attempts"));
+        assert_eq!(
+            detect_schema_type(".acp/acp.attempts.json"),
+            Some("attempts")
+        );
         assert_eq!(detect_schema_type("acp.sync.json"), Some("sync"));
         assert_eq!(detect_schema_type("primer.defaults.json"), Some("primer"));
         assert_eq!(detect_schema_type("random.json"), None);
@@ -431,19 +455,25 @@ mod tests {
     #[test]
     fn test_dependency_cycle_detection() {
         // No cycle
-        let sections: Vec<serde_json::Value> = serde_json::from_str(r#"[
+        let sections: Vec<serde_json::Value> = serde_json::from_str(
+            r#"[
             {"id": "a", "dependsOn": ["b"]},
             {"id": "b", "dependsOn": ["c"]},
             {"id": "c"}
-        ]"#).unwrap();
+        ]"#,
+        )
+        .unwrap();
         assert!(detect_dependency_cycles(&sections).is_ok());
 
         // With cycle
-        let sections_with_cycle: Vec<serde_json::Value> = serde_json::from_str(r#"[
+        let sections_with_cycle: Vec<serde_json::Value> = serde_json::from_str(
+            r#"[
             {"id": "a", "dependsOn": ["b"]},
             {"id": "b", "dependsOn": ["c"]},
             {"id": "c", "dependsOn": ["a"]}
-        ]"#).unwrap();
+        ]"#,
+        )
+        .unwrap();
         assert!(detect_dependency_cycles(&sections_with_cycle).is_err());
     }
 }

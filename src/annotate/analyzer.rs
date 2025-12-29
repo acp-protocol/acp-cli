@@ -22,9 +22,7 @@ use crate::ast::{AstParser, ExtractedSymbol, SymbolKind, Visibility};
 use crate::config::Config;
 use crate::error::Result;
 
-use super::{
-    AnalysisResult, AnnotateLevel, AnnotationGap, AnnotationType, ExistingAnnotation,
-};
+use super::{AnalysisResult, AnnotateLevel, AnnotationGap, AnnotationType, ExistingAnnotation};
 
 /// @acp:summary "Analyzes source files for ACP annotation coverage"
 /// @acp:lock normal
@@ -45,8 +43,8 @@ pub struct Analyzer {
 impl Analyzer {
     /// @acp:summary "Creates a new analyzer with the given configuration"
     pub fn new(config: &Config) -> Result<Self> {
-        let annotation_pattern = Regex::new(r"@acp:([a-z][a-z0-9-]*)(?:\s+(.+))?$")
-            .expect("Invalid annotation regex");
+        let annotation_pattern =
+            Regex::new(r"@acp:([a-z][a-z0-9-]*)(?:\s+(.+))?$").expect("Invalid annotation regex");
 
         Ok(Self {
             config: config.clone(),
@@ -145,8 +143,8 @@ impl Analyzer {
                 let mut map: HashMap<String, HashSet<AnnotationType>> = HashMap::new();
                 for ann in &result.existing_annotations {
                     map.entry(ann.target.clone())
-                       .or_default()
-                       .insert(ann.annotation_type);
+                        .or_default()
+                        .insert(ann.annotation_type);
                 }
                 map
             };
@@ -174,7 +172,9 @@ impl Analyzer {
                         // Set doc comment with calculated line range
                         if let Some(doc) = &symbol.doc_comment {
                             // Try to find actual doc comment boundaries in source
-                            if let Some((start, end)) = self.find_doc_comment_range(&content, symbol.start_line) {
+                            if let Some((start, end)) =
+                                self.find_doc_comment_range(&content, symbol.start_line)
+                            {
                                 gap = gap.with_doc_comment_range(doc, start, end);
                             } else {
                                 // Fallback to calculated range
@@ -202,10 +202,14 @@ impl Analyzer {
             if !file_existing_types.contains(&AnnotationType::Module) {
                 file_missing.push(AnnotationType::Module);
             }
-            if self.level.includes(AnnotationType::Summary) && !file_existing_types.contains(&AnnotationType::Summary) {
+            if self.level.includes(AnnotationType::Summary)
+                && !file_existing_types.contains(&AnnotationType::Summary)
+            {
                 file_missing.push(AnnotationType::Summary);
             }
-            if self.level.includes(AnnotationType::Domain) && !file_existing_types.contains(&AnnotationType::Domain) {
+            if self.level.includes(AnnotationType::Domain)
+                && !file_existing_types.contains(&AnnotationType::Domain)
+            {
                 file_missing.push(AnnotationType::Domain);
             }
 
@@ -240,7 +244,11 @@ impl Analyzer {
     }
 
     /// @acp:summary "Extracts existing @acp: annotations from file content"
-    fn extract_existing_annotations(&self, content: &str, file_path: &str) -> Vec<ExistingAnnotation> {
+    fn extract_existing_annotations(
+        &self,
+        content: &str,
+        file_path: &str,
+    ) -> Vec<ExistingAnnotation> {
         let mut annotations = Vec::new();
         let current_target = file_path.to_string();
 
@@ -261,7 +269,6 @@ impl Analyzer {
                     });
                 }
             }
-
         }
 
         annotations
@@ -330,7 +337,10 @@ impl Analyzer {
                 // Include protected/internal if they're "important" kinds
                 matches!(
                     symbol.kind,
-                    SymbolKind::Class | SymbolKind::Struct | SymbolKind::Interface | SymbolKind::Trait
+                    SymbolKind::Class
+                        | SymbolKind::Struct
+                        | SymbolKind::Interface
+                        | SymbolKind::Trait
                 )
             }
             Visibility::Public => true,
@@ -359,7 +369,10 @@ impl Analyzer {
         }
 
         // @acp:summary is always recommended for exported symbols
-        if symbol.exported && !existing_types.contains(&AnnotationType::Summary) && !missing.contains(&AnnotationType::Summary) {
+        if symbol.exported
+            && !existing_types.contains(&AnnotationType::Summary)
+            && !missing.contains(&AnnotationType::Summary)
+        {
             missing.insert(0, AnnotationType::Summary);
         }
 
@@ -490,8 +503,11 @@ mod tests {
     #[test]
     fn test_doc_comment_range() {
         // Test the with_doc_comment_range builder method
-        let gap = AnnotationGap::new("MyClass", 10)
-            .with_doc_comment_range("/// This is a doc comment\n/// Second line", 8, 9);
+        let gap = AnnotationGap::new("MyClass", 10).with_doc_comment_range(
+            "/// This is a doc comment\n/// Second line",
+            8,
+            9,
+        );
 
         assert!(gap.doc_comment.is_some());
         assert_eq!(gap.doc_comment_range, Some((8, 9)));
@@ -528,28 +544,26 @@ mod tests {
         ];
 
         // Create mock symbols
-        let symbols = vec![
-            ExtractedSymbol {
-                name: "MyStruct".to_string(),
-                qualified_name: Some("module::MyStruct".to_string()),
-                kind: SymbolKind::Struct,
-                visibility: Visibility::Public,
-                start_line: 30, // Symbol starts at line 30 (within 20 lines of annotations at 28-29)
-                end_line: 50,
-                start_col: 0,
-                end_col: 0,
-                signature: None,
-                doc_comment: None,
-                parent: None,
-                type_info: None,
-                parameters: vec![],
-                return_type: None,
-                exported: true,
-                is_async: false,
-                is_static: false,
-                generics: vec![],
-            },
-        ];
+        let symbols = vec![ExtractedSymbol {
+            name: "MyStruct".to_string(),
+            qualified_name: Some("module::MyStruct".to_string()),
+            kind: SymbolKind::Struct,
+            visibility: Visibility::Public,
+            start_line: 30, // Symbol starts at line 30 (within 20 lines of annotations at 28-29)
+            end_line: 50,
+            start_col: 0,
+            end_col: 0,
+            signature: None,
+            doc_comment: None,
+            parent: None,
+            type_info: None,
+            parameters: vec![],
+            return_type: None,
+            exported: true,
+            is_async: false,
+            is_static: false,
+            generics: vec![],
+        }];
 
         analyzer.associate_annotations_with_symbols(&mut annotations, &symbols);
 

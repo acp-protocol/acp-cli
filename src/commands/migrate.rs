@@ -118,13 +118,19 @@ impl DirectiveDefaults {
             "Performance-sensitive code - benchmark any changes".to_string(),
         );
 
-        Self { defaults, type_defaults }
+        Self {
+            defaults,
+            type_defaults,
+        }
     }
 
     /// Get the default directive for an annotation type and value
     pub fn get(&self, annotation_type: &str, value: &str) -> Option<String> {
         // Try exact match first
-        if let Some(directive) = self.defaults.get(&(annotation_type.to_string(), value.to_string())) {
+        if let Some(directive) = self
+            .defaults
+            .get(&(annotation_type.to_string(), value.to_string()))
+        {
             return Some(directive.clone());
         }
 
@@ -160,9 +166,7 @@ impl MigrationScanner {
     pub fn new() -> Self {
         // Match @acp:type with optional value
         // The directive check ` - ` is done separately in scan_file
-        let pattern = Regex::new(
-            r"@acp:([\w-]+)(?:\s+(.+))?"
-        ).expect("Invalid regex pattern");
+        let pattern = Regex::new(r"@acp:([\w-]+)(?:\s+(.+))?").expect("Invalid regex pattern");
 
         Self {
             pattern,
@@ -183,7 +187,8 @@ impl MigrationScanner {
 
             if let Some(cap) = self.pattern.captures(line) {
                 let annotation_type = cap.get(1).unwrap().as_str().to_string();
-                let annotation_value = cap.get(2)
+                let annotation_value = cap
+                    .get(2)
                     .map(|m| m.as_str().trim().to_string())
                     .unwrap_or_default();
 
@@ -225,7 +230,11 @@ impl MigrationScanner {
     }
 
     /// Scan all files in the cache
-    pub fn scan_cache(&self, cache: &Cache, filter_paths: &[PathBuf]) -> Result<Vec<AnnotationMigration>> {
+    pub fn scan_cache(
+        &self,
+        cache: &Cache,
+        filter_paths: &[PathBuf],
+    ) -> Result<Vec<AnnotationMigration>> {
         let mut all_migrations = vec![];
 
         for path in cache.files.keys() {
@@ -255,9 +264,7 @@ impl MigrationScanner {
         }
 
         // Sort by file and line
-        all_migrations.sort_by(|a, b| {
-            a.file.cmp(&b.file).then(a.line.cmp(&b.line))
-        });
+        all_migrations.sort_by(|a, b| a.file.cmp(&b.file).then(a.line.cmp(&b.line)));
 
         Ok(all_migrations)
     }
@@ -361,13 +368,15 @@ pub fn print_migration_preview(migrations: &[AnnotationMigration]) {
             if current_file.is_some() {
                 println!();
             }
-            println!("  {}:{}",
+            println!(
+                "  {}:{}",
                 style(migration.file.display()).cyan(),
                 migration.line
             );
             current_file = Some(&migration.file);
         } else {
-            println!("  {}:{}",
+            println!(
+                "  {}:{}",
                 style(migration.file.display()).cyan(),
                 migration.line
             );
@@ -400,7 +409,10 @@ pub fn execute_migrate(cache: &Cache, options: MigrateOptions) -> Result<()> {
     // Group migrations by file
     let mut by_file: HashMap<PathBuf, Vec<&AnnotationMigration>> = HashMap::new();
     for migration in &migrations {
-        by_file.entry(migration.file.clone()).or_default().push(migration);
+        by_file
+            .entry(migration.file.clone())
+            .or_default()
+            .push(migration);
     }
 
     let writer = MigrationWriter::new();
@@ -410,13 +422,17 @@ pub fn execute_migrate(cache: &Cache, options: MigrateOptions) -> Result<()> {
     for (file_path, file_migrations) in &by_file {
         // Interactive confirmation
         if options.interactive {
-            println!("\n{} ({} annotations):",
+            println!(
+                "\n{} ({} annotations):",
                 style(file_path.display()).cyan().bold(),
                 file_migrations.len()
             );
 
             for m in file_migrations.iter() {
-                println!("  Line {}: @acp:{} {}", m.line, m.annotation_type, m.annotation_value);
+                println!(
+                    "  Line {}: @acp:{} {}",
+                    m.line, m.annotation_type, m.annotation_value
+                );
             }
 
             let confirmed = Confirm::new()

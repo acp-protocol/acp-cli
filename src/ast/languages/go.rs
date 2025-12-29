@@ -3,10 +3,10 @@
 //! @acp:domain cli
 //! @acp:layer parsing
 
-use tree_sitter::{Language, Tree, Node};
+use super::{node_text, LanguageExtractor};
+use crate::ast::{ExtractedSymbol, FunctionCall, Import, Parameter, SymbolKind, Visibility};
 use crate::error::Result;
-use super::{LanguageExtractor, node_text};
-use crate::ast::{ExtractedSymbol, Import, FunctionCall, Parameter, SymbolKind, Visibility};
+use tree_sitter::{Language, Node, Tree};
 
 /// Go language extractor
 pub struct GoExtractor;
@@ -38,7 +38,12 @@ impl LanguageExtractor for GoExtractor {
         Ok(imports)
     }
 
-    fn extract_calls(&self, tree: &Tree, source: &str, current_function: Option<&str>) -> Result<Vec<FunctionCall>> {
+    fn extract_calls(
+        &self,
+        tree: &Tree,
+        source: &str,
+        current_function: Option<&str>,
+    ) -> Result<Vec<FunctionCall>> {
         let mut calls = Vec::new();
         let root = tree.root_node();
         self.extract_calls_recursive(&root, source, &mut calls, current_function);
@@ -108,7 +113,12 @@ impl GoExtractor {
         }
     }
 
-    fn extract_function(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_function(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -121,7 +131,12 @@ impl GoExtractor {
         .with_columns(node.start_position().column, node.end_position().column);
 
         // Go: Exported if first letter is uppercase
-        if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+        if name
+            .chars()
+            .next()
+            .map(|c| c.is_uppercase())
+            .unwrap_or(false)
+        {
             sym = sym.exported();
             sym.visibility = Visibility::Public;
         } else {
@@ -161,7 +176,12 @@ impl GoExtractor {
         );
 
         // Go: Exported if first letter is uppercase
-        if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+        if name
+            .chars()
+            .next()
+            .map(|c| c.is_uppercase())
+            .unwrap_or(false)
+        {
             sym = sym.exported();
             sym.visibility = Visibility::Public;
         } else {
@@ -212,11 +232,13 @@ impl GoExtractor {
 
                     // Determine the kind based on the type
                     let type_node = child.child_by_field_name("type");
-                    let kind = type_node.map(|t| match t.kind() {
-                        "struct_type" => SymbolKind::Struct,
-                        "interface_type" => SymbolKind::Interface,
-                        _ => SymbolKind::TypeAlias,
-                    }).unwrap_or(SymbolKind::TypeAlias);
+                    let kind = type_node
+                        .map(|t| match t.kind() {
+                            "struct_type" => SymbolKind::Struct,
+                            "interface_type" => SymbolKind::Interface,
+                            _ => SymbolKind::TypeAlias,
+                        })
+                        .unwrap_or(SymbolKind::TypeAlias);
 
                     let mut sym = ExtractedSymbol::new(
                         name.clone(),
@@ -226,7 +248,12 @@ impl GoExtractor {
                     );
 
                     // Go: Exported if first letter is uppercase
-                    if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                    if name
+                        .chars()
+                        .next()
+                        .map(|c| c.is_uppercase())
+                        .unwrap_or(false)
+                    {
                         sym = sym.exported();
                         sym.visibility = Visibility::Public;
                     } else {
@@ -251,7 +278,12 @@ impl GoExtractor {
                     // Extract interface methods
                     if kind == SymbolKind::Interface {
                         if let Some(type_node) = type_node {
-                            self.extract_interface_methods(&type_node, source, symbols, Some(&name));
+                            self.extract_interface_methods(
+                                &type_node,
+                                source,
+                                symbols,
+                                Some(&name),
+                            );
                         }
                     }
                 }
@@ -303,7 +335,12 @@ impl GoExtractor {
                 );
 
                 // Go: Exported if first letter is uppercase
-                if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                if name
+                    .chars()
+                    .next()
+                    .map(|c| c.is_uppercase())
+                    .unwrap_or(false)
+                {
                     sym = sym.exported();
                     sym.visibility = Visibility::Public;
                 } else {
@@ -343,7 +380,12 @@ impl GoExtractor {
                         child.end_position().row + 1,
                     );
 
-                    if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                    if name
+                        .chars()
+                        .next()
+                        .map(|c| c.is_uppercase())
+                        .unwrap_or(false)
+                    {
                         sym = sym.exported();
                         sym.visibility = Visibility::Public;
                     } else {
@@ -387,12 +429,21 @@ impl GoExtractor {
 
                         let mut sym = ExtractedSymbol::new(
                             name.clone(),
-                            if is_const { SymbolKind::Constant } else { SymbolKind::Variable },
+                            if is_const {
+                                SymbolKind::Constant
+                            } else {
+                                SymbolKind::Variable
+                            },
                             child.start_position().row + 1,
                             child.end_position().row + 1,
                         );
 
-                        if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                        if name
+                            .chars()
+                            .next()
+                            .map(|c| c.is_uppercase())
+                            .unwrap_or(false)
+                        {
                             sym = sym.exported();
                             sym.visibility = Visibility::Public;
                         } else {
@@ -418,15 +469,20 @@ impl GoExtractor {
         let mut cursor = params.walk();
         for child in params.children(&mut cursor) {
             if child.kind() == "parameter_declaration" {
-                let name = child.child_by_field_name("name")
+                let name = child
+                    .child_by_field_name("name")
                     .map(|n| node_text(&n, source).to_string())
                     .unwrap_or_default();
 
-                let type_info = child.child_by_field_name("type")
+                let type_info = child
+                    .child_by_field_name("type")
                     .map(|n| node_text(&n, source).to_string());
 
                 // Handle variadic parameters
-                let is_rest = type_info.as_ref().map(|t| t.starts_with("...")).unwrap_or(false);
+                let is_rest = type_info
+                    .as_ref()
+                    .map(|t| t.starts_with("..."))
+                    .unwrap_or(false);
 
                 sym.add_parameter(Parameter {
                     name,
@@ -470,11 +526,13 @@ impl GoExtractor {
             return;
         }
 
-        let path = node.child_by_field_name("path")
+        let path = node
+            .child_by_field_name("path")
             .map(|n| node_text(&n, source).trim_matches('"').to_string())
             .unwrap_or_default();
 
-        let alias = node.child_by_field_name("name")
+        let alias = node
+            .child_by_field_name("name")
             .map(|n| node_text(&n, source).to_string());
 
         let is_dot_import = alias.as_ref().map(|a| a == ".").unwrap_or(false);
@@ -502,14 +560,15 @@ impl GoExtractor {
         }
 
         let func_name = match node.kind() {
-            "function_declaration" | "method_declaration" => {
-                node.child_by_field_name("name")
-                    .map(|n| node_text(&n, source))
-            }
+            "function_declaration" | "method_declaration" => node
+                .child_by_field_name("name")
+                .map(|n| node_text(&n, source)),
             _ => None,
         };
 
-        let current = func_name.map(String::from).or_else(|| current_function.map(String::from));
+        let current = func_name
+            .map(String::from)
+            .or_else(|| current_function.map(String::from));
 
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
@@ -517,20 +576,25 @@ impl GoExtractor {
         }
     }
 
-    fn parse_call(&self, node: &Node, source: &str, current_function: Option<&str>) -> Option<FunctionCall> {
+    fn parse_call(
+        &self,
+        node: &Node,
+        source: &str,
+        current_function: Option<&str>,
+    ) -> Option<FunctionCall> {
         let function = node.child_by_field_name("function")?;
 
         let (callee, is_method, receiver) = match function.kind() {
             "selector_expression" => {
-                let operand = function.child_by_field_name("operand")
+                let operand = function
+                    .child_by_field_name("operand")
                     .map(|n| node_text(&n, source).to_string());
-                let field = function.child_by_field_name("field")
+                let field = function
+                    .child_by_field_name("field")
                     .map(|n| node_text(&n, source).to_string())?;
                 (field, true, operand)
             }
-            "identifier" => {
-                (node_text(&function, source).to_string(), false, None)
-            }
+            "identifier" => (node_text(&function, source).to_string(), false, None),
             _ => return None,
         };
 
@@ -544,48 +608,46 @@ impl GoExtractor {
     }
 
     fn build_function_signature(&self, node: &Node, source: &str) -> String {
-        let name = node.child_by_field_name("name")
+        let name = node
+            .child_by_field_name("name")
             .map(|n| node_text(&n, source))
             .unwrap_or("unknown");
 
-        let params = node.child_by_field_name("parameters")
+        let params = node
+            .child_by_field_name("parameters")
             .map(|n| node_text(&n, source))
             .unwrap_or("()");
 
-        let result = node.child_by_field_name("result")
+        let result = node
+            .child_by_field_name("result")
             .map(|n| format!(" {}", node_text(&n, source)))
             .unwrap_or_default();
 
-        format!("func {}{}{}",
-            name,
-            params,
-            result
-        )
+        format!("func {}{}{}", name, params, result)
     }
 
     fn build_method_signature(&self, node: &Node, source: &str) -> String {
-        let receiver = node.child_by_field_name("receiver")
+        let receiver = node
+            .child_by_field_name("receiver")
             .map(|n| format!("{} ", node_text(&n, source)))
             .unwrap_or_default();
 
-        let name = node.child_by_field_name("name")
+        let name = node
+            .child_by_field_name("name")
             .map(|n| node_text(&n, source))
             .unwrap_or("unknown");
 
-        let params = node.child_by_field_name("parameters")
+        let params = node
+            .child_by_field_name("parameters")
             .map(|n| node_text(&n, source))
             .unwrap_or("()");
 
-        let result = node.child_by_field_name("result")
+        let result = node
+            .child_by_field_name("result")
             .map(|n| format!(" {}", node_text(&n, source)))
             .unwrap_or_default();
 
-        format!("func {}{}{}{}",
-            receiver,
-            name,
-            params,
-            result
-        )
+        format!("func {}{}{}{}", receiver, name, params, result)
     }
 }
 
@@ -595,7 +657,9 @@ mod tests {
 
     fn parse_go(source: &str) -> (Tree, String) {
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_go::LANGUAGE.into()).unwrap();
+        parser
+            .set_language(&tree_sitter_go::LANGUAGE.into())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         (tree, source.to_string())
     }
@@ -613,7 +677,9 @@ func Greet(name string) string {
         let extractor = GoExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "Greet" && s.kind == SymbolKind::Function));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "Greet" && s.kind == SymbolKind::Function));
     }
 
     #[test]
@@ -630,9 +696,15 @@ type User struct {
         let extractor = GoExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "User" && s.kind == SymbolKind::Struct));
-        assert!(symbols.iter().any(|s| s.name == "Name" && s.kind == SymbolKind::Field && s.exported));
-        assert!(symbols.iter().any(|s| s.name == "age" && s.kind == SymbolKind::Field && !s.exported));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "User" && s.kind == SymbolKind::Struct));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "Name" && s.kind == SymbolKind::Field && s.exported));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "age" && s.kind == SymbolKind::Field && !s.exported));
     }
 
     #[test]
@@ -648,7 +720,9 @@ func (u *User) Greet() string {
         let extractor = GoExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "Greet" && s.kind == SymbolKind::Method));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "Greet" && s.kind == SymbolKind::Method));
     }
 
     #[test]
@@ -665,6 +739,8 @@ type Greeter interface {
         let extractor = GoExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "Greeter" && s.kind == SymbolKind::Interface));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "Greeter" && s.kind == SymbolKind::Interface));
     }
 }

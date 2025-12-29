@@ -9,7 +9,7 @@ use std::path::Path;
 use std::sync::mpsc;
 
 use console::style;
-use notify::{RecommendedWatcher, RecursiveMode, Watcher, Config};
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::config::Config as AcpConfig;
 use crate::error::Result;
@@ -31,7 +31,8 @@ impl FileWatcher {
         let mut watcher = RecommendedWatcher::new(tx, Config::default())
             .map_err(|e| crate::error::AcpError::Other(e.to_string()))?;
 
-        watcher.watch(root.as_ref(), RecursiveMode::Recursive)
+        watcher
+            .watch(root.as_ref(), RecursiveMode::Recursive)
             .map_err(|e| crate::error::AcpError::Other(e.to_string()))?;
 
         println!("Watching for changes...");

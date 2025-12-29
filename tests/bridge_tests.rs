@@ -2,10 +2,10 @@
 //!
 //! Tests for documentation system bridging functionality.
 
-use acp::bridge::{BridgeConfig, FormatDetector, BridgeMerger, BridgeResult};
-use acp::bridge::merger::AcpAnnotations;
-use acp::cache::{BridgeMetadata, BridgeStats, BridgeSummary, SourceFormat, BridgeSource};
 use acp::annotate::converters::ParsedDocumentation;
+use acp::bridge::merger::AcpAnnotations;
+use acp::bridge::{BridgeConfig, BridgeMerger, BridgeResult, FormatDetector};
+use acp::cache::{BridgeMetadata, BridgeSource, BridgeStats, BridgeSummary, SourceFormat};
 
 // =============================================================================
 // T5.1: Format Detection Tests
@@ -31,7 +31,10 @@ function processUser(userId, options) {
     // ...
 }
 "#;
-        assert_eq!(detector.detect(source, "typescript"), Some(SourceFormat::Jsdoc));
+        assert_eq!(
+            detector.detect(source, "typescript"),
+            Some(SourceFormat::Jsdoc)
+        );
     }
 
     #[test]
@@ -55,7 +58,10 @@ def process_user(user_id: str, options: dict) -> User:
     """
     pass
 "#;
-        assert_eq!(detector.detect(source, "python"), Some(SourceFormat::DocstringGoogle));
+        assert_eq!(
+            detector.detect(source, "python"),
+            Some(SourceFormat::DocstringGoogle)
+        );
     }
 
     #[test]
@@ -81,7 +87,10 @@ def process_user(user_id, options):
     """
     pass
 "#;
-        assert_eq!(detector.detect(source, "python"), Some(SourceFormat::DocstringNumpy));
+        assert_eq!(
+            detector.detect(source, "python"),
+            Some(SourceFormat::DocstringNumpy)
+        );
     }
 
     #[test]
@@ -101,7 +110,10 @@ def process_user(user_id, options):
     """
     pass
 "#;
-        assert_eq!(detector.detect(source, "python"), Some(SourceFormat::DocstringSphinx));
+        assert_eq!(
+            detector.detect(source, "python"),
+            Some(SourceFormat::DocstringSphinx)
+        );
     }
 
     #[test]
@@ -168,8 +180,15 @@ mod merge_tests {
 
         let mut native = ParsedDocumentation::new();
         native.summary = Some("Native function summary".to_string());
-        native.params.push(("userId".to_string(), Some("string".to_string()), Some("The user ID".to_string())));
-        native.returns = Some((Some("User".to_string()), Some("The user object".to_string())));
+        native.params.push((
+            "userId".to_string(),
+            Some("string".to_string()),
+            Some("The user ID".to_string()),
+        ));
+        native.returns = Some((
+            Some("User".to_string()),
+            Some("The user object".to_string()),
+        ));
 
         let acp = AcpAnnotations::default();
         let result = merger.merge(Some(&native), SourceFormat::Jsdoc, &acp);
@@ -200,7 +219,10 @@ mod merge_tests {
         assert_eq!(result.directive, Some("MUST validate input".to_string()));
         assert_eq!(result.source, BridgeSource::Explicit);
         assert_eq!(result.params.len(), 1);
-        assert_eq!(result.params[0].directive, Some("MUST be a valid UUID".to_string()));
+        assert_eq!(
+            result.params[0].directive,
+            Some("MUST be a valid UUID".to_string())
+        );
     }
 
     #[test]
@@ -210,7 +232,11 @@ mod merge_tests {
 
         let mut native = ParsedDocumentation::new();
         native.summary = Some("Native summary".to_string());
-        native.params.push(("userId".to_string(), Some("string".to_string()), Some("The user ID".to_string())));
+        native.params.push((
+            "userId".to_string(),
+            Some("string".to_string()),
+            Some("The user ID".to_string()),
+        ));
 
         let acp = AcpAnnotations {
             directive: Some("MUST authenticate".to_string()),
@@ -227,7 +253,10 @@ mod merge_tests {
 
         // Param should have native description + ACP directive
         assert_eq!(result.params.len(), 1);
-        assert_eq!(result.params[0].description, Some("The user ID".to_string()));
+        assert_eq!(
+            result.params[0].description,
+            Some("The user ID".to_string())
+        );
         assert_eq!(result.params[0].directive, Some("MUST be UUID".to_string()));
         assert_eq!(result.params[0].source, BridgeSource::Merged);
     }
@@ -237,11 +266,20 @@ mod merge_tests {
         let merger = BridgeMerger::new(&enabled_config());
 
         let mut native = ParsedDocumentation::new();
-        native.throws.push(("ValidationError".to_string(), Some("If input is invalid".to_string())));
-        native.throws.push(("NetworkError".to_string(), Some("If network fails".to_string())));
+        native.throws.push((
+            "ValidationError".to_string(),
+            Some("If input is invalid".to_string()),
+        ));
+        native.throws.push((
+            "NetworkError".to_string(),
+            Some("If network fails".to_string()),
+        ));
 
         let acp = AcpAnnotations {
-            throws: vec![("ValidationError".to_string(), "MUST be caught and handled".to_string())],
+            throws: vec![(
+                "ValidationError".to_string(),
+                "MUST be caught and handled".to_string(),
+            )],
             ..Default::default()
         };
 
@@ -250,18 +288,31 @@ mod merge_tests {
         assert_eq!(result.throws.len(), 2);
 
         // First throw should be merged
-        let validation_error = result.throws.iter()
+        let validation_error = result
+            .throws
+            .iter()
             .find(|t| t.exception == "ValidationError")
             .unwrap();
-        assert_eq!(validation_error.description, Some("If input is invalid".to_string()));
-        assert_eq!(validation_error.directive, Some("MUST be caught and handled".to_string()));
+        assert_eq!(
+            validation_error.description,
+            Some("If input is invalid".to_string())
+        );
+        assert_eq!(
+            validation_error.directive,
+            Some("MUST be caught and handled".to_string())
+        );
         assert_eq!(validation_error.source, BridgeSource::Merged);
 
         // Second throw should be converted only
-        let network_error = result.throws.iter()
+        let network_error = result
+            .throws
+            .iter()
             .find(|t| t.exception == "NetworkError")
             .unwrap();
-        assert_eq!(network_error.description, Some("If network fails".to_string()));
+        assert_eq!(
+            network_error.description,
+            Some("If network fails".to_string())
+        );
         assert!(network_error.directive.is_none());
         assert_eq!(network_error.source, BridgeSource::Converted);
     }
@@ -356,7 +407,11 @@ mod result_tests {
     fn test_bridge_result_from_native() {
         let mut parsed = ParsedDocumentation::new();
         parsed.summary = Some("Native summary".to_string());
-        parsed.params.push(("id".to_string(), Some("number".to_string()), Some("ID value".to_string())));
+        parsed.params.push((
+            "id".to_string(),
+            Some("number".to_string()),
+            Some("ID value".to_string()),
+        ));
         parsed.returns = Some((Some("string".to_string()), Some("Result".to_string())));
 
         let result = BridgeResult::from_native(&parsed, SourceFormat::Jsdoc);

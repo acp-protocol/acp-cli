@@ -34,10 +34,7 @@ pub fn execute_revert(options: RevertOptions) -> Result<()> {
             println!("  {} {}", style(&action.action).dim(), action.file);
         }
     } else {
-        eprintln!(
-            "{} Specify --attempt or --checkpoint",
-            style("✗").red()
-        );
+        eprintln!("{} Specify --attempt or --checkpoint", style("✗").red());
         std::process::exit(1);
     }
 

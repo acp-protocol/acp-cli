@@ -6,7 +6,7 @@
 use regex::Regex;
 use std::collections::HashMap;
 
-use super::{VarType, VarEntry, VarsFile};
+use super::{VarEntry, VarType, VarsFile};
 
 /// @acp:summary "Resolves variable references from a vars file"
 pub struct VarResolver {
@@ -57,7 +57,10 @@ impl VarResolver {
             .values()
             .filter(|v| {
                 v.value.to_lowercase().contains(&q)
-                    || v.description.as_ref().map(|s| s.to_lowercase().contains(&q)).unwrap_or(false)
+                    || v.description
+                        .as_ref()
+                        .map(|s| s.to_lowercase().contains(&q))
+                        .unwrap_or(false)
             })
             .collect()
     }

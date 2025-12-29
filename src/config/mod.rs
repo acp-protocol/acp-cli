@@ -125,14 +125,16 @@ impl Config {
 
     /// Get cache output path
     pub fn cache_path(&self) -> PathBuf {
-        self.output.as_ref()
+        self.output
+            .as_ref()
             .map(|o| o.cache.clone())
             .unwrap_or_else(default_cache_path)
     }
 
     /// Get vars output path
     pub fn vars_path(&self) -> PathBuf {
-        self.output.as_ref()
+        self.output
+            .as_ref()
             .map(|o| o.vars.clone())
             .unwrap_or_else(default_vars_path)
     }
@@ -270,7 +272,6 @@ pub enum LockLevel {
     Experimental,
 }
 
-
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Behavior {
@@ -401,7 +402,6 @@ pub struct AnnotateConfig {
     pub defaults: AnnotateDefaults,
 }
 
-
 /// @acp:summary "Provenance tracking configuration"
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnnotateProvenanceConfig {
@@ -468,7 +468,6 @@ pub struct DocumentationConfig {
     #[serde(default)]
     pub validation: DocumentationValidation,
 }
-
 
 /// @acp:summary "Approved documentation source (RFC-0002)"
 #[derive(Debug, Clone, Serialize, Deserialize)]

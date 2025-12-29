@@ -47,9 +47,8 @@ static INTRA_DOC_LINK: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// @acp:summary "Matches code blocks ```rust or ```"
-static CODE_BLOCK_START: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^```(\w*)?\s*$").expect("Invalid code block regex")
-});
+static CODE_BLOCK_START: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^```(\w*)?\s*$").expect("Invalid code block regex"));
 
 /// @acp:summary "Matches argument lines (name - description or * `name` - description)"
 static ARG_LINE: LazyLock<Regex> = LazyLock::new(|| {
@@ -360,7 +359,12 @@ impl DocStandardParser for RustdocParser {
             if let Some(caps) = SECTION_HEADER.captures(stripped) {
                 // Save previous section
                 if let Some(ref section) = current_section {
-                    self.parse_section_content(section, &section_content, &mut doc, &mut extensions);
+                    self.parse_section_content(
+                        section,
+                        &section_content,
+                        &mut doc,
+                        &mut extensions,
+                    );
                 }
                 section_content.clear();
 
@@ -401,19 +405,24 @@ impl DocStandardParser for RustdocParser {
 
         // Store extensions info in custom tags for later use
         if extensions.is_module_doc {
-            doc.custom_tags.push(("module_doc".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("module_doc".to_string(), "true".to_string()));
         }
         if extensions.is_unsafe {
-            doc.custom_tags.push(("unsafe".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("unsafe".to_string(), "true".to_string()));
         }
         if extensions.returns_result {
-            doc.custom_tags.push(("returns_result".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("returns_result".to_string(), "true".to_string()));
         }
         if !extensions.panics.is_empty() {
-            doc.custom_tags.push(("has_panics".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("has_panics".to_string(), "true".to_string()));
         }
         if !extensions.safety.is_empty() {
-            doc.custom_tags.push(("has_safety".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("has_safety".to_string(), "true".to_string()));
         }
         for link in &extensions.doc_links {
             doc.see_refs.push(link.clone());
@@ -482,7 +491,11 @@ impl DocStandardParser for RustdocParser {
         }
 
         // Rust-specific: unsafe code hint
-        if parsed.custom_tags.iter().any(|(k, v)| k == "unsafe" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "unsafe" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -492,7 +505,11 @@ impl DocStandardParser for RustdocParser {
         }
 
         // Rust-specific: has safety section
-        if parsed.custom_tags.iter().any(|(k, v)| k == "has_safety" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "has_safety" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -502,7 +519,11 @@ impl DocStandardParser for RustdocParser {
         }
 
         // Rust-specific: has panic conditions
-        if parsed.custom_tags.iter().any(|(k, v)| k == "has_panics" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "has_panics" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -512,7 +533,11 @@ impl DocStandardParser for RustdocParser {
         }
 
         // Rust-specific: returns Result
-        if parsed.custom_tags.iter().any(|(k, v)| k == "returns_result" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "returns_result" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -522,7 +547,11 @@ impl DocStandardParser for RustdocParser {
         }
 
         // Rust-specific: module-level docs
-        if parsed.custom_tags.iter().any(|(k, v)| k == "module_doc" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "module_doc" && v == "true")
+        {
             suggestions.push(Suggestion::new(
                 target,
                 line,
@@ -568,9 +597,7 @@ fn truncate_for_summary(s: &str, max_len: usize) -> String {
     if trimmed.len() <= max_len {
         trimmed.to_string()
     } else {
-        let truncate_at = trimmed[..max_len]
-            .rfind(' ')
-            .unwrap_or(max_len);
+        let truncate_at = trimmed[..max_len].rfind(' ').unwrap_or(max_len);
         format!("{}...", &trimmed[..truncate_at])
     }
 }
@@ -595,19 +622,25 @@ mod tests {
     #[test]
     fn test_parse_basic_rustdoc() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Creates a new instance of the parser.
 ///
 /// This function initializes the parser with default settings.
-"#);
+"#,
+        );
 
-        assert_eq!(doc.summary, Some("Creates a new instance of the parser.".to_string()));
+        assert_eq!(
+            doc.summary,
+            Some("Creates a new instance of the parser.".to_string())
+        );
     }
 
     #[test]
     fn test_parse_with_arguments_section() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Calculates the sum of two numbers.
 ///
 /// # Arguments
@@ -618,9 +651,13 @@ mod tests {
 /// # Returns
 ///
 /// The sum of a and b
-"#);
+"#,
+        );
 
-        assert_eq!(doc.summary, Some("Calculates the sum of two numbers.".to_string()));
+        assert_eq!(
+            doc.summary,
+            Some("Calculates the sum of two numbers.".to_string())
+        );
         assert_eq!(doc.params.len(), 2);
         assert_eq!(doc.params[0].0, "a");
         assert_eq!(doc.params[1].0, "b");
@@ -630,52 +667,71 @@ mod tests {
     #[test]
     fn test_parse_with_panics_section() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Divides two numbers.
 ///
 /// # Panics
 ///
 /// Panics if the divisor is zero.
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "has_panics" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "has_panics" && v == "true"));
         assert!(doc.notes.iter().any(|n| n.contains("Panics")));
     }
 
     #[test]
     fn test_parse_with_errors_section() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Opens a file.
 ///
 /// # Errors
 ///
 /// Returns an error if the file does not exist.
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "returns_result" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "returns_result" && v == "true"));
         assert!(doc.notes.iter().any(|n| n.contains("Errors")));
     }
 
     #[test]
     fn test_parse_with_safety_section() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Dereferences a raw pointer.
 ///
 /// # Safety
 ///
 /// The pointer must be valid and properly aligned.
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "unsafe" && v == "true"));
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "has_safety" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "unsafe" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "has_safety" && v == "true"));
     }
 
     #[test]
     fn test_parse_with_examples() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Adds two numbers.
 ///
 /// # Examples
@@ -684,7 +740,8 @@ mod tests {
 /// let result = add(2, 3);
 /// assert_eq!(result, 5);
 /// ```
-"#);
+"#,
+        );
 
         assert!(!doc.examples.is_empty());
     }
@@ -692,22 +749,32 @@ mod tests {
     #[test]
     fn test_parse_module_level_docs() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 //! This module provides utility functions.
 //!
 //! It includes helpers for parsing and formatting.
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "module_doc" && v == "true"));
-        assert_eq!(doc.summary, Some("This module provides utility functions.".to_string()));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "module_doc" && v == "true"));
+        assert_eq!(
+            doc.summary,
+            Some("This module provides utility functions.".to_string())
+        );
     }
 
     #[test]
     fn test_parse_intra_doc_links() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// See [`Parser`] and [`Config::new`] for more details.
-"#);
+"#,
+        );
 
         assert!(doc.see_refs.contains(&"Parser".to_string()));
         assert!(doc.see_refs.contains(&"Config::new".to_string()));
@@ -716,14 +783,16 @@ mod tests {
     #[test]
     fn test_parse_type_parameters() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// A generic container.
 ///
 /// # Type Parameters
 ///
 /// * `T` - The type of elements stored
 /// * `E` - The error type
-"#);
+"#,
+        );
 
         assert_eq!(doc.summary, Some("A generic container.".to_string()));
     }
@@ -731,108 +800,117 @@ mod tests {
     #[test]
     fn test_to_suggestions_basic() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Creates a new parser instance.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "new", 10);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Summary &&
-            s.value.contains("Creates a new parser")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Summary
+                && s.value.contains("Creates a new parser")));
     }
 
     #[test]
     fn test_to_suggestions_unsafe() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Dereferences a raw pointer.
 ///
 /// # Safety
 ///
 /// The pointer must be valid.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "deref", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("unsafe")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("unsafe")));
     }
 
     #[test]
     fn test_to_suggestions_panics() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Divides two numbers.
 ///
 /// # Panics
 ///
 /// Panics if divisor is zero.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "divide", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("panic")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("panic")));
     }
 
     #[test]
     fn test_to_suggestions_result() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Opens a file.
 ///
 /// # Errors
 ///
 /// Returns error if file not found.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "open_file", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("Result")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("Result")));
     }
 
     #[test]
     fn test_to_suggestions_module_doc() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 //! Parser utilities module.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "parser", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Module
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Module));
     }
 
     #[test]
     fn test_to_suggestions_refs() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// See [`Config`] for configuration options.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "func", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Ref &&
-            s.value == "Config"
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Ref && s.value == "Config"));
     }
 
     #[test]
     fn test_code_block_not_parsed_as_section() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Example function.
 ///
 /// # Examples
@@ -841,7 +919,8 @@ mod tests {
 /// // # This is a comment, not a section
 /// let x = 5;
 /// ```
-"#);
+"#,
+        );
 
         // The "# This is a comment" inside the code block should not create a new section
         assert!(!doc.examples.is_empty());
@@ -859,14 +938,16 @@ mod tests {
     #[test]
     fn test_see_also_section() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Main function.
 ///
 /// # See Also
 ///
 /// - `other_function`
 /// - `related_module::helper`
-"#);
+"#,
+        );
 
         assert!(doc.see_refs.len() >= 2);
     }
@@ -874,7 +955,8 @@ mod tests {
     #[test]
     fn test_multiple_sections() {
         let parser = RustdocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /// Processes input data.
 ///
 /// # Arguments
@@ -894,7 +976,8 @@ mod tests {
 /// ```
 /// let result = process("test");
 /// ```
-"#);
+"#,
+        );
 
         assert_eq!(doc.params.len(), 1);
         assert!(doc.returns.is_some());

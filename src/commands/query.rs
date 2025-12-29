@@ -30,12 +30,22 @@ pub struct QueryOptions {
 /// Query subcommand types
 #[derive(Debug, Clone)]
 pub enum QuerySubcommand {
-    Symbol { name: String },
-    File { path: String },
-    Callers { symbol: String },
-    Callees { symbol: String },
+    Symbol {
+        name: String,
+    },
+    File {
+        path: String,
+    },
+    Callers {
+        symbol: String,
+    },
+    Callees {
+        symbol: String,
+    },
     Domains,
-    Domain { name: String },
+    Domain {
+        name: String,
+    },
     Hotpaths,
     Stats,
     /// RFC-0003: Show provenance statistics
@@ -87,7 +97,10 @@ fn query_symbol(q: &Query, name: &str, json: bool) -> Result<()> {
             if let Some(ref constraints) = sym.constraints {
                 println!();
                 println!("{}:", style("Constraints").bold());
-                println!("  @acp:lock {} - {}", constraints.level, &constraints.directive);
+                println!(
+                    "  @acp:lock {} - {}",
+                    constraints.level, &constraints.directive
+                );
             }
 
             if let Some(ref sig) = sym.signature {

@@ -41,7 +41,10 @@ pub struct InitOptions {
 
 /// Execute the init command
 pub fn execute_init(options: InitOptions) -> Result<()> {
-    let config_path = options.output.clone().unwrap_or_else(|| PathBuf::from(".acp.config.json"));
+    let config_path = options
+        .output
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(".acp.config.json"));
 
     if config_path.exists() && !options.force {
         eprintln!(
@@ -78,11 +81,7 @@ pub fn execute_init(options: InitOptions) -> Result<()> {
 
     // Write config
     config.save(&config_path)?;
-    println!(
-        "{} Created {}",
-        style("✓").green(),
-        config_path.display()
-    );
+    println!("{} Created {}", style("✓").green(), config_path.display());
 
     // Bootstrap AI tool files
     if !options.no_bootstrap {
@@ -159,10 +158,7 @@ fn run_interactive_init(config: &mut Config) -> Result<()> {
 fn select_languages_manually(config: &mut Config) -> Result<()> {
     let all_languages = [
         ("TypeScript/TSX", vec!["**/*.ts", "**/*.tsx"]),
-        (
-            "JavaScript/JSX",
-            vec!["**/*.js", "**/*.jsx", "**/*.mjs"],
-        ),
+        ("JavaScript/JSX", vec!["**/*.js", "**/*.jsx", "**/*.mjs"]),
         ("Rust", vec!["**/*.rs"]),
         ("Python", vec!["**/*.py"]),
         ("Go", vec!["**/*.go"]),
@@ -202,11 +198,7 @@ fn bootstrap_ai_tools(interactive: bool) -> Result<()> {
     if !detected.is_empty() {
         println!("\n{} Detected AI tools:", style("✓").green());
         for tool in &detected {
-            println!(
-                "    {} ({})",
-                style(tool.name()).cyan(),
-                tool.output_path()
-            );
+            println!("    {} ({})", style(tool.name()).cyan(), tool.output_path());
         }
 
         // In interactive mode, confirm; in non-interactive, just do it
@@ -237,12 +229,7 @@ fn bootstrap_ai_tools(interactive: bool) -> Result<()> {
                         );
                     }
                     Err(e) => {
-                        eprintln!(
-                            "{} Failed {}: {}",
-                            style("✗").red(),
-                            tool.output_path(),
-                            e
-                        );
+                        eprintln!("{} Failed {}: {}", style("✗").red(), tool.output_path(), e);
                     }
                 }
             }
@@ -261,11 +248,7 @@ fn bootstrap_ai_tools(interactive: bool) -> Result<()> {
                 );
             }
             Err(e) => {
-                eprintln!(
-                    "{} Failed to create AGENTS.md: {}",
-                    style("✗").red(),
-                    e
-                );
+                eprintln!("{} Failed to create AGENTS.md: {}", style("✗").red(), e);
             }
         }
     }

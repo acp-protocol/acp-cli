@@ -35,11 +35,7 @@ pub fn execute_validate(options: ValidateOptions) -> Result<()> {
         let json: serde_json::Value = match serde_json::from_str(&content) {
             Ok(json) => json,
             Err(e) => {
-                eprintln!(
-                    "{} File is not valid JSON: {}",
-                    style("✗").red(),
-                    e
-                );
+                eprintln!("{} File is not valid JSON: {}", style("✗").red(), e);
                 eprintln!();
                 eprintln!("The validate command validates ACP JSON files:");
                 eprintln!("  - .acp/acp.cache.json  (cache)");

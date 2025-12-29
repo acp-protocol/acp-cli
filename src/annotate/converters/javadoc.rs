@@ -39,14 +39,12 @@ use super::{DocStandardParser, ParsedDocumentation};
 use crate::annotate::{AnnotationType, Suggestion, SuggestionSource};
 
 /// @acp:summary "Matches @param tag"
-static PARAM_TAG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^@param\s+(\w+)\s+(.*)$").expect("Invalid param tag regex")
-});
+static PARAM_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^@param\s+(\w+)\s+(.*)$").expect("Invalid param tag regex"));
 
 /// @acp:summary "Matches @return/@returns tag"
-static RETURN_TAG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^@returns?\s+(.*)$").expect("Invalid return tag regex")
-});
+static RETURN_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^@returns?\s+(.*)$").expect("Invalid return tag regex"));
 
 /// @acp:summary "Matches @throws/@exception tag"
 static THROWS_TAG: LazyLock<Regex> = LazyLock::new(|| {
@@ -54,48 +52,41 @@ static THROWS_TAG: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// @acp:summary "Matches @author tag"
-static AUTHOR_TAG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^@author\s+(.+)$").expect("Invalid author tag regex")
-});
+static AUTHOR_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^@author\s+(.+)$").expect("Invalid author tag regex"));
 
 /// @acp:summary "Matches @since tag"
-static SINCE_TAG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^@since\s+(.+)$").expect("Invalid since tag regex")
-});
+static SINCE_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^@since\s+(.+)$").expect("Invalid since tag regex"));
 
 /// @acp:summary "Matches @version tag"
-static VERSION_TAG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^@version\s+(.+)$").expect("Invalid version tag regex")
-});
+static VERSION_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^@version\s+(.+)$").expect("Invalid version tag regex"));
 
 /// @acp:summary "Matches @see tag"
-static SEE_TAG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^@see\s+(.+)$").expect("Invalid see tag regex")
-});
+static SEE_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^@see\s+(.+)$").expect("Invalid see tag regex"));
 
 /// @acp:summary "Matches {@link reference} inline tag"
-static LINK_INLINE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\{@link\s+([^}]+)\}").expect("Invalid link inline regex")
-});
+static LINK_INLINE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{@link\s+([^}]+)\}").expect("Invalid link inline regex"));
 
 /// @acp:summary "Matches {@code text} inline tag"
-static CODE_INLINE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\{@code\s+([^}]+)\}").expect("Invalid code inline regex")
-});
+static CODE_INLINE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{@code\s+([^}]+)\}").expect("Invalid code inline regex"));
 
 /// @acp:summary "Matches {@inheritDoc} inline tag"
-static INHERIT_DOC: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\{@inheritDoc\}").expect("Invalid inheritDoc regex")
-});
+static INHERIT_DOC: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{@inheritDoc\}").expect("Invalid inheritDoc regex"));
 
 /// @acp:summary "Matches HTML tags for stripping"
-static HTML_TAG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"<[^>]+>").expect("Invalid HTML tag regex")
-});
+static HTML_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"<[^>]+>").expect("Invalid HTML tag regex"));
 
 /// @acp:summary "Matches @code block (pre tags with code)"
 static CODE_BLOCK: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"<pre>\s*(?:<code>)?([\s\S]*?)(?:</code>)?\s*</pre>").expect("Invalid code block regex")
+    Regex::new(r"<pre>\s*(?:<code>)?([\s\S]*?)(?:</code>)?\s*</pre>")
+        .expect("Invalid code block regex")
 });
 
 /// @acp:summary "Java-specific extensions for Javadoc comments"
@@ -283,7 +274,10 @@ impl DocStandardParser for JavadocParser {
         let mut tag_content = String::new();
 
         // Helper to process accumulated tag content
-        let process_tag = |tag: &str, content: &str, doc: &mut ParsedDocumentation, ext: &mut JavadocExtensions| {
+        let process_tag = |tag: &str,
+                           content: &str,
+                           doc: &mut ParsedDocumentation,
+                           ext: &mut JavadocExtensions| {
             let content = content.trim();
             if content.is_empty() && tag != "@deprecated" {
                 return;
@@ -292,14 +286,16 @@ impl DocStandardParser for JavadocParser {
             if let Some(caps) = PARAM_TAG.captures(&format!("{} {}", tag, content)) {
                 let name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
                 let desc = caps.get(2).map(|m| m.as_str()).unwrap_or("");
-                doc.params.push((name.to_string(), None, Some(desc.to_string())));
+                doc.params
+                    .push((name.to_string(), None, Some(desc.to_string())));
             } else if let Some(caps) = RETURN_TAG.captures(&format!("{} {}", tag, content)) {
                 let desc = caps.get(1).map(|m| m.as_str()).unwrap_or("");
                 doc.returns = Some((None, Some(desc.to_string())));
             } else if let Some(caps) = THROWS_TAG.captures(&format!("{} {}", tag, content)) {
                 let exc_type = caps.get(1).map(|m| m.as_str()).unwrap_or("");
                 let desc = caps.get(2).map(|m| m.as_str());
-                doc.throws.push((exc_type.to_string(), desc.map(|s| s.to_string())));
+                doc.throws
+                    .push((exc_type.to_string(), desc.map(|s| s.to_string())));
             } else if let Some(caps) = AUTHOR_TAG.captures(&format!("{} {}", tag, content)) {
                 let author = caps.get(1).map(|m| m.as_str()).unwrap_or("");
                 doc.author = Some(author.to_string());
@@ -394,19 +390,24 @@ impl DocStandardParser for JavadocParser {
 
         // Store extensions in custom tags
         if extensions.is_package_doc {
-            doc.custom_tags.push(("package_doc".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("package_doc".to_string(), "true".to_string()));
         }
         if extensions.is_type_doc {
-            doc.custom_tags.push(("type_doc".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("type_doc".to_string(), "true".to_string()));
         }
         if let Some(ref version) = extensions.version {
-            doc.custom_tags.push(("version".to_string(), version.clone()));
+            doc.custom_tags
+                .push(("version".to_string(), version.clone()));
         }
         if extensions.inherits_doc {
-            doc.custom_tags.push(("inherits_doc".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("inherits_doc".to_string(), "true".to_string()));
         }
         if extensions.authors.len() > 1 {
-            doc.custom_tags.push(("multiple_authors".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("multiple_authors".to_string(), "true".to_string()));
         }
 
         doc
@@ -459,11 +460,7 @@ impl DocStandardParser for JavadocParser {
 
         // Convert @throws to AI hint
         if !parsed.throws.is_empty() {
-            let throws_list: Vec<String> = parsed
-                .throws
-                .iter()
-                .map(|(t, _)| t.clone())
-                .collect();
+            let throws_list: Vec<String> = parsed.throws.iter().map(|(t, _)| t.clone()).collect();
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -473,7 +470,11 @@ impl DocStandardParser for JavadocParser {
         }
 
         // Java-specific: package documentation
-        if parsed.custom_tags.iter().any(|(k, v)| k == "package_doc" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "package_doc" && v == "true")
+        {
             suggestions.push(Suggestion::new(
                 target,
                 line,
@@ -484,7 +485,11 @@ impl DocStandardParser for JavadocParser {
         }
 
         // Java-specific: type documentation (class/interface)
-        if parsed.custom_tags.iter().any(|(k, v)| k == "type_doc" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "type_doc" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -494,7 +499,11 @@ impl DocStandardParser for JavadocParser {
         }
 
         // Java-specific: inherits documentation
-        if parsed.custom_tags.iter().any(|(k, v)| k == "inherits_doc" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "inherits_doc" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -553,9 +562,7 @@ fn truncate_for_summary(s: &str, max_len: usize) -> String {
     if trimmed.len() <= max_len {
         trimmed.to_string()
     } else {
-        let truncate_at = trimmed[..max_len]
-            .rfind(' ')
-            .unwrap_or(max_len);
+        let truncate_at = trimmed[..max_len].rfind(' ').unwrap_or(max_len);
         format!("{}...", &trimmed[..truncate_at])
     }
 }
@@ -569,7 +576,10 @@ mod tests {
         assert_eq!(JavadocParser::strip_comment_markers("/** Hello"), "Hello");
         assert_eq!(JavadocParser::strip_comment_markers(" * Hello"), "Hello");
         assert_eq!(JavadocParser::strip_comment_markers(" */"), "");
-        assert_eq!(JavadocParser::strip_comment_markers("   *   Indented"), "Indented");
+        assert_eq!(
+            JavadocParser::strip_comment_markers("   *   Indented"),
+            "Indented"
+        );
     }
 
     #[test]
@@ -578,16 +588,13 @@ mod tests {
             JavadocParser::strip_html("Hello <b>world</b>!"),
             "Hello world!"
         );
-        assert_eq!(
-            JavadocParser::strip_html("<p>Paragraph</p>"),
-            "Paragraph"
-        );
+        assert_eq!(JavadocParser::strip_html("<p>Paragraph</p>"), "Paragraph");
     }
 
     #[test]
     fn test_process_inline_tags() {
         let (processed, links) = JavadocParser::process_inline_tags(
-            "See {@link String} for details about {@code format}"
+            "See {@link String} for details about {@code format}",
         );
         assert!(processed.contains("String"));
         assert!(processed.contains("`format`"));
@@ -597,7 +604,7 @@ mod tests {
     #[test]
     fn test_extract_summary() {
         let summary = JavadocParser::extract_summary(
-            "Returns the length of this string. The length is equal to the number of characters."
+            "Returns the length of this string. The length is equal to the number of characters.",
         );
         assert_eq!(summary, "Returns the length of this string.");
     }
@@ -605,12 +612,14 @@ mod tests {
     #[test]
     fn test_parse_basic_javadoc() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Returns the character at the specified index.
  * An index ranges from 0 to length() - 1.
  */
-"#);
+"#,
+        );
 
         assert_eq!(
             doc.summary,
@@ -621,7 +630,8 @@ mod tests {
     #[test]
     fn test_parse_with_params() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Copies characters from this string into the destination array.
  *
@@ -629,7 +639,8 @@ mod tests {
  * @param srcEnd index after the last character to copy
  * @param dst the destination array
  */
-"#);
+"#,
+        );
 
         assert_eq!(doc.params.len(), 3);
         assert_eq!(doc.params[0].0, "srcBegin");
@@ -640,13 +651,15 @@ mod tests {
     #[test]
     fn test_parse_with_return() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Returns the length of this string.
  *
  * @return the length of the sequence of characters
  */
-"#);
+"#,
+        );
 
         assert!(doc.returns.is_some());
         let (_, desc) = doc.returns.as_ref().unwrap();
@@ -656,14 +669,16 @@ mod tests {
     #[test]
     fn test_parse_with_throws() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Returns the character at the specified index.
  *
  * @throws IndexOutOfBoundsException if the index is out of range
  * @throws NullPointerException if the string is null
  */
-"#);
+"#,
+        );
 
         assert_eq!(doc.throws.len(), 2);
         assert_eq!(doc.throws[0].0, "IndexOutOfBoundsException");
@@ -673,13 +688,15 @@ mod tests {
     #[test]
     fn test_parse_with_exception() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Parses the string.
  *
  * @exception ParseException if parsing fails
  */
-"#);
+"#,
+        );
 
         assert_eq!(doc.throws.len(), 1);
         assert_eq!(doc.throws[0].0, "ParseException");
@@ -688,29 +705,35 @@ mod tests {
     #[test]
     fn test_parse_with_see() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Creates a new string builder.
  *
  * @see StringBuilder
  * @see StringBuffer#append(String)
  */
-"#);
+"#,
+        );
 
         assert!(doc.see_refs.contains(&"StringBuilder".to_string()));
-        assert!(doc.see_refs.contains(&"StringBuffer#append(String)".to_string()));
+        assert!(doc
+            .see_refs
+            .contains(&"StringBuffer#append(String)".to_string()));
     }
 
     #[test]
     fn test_parse_with_deprecated() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Gets the date.
  *
  * @deprecated Use {@link LocalDate} instead
  */
-"#);
+"#,
+        );
 
         assert!(doc.deprecated.is_some());
         assert!(doc.deprecated.as_ref().unwrap().contains("LocalDate"));
@@ -719,7 +742,8 @@ mod tests {
     #[test]
     fn test_parse_with_author_and_since() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * A utility class for string operations.
  *
@@ -727,21 +751,27 @@ mod tests {
  * @since 1.0
  * @version 2.1
  */
-"#);
+"#,
+        );
 
         assert_eq!(doc.author, Some("John Doe".to_string()));
         assert_eq!(doc.since, Some("1.0".to_string()));
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "version" && v == "2.1"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "version" && v == "2.1"));
     }
 
     #[test]
     fn test_parse_with_inline_link() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Returns a string similar to {@link String#valueOf(Object)}.
  */
-"#);
+"#,
+        );
 
         assert!(doc.see_refs.contains(&"String#valueOf(Object)".to_string()));
     }
@@ -749,7 +779,8 @@ mod tests {
     #[test]
     fn test_parse_with_code_block() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Formats a string.
  *
@@ -757,7 +788,8 @@ mod tests {
  * String result = format("Hello %s", "World");
  * </pre>
  */
-"#);
+"#,
+        );
 
         assert!(!doc.examples.is_empty());
         assert!(doc.examples[0].contains("format"));
@@ -766,26 +798,33 @@ mod tests {
     #[test]
     fn test_parse_with_inherit_doc() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * {@inheritDoc}
  */
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "inherits_doc" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "inherits_doc" && v == "true"));
     }
 
     #[test]
     fn test_parse_multiline_param() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Processes input.
  *
  * @param data the input data to process,
  *             which can span multiple lines
  */
-"#);
+"#,
+        );
 
         assert_eq!(doc.params.len(), 1);
         let (_, _, desc) = &doc.params[0];
@@ -795,7 +834,8 @@ mod tests {
     #[test]
     fn test_parse_html_in_description() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * <p>Returns the <b>formatted</b> string.</p>
  *
@@ -804,7 +844,8 @@ mod tests {
  *   <li>Item 2</li>
  * </ul>
  */
-"#);
+"#,
+        );
 
         // Summary should have HTML stripped
         assert!(doc.summary.is_some());
@@ -816,134 +857,152 @@ mod tests {
     #[test]
     fn test_package_doc_parser() {
         let parser = JavadocParser::for_package();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Provides utility classes for string manipulation.
  */
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "package_doc" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "package_doc" && v == "true"));
     }
 
     #[test]
     fn test_type_doc_parser() {
         let parser = JavadocParser::for_type();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * A class representing a person.
  */
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "type_doc" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "type_doc" && v == "true"));
     }
 
     #[test]
     fn test_to_suggestions_basic() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Creates a new instance of the class.
  */
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "MyClass", 10);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Summary &&
-            s.value.contains("Creates a new instance")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Summary
+                && s.value.contains("Creates a new instance")));
     }
 
     #[test]
     fn test_to_suggestions_deprecated() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Old method.
  * @deprecated Use newMethod instead
  */
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "oldMethod", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Deprecated
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Deprecated));
     }
 
     #[test]
     fn test_to_suggestions_throws() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Parses input.
  * @throws IOException if reading fails
  * @throws ParseException if parsing fails
  */
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "parse", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("throws")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("throws")));
     }
 
     #[test]
     fn test_to_suggestions_refs() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Gets the value.
  * @see OtherClass
  */
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "getValue", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Ref &&
-            s.value == "OtherClass"
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Ref && s.value == "OtherClass"));
     }
 
     #[test]
     fn test_to_suggestions_since() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * New feature.
  * @since 2.0
  */
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "feature", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("since 2.0")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("since 2.0")));
     }
 
     #[test]
     fn test_to_suggestions_examples() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Formats output.
  * <pre>
  * format("test");
  * </pre>
  */
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "format", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("examples")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("examples")));
     }
 
     #[test]
@@ -964,12 +1023,14 @@ mod tests {
     #[test]
     fn test_deprecated_empty() {
         let parser = JavadocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /**
  * Old method.
  * @deprecated
  */
-"#);
+"#,
+        );
 
         assert!(doc.deprecated.is_some());
         assert_eq!(doc.deprecated.as_ref().unwrap(), "Deprecated");

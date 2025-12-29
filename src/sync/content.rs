@@ -12,7 +12,9 @@ pub fn generate_bootstrap_markdown(tool: Tool) -> String {
 
     // Core awareness
     content.push_str("# ACP Context\n\n");
-    content.push_str("This project uses **AI Context Protocol (ACP)** for structured AI assistance.\n\n");
+    content.push_str(
+        "This project uses **AI Context Protocol (ACP)** for structured AI assistance.\n\n",
+    );
 
     // Critical constraint workflow - most important section
     content.push_str("## Before Modifying Files\n\n");

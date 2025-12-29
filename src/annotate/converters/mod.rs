@@ -16,19 +16,19 @@
 //! Each converter parses the raw documentation format into a structured
 //! [`ParsedDocumentation`] and then converts it to ACP [`Suggestion`]s.
 
-pub mod jsdoc;
 pub mod docstring;
-pub mod rustdoc;
 pub mod godoc;
 pub mod javadoc;
+pub mod jsdoc;
+pub mod rustdoc;
 
-pub use jsdoc::{JsDocParser, TsDocParser, TsDocExtensions};
 pub use docstring::DocstringParser;
-pub use rustdoc::{RustdocParser, RustDocExtensions};
-pub use godoc::{GodocParser, GoDocExtensions};
-pub use javadoc::{JavadocParser, JavadocExtensions};
+pub use godoc::{GoDocExtensions, GodocParser};
+pub use javadoc::{JavadocExtensions, JavadocParser};
+pub use jsdoc::{JsDocParser, TsDocExtensions, TsDocParser};
+pub use rustdoc::{RustDocExtensions, RustdocParser};
 
-use crate::annotate::{Suggestion, SuggestionSource, AnnotationType};
+use crate::annotate::{AnnotationType, Suggestion, SuggestionSource};
 
 /// @acp:summary "Parsed documentation from an existing standard"
 /// Contains structured information extracted from any documentation format.
@@ -228,11 +228,7 @@ pub trait DocStandardParser: Send + Sync {
 
         // Convert throws to AI hint
         if !parsed.throws.is_empty() {
-            let throws_list: Vec<String> = parsed
-                .throws
-                .iter()
-                .map(|(t, _)| t.clone())
-                .collect();
+            let throws_list: Vec<String> = parsed.throws.iter().map(|(t, _)| t.clone()).collect();
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -282,9 +278,7 @@ fn truncate_summary(summary: &str, max_len: usize) -> String {
         trimmed.to_string()
     } else {
         // Find the last space before max_len to avoid cutting words
-        let truncate_at = trimmed[..max_len]
-            .rfind(' ')
-            .unwrap_or(max_len);
+        let truncate_at = trimmed[..max_len].rfind(' ').unwrap_or(max_len);
         format!("{}...", &trimmed[..truncate_at])
     }
 }
@@ -315,10 +309,14 @@ mod tests {
     #[test]
     fn test_parsed_documentation_getters() {
         let mut doc = ParsedDocumentation::new();
-        doc.custom_tags.push(("visibility".to_string(), "private".to_string()));
-        doc.custom_tags.push(("module".to_string(), "TestModule".to_string()));
-        doc.custom_tags.push(("category".to_string(), "Security".to_string()));
-        doc.custom_tags.push(("readonly".to_string(), "true".to_string()));
+        doc.custom_tags
+            .push(("visibility".to_string(), "private".to_string()));
+        doc.custom_tags
+            .push(("module".to_string(), "TestModule".to_string()));
+        doc.custom_tags
+            .push(("category".to_string(), "Security".to_string()));
+        doc.custom_tags
+            .push(("readonly".to_string(), "true".to_string()));
 
         assert_eq!(doc.get_visibility(), Some("private"));
         assert_eq!(doc.get_module(), Some("TestModule"));

@@ -3,10 +3,12 @@
 //! @acp:domain cli
 //! @acp:layer parsing
 
-use tree_sitter::{Language, Tree, Node};
+use super::{node_text, LanguageExtractor};
+use crate::ast::{
+    ExtractedSymbol, FunctionCall, Import, ImportedName, Parameter, SymbolKind, Visibility,
+};
 use crate::error::Result;
-use super::{LanguageExtractor, node_text};
-use crate::ast::{ExtractedSymbol, Import, ImportedName, FunctionCall, Parameter, SymbolKind, Visibility};
+use tree_sitter::{Language, Node, Tree};
 
 /// JavaScript language extractor
 pub struct JavaScriptExtractor;
@@ -38,7 +40,12 @@ impl LanguageExtractor for JavaScriptExtractor {
         Ok(imports)
     }
 
-    fn extract_calls(&self, tree: &Tree, source: &str, current_function: Option<&str>) -> Result<Vec<FunctionCall>> {
+    fn extract_calls(
+        &self,
+        tree: &Tree,
+        source: &str,
+        current_function: Option<&str>,
+    ) -> Result<Vec<FunctionCall>> {
         let mut calls = Vec::new();
         let root = tree.root_node();
         self.extract_calls_recursive(&root, source, &mut calls, current_function);
@@ -104,7 +111,12 @@ impl JavaScriptExtractor {
         }
     }
 
-    fn extract_function(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_function(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -208,7 +220,12 @@ impl JavaScriptExtractor {
         }
     }
 
-    fn extract_class(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_class(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -246,7 +263,12 @@ impl JavaScriptExtractor {
         }
     }
 
-    fn extract_method(&self, node: &Node, source: &str, class_name: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_method(
+        &self,
+        node: &Node,
+        source: &str,
+        class_name: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -339,10 +361,12 @@ impl JavaScriptExtractor {
                     });
                 }
                 "assignment_pattern" => {
-                    let name = child.child_by_field_name("left")
+                    let name = child
+                        .child_by_field_name("left")
                         .map(|n| node_text(&n, source).to_string())
                         .unwrap_or_default();
-                    let default_value = child.child_by_field_name("right")
+                    let default_value = child
+                        .child_by_field_name("right")
                         .map(|n| node_text(&n, source).to_string());
 
                     sym.add_parameter(Parameter {
@@ -354,7 +378,9 @@ impl JavaScriptExtractor {
                     });
                 }
                 "rest_pattern" => {
-                    let name = node_text(&child, source).trim_start_matches("...").to_string();
+                    let name = node_text(&child, source)
+                        .trim_start_matches("...")
+                        .to_string();
                     sym.add_parameter(Parameter {
                         name,
                         type_info: None,
@@ -437,11 +463,13 @@ impl JavaScriptExtractor {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             if child.kind() == "import_specifier" {
-                let name = child.child_by_field_name("name")
+                let name = child
+                    .child_by_field_name("name")
                     .map(|n| node_text(&n, source).to_string())
                     .unwrap_or_default();
 
-                let alias = child.child_by_field_name("alias")
+                let alias = child
+                    .child_by_field_name("alias")
                     .map(|n| node_text(&n, source).to_string());
 
                 import.names.push(ImportedName { name, alias });
@@ -463,14 +491,15 @@ impl JavaScriptExtractor {
         }
 
         let func_name = match node.kind() {
-            "function_declaration" | "method_definition" => {
-                node.child_by_field_name("name")
-                    .map(|n| node_text(&n, source))
-            }
+            "function_declaration" | "method_definition" => node
+                .child_by_field_name("name")
+                .map(|n| node_text(&n, source)),
             _ => None,
         };
 
-        let current = func_name.map(String::from).or_else(|| current_function.map(String::from));
+        let current = func_name
+            .map(String::from)
+            .or_else(|| current_function.map(String::from));
 
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
@@ -478,20 +507,25 @@ impl JavaScriptExtractor {
         }
     }
 
-    fn parse_call(&self, node: &Node, source: &str, current_function: Option<&str>) -> Option<FunctionCall> {
+    fn parse_call(
+        &self,
+        node: &Node,
+        source: &str,
+        current_function: Option<&str>,
+    ) -> Option<FunctionCall> {
         let function = node.child_by_field_name("function")?;
 
         let (callee, is_method, receiver) = match function.kind() {
             "member_expression" => {
-                let object = function.child_by_field_name("object")
+                let object = function
+                    .child_by_field_name("object")
                     .map(|n| node_text(&n, source).to_string());
-                let property = function.child_by_field_name("property")
+                let property = function
+                    .child_by_field_name("property")
                     .map(|n| node_text(&n, source).to_string())?;
                 (property, true, object)
             }
-            "identifier" => {
-                (node_text(&function, source).to_string(), false, None)
-            }
+            "identifier" => (node_text(&function, source).to_string(), false, None),
             _ => return None,
         };
 
@@ -505,11 +539,13 @@ impl JavaScriptExtractor {
     }
 
     fn build_function_signature(&self, node: &Node, source: &str) -> String {
-        let name = node.child_by_field_name("name")
+        let name = node
+            .child_by_field_name("name")
             .map(|n| node_text(&n, source))
             .unwrap_or("anonymous");
 
-        let params = node.child_by_field_name("parameters")
+        let params = node
+            .child_by_field_name("parameters")
             .map(|n| node_text(&n, source))
             .unwrap_or("()");
 
@@ -534,7 +570,9 @@ mod tests {
 
     fn parse_js(source: &str) -> (Tree, String) {
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_javascript::LANGUAGE.into()).unwrap();
+        parser
+            .set_language(&tree_sitter_javascript::LANGUAGE.into())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         (tree, source.to_string())
     }
@@ -572,8 +610,12 @@ class UserService {
         let extractor = JavaScriptExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "UserService" && s.kind == SymbolKind::Class));
-        assert!(symbols.iter().any(|s| s.name == "greet" && s.kind == SymbolKind::Method));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "UserService" && s.kind == SymbolKind::Class));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "greet" && s.kind == SymbolKind::Method));
     }
 
     #[test]

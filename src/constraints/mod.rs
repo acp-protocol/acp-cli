@@ -11,30 +11,23 @@
 //! - Debug session management
 //! - Quality gates
 
-mod types;
-mod guardrails;
 mod enforcer;
+mod guardrails;
+mod types;
 
 pub use types::{
-    Constraints, ConstraintIndex, ModifyPermission,
-    StyleConstraint, MutationConstraint, LockLevel,
-    BehaviorModifier, Approach, Priority,
-    QualityGate, PerformanceBudget,
-    DeprecationInfo, DeprecationAction, Reference,
-    HackMarker, HackType,
-    DebugSession, DebugAttempt, DebugStatus, DebugResult,
+    Approach, BehaviorModifier, ConstraintIndex, Constraints, DebugAttempt, DebugResult,
+    DebugSession, DebugStatus, DeprecationAction, DeprecationInfo, HackMarker, HackType, LockLevel,
+    ModifyPermission, MutationConstraint, PerformanceBudget, Priority, QualityGate, Reference,
+    StyleConstraint,
 };
 
 pub use guardrails::{
-    FileGuardrails, GuardrailParser,
-    GuardrailConstraints, StyleGuide, FrameworkRequirement,
-    AIBehavior, TemporaryMarker, TemporaryKind,
-    Attempt, AttemptStatus, Checkpoint,
-    ReviewRequirements, AIGeneratedMarker, HumanVerification,
-    QualityMarkers, TechDebtItem, ComplexityMarker,
+    AIBehavior, AIGeneratedMarker, Attempt, AttemptStatus, Checkpoint, ComplexityMarker,
+    FileGuardrails, FrameworkRequirement, GuardrailConstraints, GuardrailParser, HumanVerification,
+    QualityMarkers, ReviewRequirements, StyleGuide, TechDebtItem, TemporaryKind, TemporaryMarker,
 };
 
 pub use enforcer::{
-    GuardrailEnforcer, GuardrailCheck,
-    Violation, Warning, RequiredAction, Severity,
+    GuardrailCheck, GuardrailEnforcer, RequiredAction, Severity, Violation, Warning,
 };

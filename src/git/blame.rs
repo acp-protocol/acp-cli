@@ -3,11 +3,11 @@
 //! @acp:domain cli
 //! @acp:layer integration
 
-use std::collections::HashMap;
-use std::path::Path;
 use chrono::{DateTime, TimeZone, Utc};
 use git2::{BlameOptions, Oid};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::Path;
 
 use super::repository::GitRepository;
 use crate::error::{AcpError, Result};
@@ -47,8 +47,12 @@ impl BlameInfo {
         opts.track_copies_same_commit_moves(true)
             .track_copies_same_commit_copies(true);
 
-        let blame = repo.inner().blame_file(Path::new(&relative_path), Some(&mut opts))
-            .map_err(|e| AcpError::Other(format!("Failed to get blame for {}: {}", relative_path, e)))?;
+        let blame = repo
+            .inner()
+            .blame_file(Path::new(&relative_path), Some(&mut opts))
+            .map_err(|e| {
+                AcpError::Other(format!("Failed to get blame for {}: {}", relative_path, e))
+            })?;
 
         let mut lines = HashMap::new();
 
@@ -144,11 +148,13 @@ impl BlameInfo {
 
         let relative = if path.is_absolute() {
             path.strip_prefix(root)
-                .map_err(|_| AcpError::Other(format!(
-                    "Path {} is not within repository root {}",
-                    path.display(),
-                    root.display()
-                )))?
+                .map_err(|_| {
+                    AcpError::Other(format!(
+                        "Path {} is not within repository root {}",
+                        path.display(),
+                        root.display()
+                    ))
+                })?
                 .to_path_buf()
         } else {
             // Path is relative - need to make it relative to repo root
@@ -156,12 +162,15 @@ impl BlameInfo {
             let cwd = std::env::current_dir()
                 .map_err(|e| AcpError::Other(format!("Failed to get current directory: {}", e)))?;
             let absolute = cwd.join(path);
-            absolute.strip_prefix(root)
-                .map_err(|_| AcpError::Other(format!(
-                    "Path {} is not within repository root {}",
-                    absolute.display(),
-                    root.display()
-                )))?
+            absolute
+                .strip_prefix(root)
+                .map_err(|_| {
+                    AcpError::Other(format!(
+                        "Path {} is not within repository root {}",
+                        absolute.display(),
+                        root.display()
+                    ))
+                })?
                 .to_path_buf()
         };
 
@@ -170,7 +179,9 @@ impl BlameInfo {
 
     /// Helper: get commit summary from commit ID
     fn get_commit_summary(repo: &GitRepository, oid: Oid) -> Result<String> {
-        let commit = repo.inner().find_commit(oid)
+        let commit = repo
+            .inner()
+            .find_commit(oid)
             .map_err(|e| AcpError::Other(format!("Failed to find commit {}: {}", oid, e)))?;
 
         Ok(commit.summary().unwrap_or("").to_string())
@@ -235,7 +246,10 @@ mod tests {
             if cargo_path.exists() {
                 if let Ok(info) = BlameInfo::for_file(&repo, &cargo_path) {
                     let contributors = info.contributors(1, 10);
-                    assert!(!contributors.is_empty(), "Should have at least one contributor");
+                    assert!(
+                        !contributors.is_empty(),
+                        "Should have at least one contributor"
+                    );
                 }
             }
         }

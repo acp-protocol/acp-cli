@@ -21,8 +21,8 @@ pub mod migrate;
 pub mod output;
 pub mod primer;
 pub mod query;
-pub mod review;
 pub mod revert;
+pub mod review;
 pub mod validate;
 pub mod vars;
 pub mod watch;
@@ -36,14 +36,18 @@ pub use daemon::{execute_daemon, DaemonSubcommand};
 pub use expand::{execute_expand, ExpandOptions};
 pub use index::{execute_index, IndexOptions};
 pub use init::{execute_init, InitOptions};
-pub use install::{execute_install, execute_list_installed, execute_uninstall, InstallOptions, InstallTarget};
+pub use install::{
+    execute_install, execute_list_installed, execute_uninstall, InstallOptions, InstallTarget,
+};
 pub use map::{execute_map, MapBuilder, MapFormat, MapOptions};
 pub use migrate::{execute_migrate, DirectiveDefaults, MigrateOptions, MigrationScanner};
-pub use output::{format_constraint_level, format_symbol_ref, format_symbol_ref_range, TreeRenderer};
+pub use output::{
+    format_constraint_level, format_symbol_ref, format_symbol_ref_range, TreeRenderer,
+};
 pub use primer::{execute_primer, PrimerFormat, PrimerOptions};
 pub use query::{execute_query, ConfidenceFilter, QueryOptions, QuerySubcommand};
-pub use review::{execute_review, ReviewOptions, ReviewSubcommand};
 pub use revert::{execute_revert, RevertOptions};
+pub use review::{execute_review, ReviewOptions, ReviewSubcommand};
 pub use validate::{execute_validate, ValidateOptions};
 pub use vars::{execute_vars, VarsOptions};
 pub use watch::{execute_watch, WatchOptions};

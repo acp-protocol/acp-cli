@@ -139,19 +139,20 @@ pub fn generate_primer(options: &PrimerOptions) -> Result<PrimerOutput> {
             .iter()
             .filter(|cmd| {
                 cmd.capabilities.is_empty()
-                    || cmd.capabilities.iter().any(|cap| options.capabilities.contains(cap))
+                    || cmd
+                        .capabilities
+                        .iter()
+                        .any(|cap| options.capabilities.contains(cap))
             })
             .collect()
     };
 
     // Sort by (critical desc, priority asc)
     let mut sorted_commands = filtered_commands;
-    sorted_commands.sort_by(|a, b| {
-        match (a.critical, b.critical) {
-            (true, false) => Ordering::Less,
-            (false, true) => Ordering::Greater,
-            _ => a.priority.cmp(&b.priority),
-        }
+    sorted_commands.sort_by(|a, b| match (a.critical, b.critical) {
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        _ => a.priority.cmp(&b.priority),
     });
 
     // Calculate remaining budget after bootstrap
@@ -165,7 +166,12 @@ pub fn generate_primer(options: &PrimerOptions) -> Result<PrimerOutput> {
     for cmd in sorted_commands {
         // Get the appropriate tier level
         let tier_level = match tier {
-            Tier::Full => cmd.tiers.full.as_ref().or(cmd.tiers.standard.as_ref()).unwrap_or(&cmd.tiers.minimal),
+            Tier::Full => cmd
+                .tiers
+                .full
+                .as_ref()
+                .or(cmd.tiers.standard.as_ref())
+                .unwrap_or(&cmd.tiers.minimal),
             Tier::Standard => cmd.tiers.standard.as_ref().unwrap_or(&cmd.tiers.minimal),
             Tier::Minimal => &cmd.tiers.minimal,
         };
@@ -270,7 +276,8 @@ fn get_default_commands() -> Vec<Command> {
                     tokens: 25,
                     template: "  Returns: lock level + directive
   Levels: frozen (refuse), restricted (ask), normal (proceed)
-  Use: Check before ANY file modification".to_string(),
+  Use: Check before ANY file modification"
+                        .to_string(),
                 }),
                 full: Some(TierLevel {
                     tokens: 45,
@@ -279,7 +286,8 @@ fn get_default_commands() -> Vec<Command> {
   Use: Check before ANY file modification
   Example:
     $ acp constraints src/auth/session.ts
-    frozen - Core auth logic; security-critical".to_string(),
+    frozen - Core auth logic; security-critical"
+                        .to_string(),
                 }),
             },
         },
@@ -297,7 +305,8 @@ fn get_default_commands() -> Vec<Command> {
                     tokens: 20,
                     template: "  Returns: purpose, constraints, symbols, dependencies
   Options: --json for machine-readable output
-  Use: Understand file context before working with it".to_string(),
+  Use: Understand file context before working with it"
+                        .to_string(),
                 }),
                 full: Some(TierLevel {
                     tokens: 35,
@@ -305,7 +314,8 @@ fn get_default_commands() -> Vec<Command> {
   Options: --json for machine-readable output
   Use: Understand file context before working with it
   Example:
-    $ acp query file src/payments/processor.ts".to_string(),
+    $ acp query file src/payments/processor.ts"
+                        .to_string(),
                 }),
             },
         },
@@ -323,7 +333,8 @@ fn get_default_commands() -> Vec<Command> {
                     tokens: 18,
                     template: "  Returns: signature, purpose, constraints, callers/callees
   Options: --json for machine-readable output
-  Use: Understand function/method before modifying".to_string(),
+  Use: Understand function/method before modifying"
+                        .to_string(),
                 }),
                 full: None,
             },
@@ -342,7 +353,8 @@ fn get_default_commands() -> Vec<Command> {
                     tokens: 15,
                     template: "  Returns: domain files, cross-cutting concerns
   Options: --json for machine-readable output
-  Use: Understand architectural boundaries".to_string(),
+  Use: Understand architectural boundaries"
+                        .to_string(),
                 }),
                 full: None,
             },
@@ -361,7 +373,8 @@ fn get_default_commands() -> Vec<Command> {
                     tokens: 15,
                     template: "  Returns: directory tree with purposes and constraints
   Options: --depth N, --inline (show todos/hacks)
-  Use: Navigate unfamiliar codebase".to_string(),
+  Use: Navigate unfamiliar codebase"
+                        .to_string(),
                 }),
                 full: None,
             },
@@ -380,7 +393,8 @@ fn get_default_commands() -> Vec<Command> {
                     tokens: 12,
                     template: "  Expands $variable references to full paths
   Options: --mode inline|annotated
-  Use: Resolve variable shortcuts in instructions".to_string(),
+  Use: Resolve variable shortcuts in instructions"
+                        .to_string(),
                 }),
                 full: None,
             },
@@ -399,7 +413,8 @@ fn get_default_commands() -> Vec<Command> {
                     tokens: 15,
                     template: "  Creates checkpoint for safe experimentation
   Related: acp attempt fail <id>, acp attempt verify <id>
-  Use: Track and revert failed approaches".to_string(),
+  Use: Track and revert failed approaches"
+                        .to_string(),
                 }),
                 full: None,
             },
@@ -418,7 +433,8 @@ fn get_default_commands() -> Vec<Command> {
                     tokens: 10,
                     template: "  Get more context within token budget
   Options: --capabilities shell,mcp
-  Use: Request more detailed primer".to_string(),
+  Use: Request more detailed primer"
+                        .to_string(),
                 }),
                 full: None,
             },

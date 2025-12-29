@@ -40,7 +40,10 @@ pub fn scan_project<P: AsRef<Path>>(root: P) -> ProjectScan {
 
         // Skip common non-source directories
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if matches!(name, "node_modules" | "target" | "dist" | "build" | ".git" | "vendor" | "__pycache__") {
+            if matches!(
+                name,
+                "node_modules" | "target" | "dist" | "build" | ".git" | "vendor" | "__pycache__"
+            ) {
                 continue;
             }
         }
@@ -68,7 +71,11 @@ pub fn scan_project<P: AsRef<Path>>(root: P) -> ProjectScan {
     // Map extensions to languages
     let lang_mappings: [(&str, &[&str], &[&str]); 6] = [
         ("TypeScript", &["ts", "tsx"], &["**/*.ts", "**/*.tsx"]),
-        ("JavaScript", &["js", "jsx", "mjs"], &["**/*.js", "**/*.jsx", "**/*.mjs"]),
+        (
+            "JavaScript",
+            &["js", "jsx", "mjs"],
+            &["**/*.js", "**/*.jsx", "**/*.mjs"],
+        ),
         ("Rust", &["rs"], &["**/*.rs"]),
         ("Python", &["py"], &["**/*.py"]),
         ("Go", &["go"], &["**/*.go"]),
@@ -76,9 +83,7 @@ pub fn scan_project<P: AsRef<Path>>(root: P) -> ProjectScan {
     ];
 
     for (name, exts, patterns) in lang_mappings {
-        let count: usize = exts.iter()
-            .filter_map(|e| ext_counts.get(*e))
-            .sum();
+        let count: usize = exts.iter().filter_map(|e| ext_counts.get(*e)).sum();
 
         if count > 0 {
             scan.languages.push(DetectedLanguage {
@@ -90,7 +95,8 @@ pub fn scan_project<P: AsRef<Path>>(root: P) -> ProjectScan {
     }
 
     // Sort by file count descending
-    scan.languages.sort_by(|a, b| b.file_count.cmp(&a.file_count));
+    scan.languages
+        .sort_by(|a, b| b.file_count.cmp(&a.file_count));
 
     // TODO: MCP detection (commented out for future implementation)
     // scan.mcp_available = detect_mcp_server();

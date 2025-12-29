@@ -11,11 +11,11 @@
 //! - Import/export statements
 //! - Function calls for call graph analysis
 
-pub mod parser;
 pub mod languages;
+pub mod parser;
 
+pub use languages::{get_extractor, LanguageExtractor};
 pub use parser::AstParser;
-pub use languages::{LanguageExtractor, get_extractor};
 
 use serde::{Deserialize, Serialize};
 

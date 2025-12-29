@@ -61,8 +61,13 @@ impl VisibilityHeuristics {
                         .with_confidence(0.6),
                 );
                 suggestions.push(
-                    Suggestion::ai_hint(target, line, "crate-internal", SuggestionSource::Heuristic)
-                        .with_confidence(0.5),
+                    Suggestion::ai_hint(
+                        target,
+                        line,
+                        "crate-internal",
+                        SuggestionSource::Heuristic,
+                    )
+                    .with_confidence(0.5),
                 );
             }
             Visibility::Public => {
@@ -96,7 +101,11 @@ impl VisibilityHeuristics {
     }
 
     /// @acp:summary "Suggests a lock level based on visibility and context"
-    pub fn suggest_lock_level(&self, visibility: Visibility, is_security_sensitive: bool) -> &'static str {
+    pub fn suggest_lock_level(
+        &self,
+        visibility: Visibility,
+        is_security_sensitive: bool,
+    ) -> &'static str {
         if is_security_sensitive {
             return "restricted";
         }
@@ -125,9 +134,9 @@ mod tests {
         let heuristics = VisibilityHeuristics::new();
         let suggestions = heuristics.suggest("privateFunc", 10, Visibility::Private, false);
 
-        let has_restricted = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Lock && s.value == "restricted"
-        });
+        let has_restricted = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Lock && s.value == "restricted");
         assert!(has_restricted);
     }
 
@@ -136,9 +145,9 @@ mod tests {
         let heuristics = VisibilityHeuristics::new();
         let suggestions = heuristics.suggest("publicFunc", 10, Visibility::Public, true);
 
-        let has_normal = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Lock && s.value == "normal"
-        });
+        let has_normal = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Lock && s.value == "normal");
         assert!(has_normal);
     }
 
@@ -147,12 +156,12 @@ mod tests {
         let heuristics = VisibilityHeuristics::new();
         let suggestions = heuristics.suggest("internalFunc", 10, Visibility::Internal, false);
 
-        let has_restricted = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::Lock && s.value == "restricted"
-        });
-        let has_hint = suggestions.iter().any(|s| {
-            s.annotation_type == AnnotationType::AiHint
-        });
+        let has_restricted = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Lock && s.value == "restricted");
+        let has_hint = suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint);
 
         assert!(has_restricted);
         assert!(has_hint);

@@ -44,7 +44,7 @@ pub fn normalize_path(path: &str) -> String {
 
     for part in path.split('/') {
         match part {
-            "" | "." => continue,  // Skip empty and current directory
+            "" | "." => continue, // Skip empty and current directory
             ".." => {
                 // Go up one directory if possible
                 components.pop();
@@ -205,13 +205,14 @@ impl Cache {
         self.stats.symbols = self.symbols.len();
         self.stats.lines = self.files.values().map(|f| f.lines).sum();
 
-        let annotated = self.symbols.values()
+        let annotated = self
+            .symbols
+            .values()
             .filter(|s| s.summary.is_some())
             .count();
 
         if self.stats.symbols > 0 {
-            self.stats.annotation_coverage =
-                (annotated as f64 / self.stats.symbols as f64) * 100.0;
+            self.stats.annotation_coverage = (annotated as f64 / self.stats.symbols as f64) * 100.0;
         }
     }
 }
@@ -246,7 +247,8 @@ impl CacheBuilder {
 
         // Build reverse graph
         for callee in to {
-            graph.reverse
+            graph
+                .reverse
                 .entry(callee)
                 .or_default()
                 .push(from.to_string());
@@ -644,7 +646,6 @@ pub enum BridgeSource {
     /// Auto-generated through inference
     Heuristic,
 }
-
 
 fn is_explicit_bridge(source: &BridgeSource) -> bool {
     matches!(source, BridgeSource::Explicit)
@@ -1283,34 +1284,37 @@ mod tests {
 
     fn create_test_cache_with_file() -> Cache {
         let mut cache = Cache::new("test", ".");
-        cache.files.insert("./src/sample.ts".to_string(), FileEntry {
-            path: "./src/sample.ts".to_string(),
-            lines: 100,
-            language: Language::Typescript,
-            exports: vec![],
-            imports: vec![],
-            module: None,
-            summary: None,
-            purpose: None,
-            owner: None,
-            inline: vec![],
-            domains: vec![],
-            layer: None,
-            stability: None,
-            ai_hints: vec![],
-            git: None,
-            annotations: HashMap::new(), // RFC-0003
-            bridge: BridgeMetadata::default(), // RFC-0006
-            // RFC-0009: Extended file-level annotations
-            version: None,
-            since: None,
-            license: None,
-            author: None,
-            lifecycle: None,
-            // RFC-0002: Documentation references and style
-            refs: vec![],
-            style: None,
-        });
+        cache.files.insert(
+            "./src/sample.ts".to_string(),
+            FileEntry {
+                path: "./src/sample.ts".to_string(),
+                lines: 100,
+                language: Language::Typescript,
+                exports: vec![],
+                imports: vec![],
+                module: None,
+                summary: None,
+                purpose: None,
+                owner: None,
+                inline: vec![],
+                domains: vec![],
+                layer: None,
+                stability: None,
+                ai_hints: vec![],
+                git: None,
+                annotations: HashMap::new(),       // RFC-0003
+                bridge: BridgeMetadata::default(), // RFC-0006
+                // RFC-0009: Extended file-level annotations
+                version: None,
+                since: None,
+                license: None,
+                author: None,
+                lifecycle: None,
+                // RFC-0002: Documentation references and style
+                refs: vec![],
+                style: None,
+            },
+        );
         cache
     }
 
@@ -1363,34 +1367,37 @@ mod tests {
     fn test_get_file_stored_without_prefix() {
         // Test when cache stores paths without ./ prefix
         let mut cache = Cache::new("test", ".");
-        cache.files.insert("src/sample.ts".to_string(), FileEntry {
-            path: "src/sample.ts".to_string(),
-            lines: 100,
-            language: Language::Typescript,
-            exports: vec![],
-            imports: vec![],
-            module: None,
-            summary: None,
-            purpose: None,
-            owner: None,
-            inline: vec![],
-            domains: vec![],
-            layer: None,
-            stability: None,
-            ai_hints: vec![],
-            git: None,
-            annotations: HashMap::new(), // RFC-0003
-            bridge: BridgeMetadata::default(), // RFC-0006
-            // RFC-0009: Extended file-level annotations
-            version: None,
-            since: None,
-            license: None,
-            author: None,
-            lifecycle: None,
-            // RFC-0002: Documentation references and style
-            refs: vec![],
-            style: None,
-        });
+        cache.files.insert(
+            "src/sample.ts".to_string(),
+            FileEntry {
+                path: "src/sample.ts".to_string(),
+                lines: 100,
+                language: Language::Typescript,
+                exports: vec![],
+                imports: vec![],
+                module: None,
+                summary: None,
+                purpose: None,
+                owner: None,
+                inline: vec![],
+                domains: vec![],
+                layer: None,
+                stability: None,
+                ai_hints: vec![],
+                git: None,
+                annotations: HashMap::new(),       // RFC-0003
+                bridge: BridgeMetadata::default(), // RFC-0006
+                // RFC-0009: Extended file-level annotations
+                version: None,
+                since: None,
+                license: None,
+                author: None,
+                lifecycle: None,
+                // RFC-0002: Documentation references and style
+                refs: vec![],
+                style: None,
+            },
+        );
 
         // All formats should find it
         assert!(cache.get_file("src/sample.ts").is_some());

@@ -105,34 +105,46 @@ fn output_status_json(config: &Config, cache: Option<&Cache>) -> Result<()> {
 /// Output status in human-readable format
 fn output_status_text(config: &Config, cache: Option<&Cache>) -> Result<()> {
     println!("{}", style("Bridge Configuration:").bold());
-    println!("  Enabled:    {}", if config.bridge.enabled {
-        style("yes").green()
-    } else {
-        style("no").yellow()
-    });
+    println!(
+        "  Enabled:    {}",
+        if config.bridge.enabled {
+            style("yes").green()
+        } else {
+            style("no").yellow()
+        }
+    );
     println!("  Precedence: {}", config.bridge.precedence);
     println!("  Strictness: {:?}", config.bridge.strictness);
     println!();
 
     println!("{}", style("Language Support:").bold());
-    println!("  JSDoc/TSDoc: {}", if config.bridge.jsdoc.enabled {
-        style("enabled").green()
-    } else {
-        style("disabled").dim()
-    });
-    println!("  Python:      {}", if config.bridge.python.enabled {
-        style("enabled").green()
-    } else {
-        style("disabled").dim()
-    });
+    println!(
+        "  JSDoc/TSDoc: {}",
+        if config.bridge.jsdoc.enabled {
+            style("enabled").green()
+        } else {
+            style("disabled").dim()
+        }
+    );
+    println!(
+        "  Python:      {}",
+        if config.bridge.python.enabled {
+            style("enabled").green()
+        } else {
+            style("disabled").dim()
+        }
+    );
     if config.bridge.python.enabled {
         println!("    Style: {:?}", config.bridge.python.docstring_style);
     }
-    println!("  Rust:        {}", if config.bridge.rust.enabled {
-        style("enabled").green()
-    } else {
-        style("disabled").dim()
-    });
+    println!(
+        "  Rust:        {}",
+        if config.bridge.rust.enabled {
+            style("enabled").green()
+        } else {
+            style("disabled").dim()
+        }
+    );
     println!();
 
     if let Some(cache) = cache {

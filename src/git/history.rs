@@ -3,10 +3,10 @@
 //! @acp:domain cli
 //! @acp:layer integration
 
-use std::path::Path;
 use chrono::{DateTime, TimeZone, Utc};
-use git2::{Oid, DiffOptions};
+use git2::{DiffOptions, Oid};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 use super::repository::GitRepository;
 use crate::error::{AcpError, Result};
@@ -51,15 +51,19 @@ impl FileHistory {
     pub fn for_file(repo: &GitRepository, path: &Path, limit: usize) -> Result<Self> {
         let relative_path = Self::make_relative_path(repo, path)?;
 
-        let mut revwalk = repo.inner().revwalk()
+        let mut revwalk = repo
+            .inner()
+            .revwalk()
             .map_err(|e| AcpError::Other(format!("Failed to create revwalk: {}", e)))?;
 
         // Start from HEAD
-        revwalk.push_head()
+        revwalk
+            .push_head()
             .map_err(|e| AcpError::Other(format!("Failed to push HEAD: {}", e)))?;
 
         // Sort by time (newest first)
-        revwalk.set_sorting(git2::Sort::TIME)
+        revwalk
+            .set_sorting(git2::Sort::TIME)
             .map_err(|e| AcpError::Other(format!("Failed to set sorting: {}", e)))?;
 
         let mut commits = Vec::new();
@@ -93,10 +97,7 @@ impl FileHistory {
 
     /// Get unique contributors
     pub fn contributors(&self) -> Vec<String> {
-        let mut authors: Vec<String> = self.commits
-            .iter()
-            .map(|c| c.author.clone())
-            .collect();
+        let mut authors: Vec<String> = self.commits.iter().map(|c| c.author.clone()).collect();
 
         authors.sort();
         authors.dedup();
@@ -139,11 +140,14 @@ impl FileHistory {
         oid: Oid,
         path: &str,
     ) -> Result<Option<HistoryEntry>> {
-        let commit = repo.inner().find_commit(oid)
+        let commit = repo
+            .inner()
+            .find_commit(oid)
             .map_err(|e| AcpError::Other(format!("Failed to find commit: {}", e)))?;
 
         // Get the commit's tree
-        let tree = commit.tree()
+        let tree = commit
+            .tree()
             .map_err(|e| AcpError::Other(format!("Failed to get commit tree: {}", e)))?;
 
         // Check if the file exists in this commit's tree
@@ -161,20 +165,21 @@ impl FileHistory {
         }
 
         // Get parent tree
-        let parent = commit.parent(0)
+        let parent = commit
+            .parent(0)
             .map_err(|e| AcpError::Other(format!("Failed to get parent commit: {}", e)))?;
-        let parent_tree = parent.tree()
+        let parent_tree = parent
+            .tree()
             .map_err(|e| AcpError::Other(format!("Failed to get parent tree: {}", e)))?;
 
         // Check if file changed between parent and this commit
         let mut diff_opts = DiffOptions::new();
         diff_opts.pathspec(path);
 
-        let diff = repo.inner().diff_tree_to_tree(
-            Some(&parent_tree),
-            Some(&tree),
-            Some(&mut diff_opts),
-        ).map_err(|e| AcpError::Other(format!("Failed to diff trees: {}", e)))?;
+        let diff = repo
+            .inner()
+            .diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut diff_opts))
+            .map_err(|e| AcpError::Other(format!("Failed to diff trees: {}", e)))?;
 
         // If there are no deltas for this file, it wasn't changed
         if diff.deltas().len() == 0 {
@@ -221,13 +226,17 @@ impl FileHistory {
         commit: &git2::Commit,
         path: &str,
     ) -> Result<(usize, usize)> {
-        let tree = commit.tree()
+        let tree = commit
+            .tree()
             .map_err(|e| AcpError::Other(format!("Failed to get tree: {}", e)))?;
 
-        let entry = tree.get_path(Path::new(path))
+        let entry = tree
+            .get_path(Path::new(path))
             .map_err(|e| AcpError::Other(format!("Failed to get tree entry: {}", e)))?;
 
-        let blob = repo.inner().find_blob(entry.id())
+        let blob = repo
+            .inner()
+            .find_blob(entry.id())
             .map_err(|e| AcpError::Other(format!("Failed to get blob: {}", e)))?;
 
         let content = std::str::from_utf8(blob.content()).unwrap_or("");
@@ -242,24 +251,27 @@ impl FileHistory {
         commit: &git2::Commit,
         path: &str,
     ) -> Result<(usize, usize)> {
-        let tree = commit.tree()
+        let tree = commit
+            .tree()
             .map_err(|e| AcpError::Other(format!("Failed to get tree: {}", e)))?;
 
-        let parent = commit.parent(0)
+        let parent = commit
+            .parent(0)
             .map_err(|e| AcpError::Other(format!("Failed to get parent: {}", e)))?;
-        let parent_tree = parent.tree()
+        let parent_tree = parent
+            .tree()
             .map_err(|e| AcpError::Other(format!("Failed to get parent tree: {}", e)))?;
 
         let mut diff_opts = DiffOptions::new();
         diff_opts.pathspec(path);
 
-        let diff = repo.inner().diff_tree_to_tree(
-            Some(&parent_tree),
-            Some(&tree),
-            Some(&mut diff_opts),
-        ).map_err(|e| AcpError::Other(format!("Failed to create diff: {}", e)))?;
+        let diff = repo
+            .inner()
+            .diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut diff_opts))
+            .map_err(|e| AcpError::Other(format!("Failed to create diff: {}", e)))?;
 
-        let stats = diff.stats()
+        let stats = diff
+            .stats()
             .map_err(|e| AcpError::Other(format!("Failed to get diff stats: {}", e)))?;
 
         Ok((stats.insertions(), stats.deletions()))
@@ -271,11 +283,13 @@ impl FileHistory {
 
         let relative = if path.is_absolute() {
             path.strip_prefix(root)
-                .map_err(|_| AcpError::Other(format!(
-                    "Path {} is not within repository root {}",
-                    path.display(),
-                    root.display()
-                )))?
+                .map_err(|_| {
+                    AcpError::Other(format!(
+                        "Path {} is not within repository root {}",
+                        path.display(),
+                        root.display()
+                    ))
+                })?
                 .to_path_buf()
         } else {
             // Path is relative - need to make it relative to repo root
@@ -283,12 +297,15 @@ impl FileHistory {
             let cwd = std::env::current_dir()
                 .map_err(|e| AcpError::Other(format!("Failed to get current directory: {}", e)))?;
             let absolute = cwd.join(path);
-            absolute.strip_prefix(root)
-                .map_err(|_| AcpError::Other(format!(
-                    "Path {} is not within repository root {}",
-                    absolute.display(),
-                    root.display()
-                )))?
+            absolute
+                .strip_prefix(root)
+                .map_err(|_| {
+                    AcpError::Other(format!(
+                        "Path {} is not within repository root {}",
+                        absolute.display(),
+                        root.display()
+                    ))
+                })?
                 .to_path_buf()
         };
 

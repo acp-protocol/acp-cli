@@ -435,7 +435,10 @@ impl GuardrailParser {
                 ai_context: Regex::new(r"@acp:ai-context\s+(.+)").unwrap(),
                 ai_reference: Regex::new(r"@acp:ai-reference\s+(.+)").unwrap(),
                 hack: Regex::new(r"@acp:hack\s+(.+)").unwrap(),
-                attempt_start: Regex::new(r"@acp:attempt-start\s+id:(\S+)(?:\s+for:(\S+))?(?:\s+description:(.+))?").unwrap(),
+                attempt_start: Regex::new(
+                    r"@acp:attempt-start\s+id:(\S+)(?:\s+for:(\S+))?(?:\s+description:(.+))?",
+                )
+                .unwrap(),
                 checkpoint: Regex::new(r"@acp:checkpoint\s+name:(\S+)(?:\s+hash:(\S+))?").unwrap(),
                 review_required: Regex::new(r"@acp:review-required\s+(.+)").unwrap(),
                 tech_debt: Regex::new(r"@acp:tech-debt\s+(.+)").unwrap(),
@@ -475,7 +478,10 @@ impl GuardrailParser {
 
         // Requires
         if let Some(cap) = self.patterns.requires.captures(line) {
-            let items: Vec<_> = cap.get(1).unwrap().as_str()
+            let items: Vec<_> = cap
+                .get(1)
+                .unwrap()
+                .as_str()
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .collect();
@@ -484,7 +490,10 @@ impl GuardrailParser {
 
         // Forbids
         if let Some(cap) = self.patterns.forbids.captures(line) {
-            let items: Vec<_> = cap.get(1).unwrap().as_str()
+            let items: Vec<_> = cap
+                .get(1)
+                .unwrap()
+                .as_str()
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .collect();
@@ -499,12 +508,16 @@ impl GuardrailParser {
 
         // AI Careful
         if let Some(cap) = self.patterns.ai_careful.captures(line) {
-            g.ai_behavior.careful.push(cap.get(1).unwrap().as_str().to_string());
+            g.ai_behavior
+                .careful
+                .push(cap.get(1).unwrap().as_str().to_string());
         }
 
         // AI Ask
         if let Some(cap) = self.patterns.ai_ask.captures(line) {
-            g.ai_behavior.ask_before.push(cap.get(1).unwrap().as_str().to_string());
+            g.ai_behavior
+                .ask_before
+                .push(cap.get(1).unwrap().as_str().to_string());
         }
 
         // AI Context
@@ -520,7 +533,9 @@ impl GuardrailParser {
 
         // AI Reference
         if let Some(cap) = self.patterns.ai_reference.captures(line) {
-            g.ai_behavior.references.push(cap.get(1).unwrap().as_str().to_string());
+            g.ai_behavior
+                .references
+                .push(cap.get(1).unwrap().as_str().to_string());
         }
 
         // Hack
@@ -561,7 +576,10 @@ impl GuardrailParser {
 
         // Review required
         if let Some(cap) = self.patterns.review_required.captures(line) {
-            let items: Vec<_> = cap.get(1).unwrap().as_str()
+            let items: Vec<_> = cap
+                .get(1)
+                .unwrap()
+                .as_str()
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .collect();
@@ -579,7 +597,10 @@ impl GuardrailParser {
 
         // Test required
         if let Some(cap) = self.patterns.test_required.captures(line) {
-            let items: Vec<_> = cap.get(1).unwrap().as_str()
+            let items: Vec<_> = cap
+                .get(1)
+                .unwrap()
+                .as_str()
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .collect();

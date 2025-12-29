@@ -85,13 +85,19 @@ impl GitHeuristics {
 
         // Check for single contributor (bus factor = 1)
         if contributor_count < self.min_contributors && commit_count > 5 {
-            let author = contributors.first().cloned().unwrap_or_else(|| "unknown".to_string());
+            let author = contributors
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "unknown".to_string());
             suggestions.push(
                 Suggestion::new(
                     target,
                     line,
                     AnnotationType::AiHint,
-                    format!("Single author: {}. Consider code review for bus factor.", author),
+                    format!(
+                        "Single author: {}. Consider code review for bus factor.",
+                        author
+                    ),
                     SuggestionSource::Heuristic,
                 )
                 .with_confidence(0.6),
@@ -197,12 +203,7 @@ mod tests {
         // Test on a file that should exist
         let cargo_path = cwd.join("Cargo.toml");
         if cargo_path.exists() {
-            let suggestions = heuristics.suggest_for_file(
-                &repo,
-                &cargo_path,
-                "Cargo.toml",
-                1,
-            );
+            let suggestions = heuristics.suggest_for_file(&repo, &cargo_path, "Cargo.toml", 1);
 
             // We should get some suggestions (or none if file is very new)
             // The test passes if it doesn't crash

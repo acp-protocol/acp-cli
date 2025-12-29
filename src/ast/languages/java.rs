@@ -3,10 +3,12 @@
 //! @acp:domain cli
 //! @acp:layer parsing
 
-use tree_sitter::{Language, Tree, Node};
+use super::{node_text, LanguageExtractor};
+use crate::ast::{
+    ExtractedSymbol, FunctionCall, Import, ImportedName, Parameter, SymbolKind, Visibility,
+};
 use crate::error::Result;
-use super::{LanguageExtractor, node_text};
-use crate::ast::{ExtractedSymbol, Import, ImportedName, FunctionCall, Parameter, SymbolKind, Visibility};
+use tree_sitter::{Language, Node, Tree};
 
 /// Java language extractor
 pub struct JavaExtractor;
@@ -38,7 +40,12 @@ impl LanguageExtractor for JavaExtractor {
         Ok(imports)
     }
 
-    fn extract_calls(&self, tree: &Tree, source: &str, current_function: Option<&str>) -> Result<Vec<FunctionCall>> {
+    fn extract_calls(
+        &self,
+        tree: &Tree,
+        source: &str,
+        current_function: Option<&str>,
+    ) -> Result<Vec<FunctionCall>> {
         let mut calls = Vec::new();
         let root = tree.root_node();
         self.extract_calls_recursive(&root, source, &mut calls, current_function);
@@ -88,7 +95,12 @@ impl JavaExtractor {
 
                     // Extract interface body
                     if let Some(body) = node.child_by_field_name("body") {
-                        self.extract_interface_members(&body, source, symbols, Some(&interface_name));
+                        self.extract_interface_members(
+                            &body,
+                            source,
+                            symbols,
+                            Some(&interface_name),
+                        );
                     }
                     return;
                 }
@@ -127,7 +139,12 @@ impl JavaExtractor {
         }
     }
 
-    fn extract_class(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_class(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -165,7 +182,12 @@ impl JavaExtractor {
         Some(sym)
     }
 
-    fn extract_interface(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_interface(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -194,7 +216,12 @@ impl JavaExtractor {
         Some(sym)
     }
 
-    fn extract_enum(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_enum(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let name_node = node.child_by_field_name("name")?;
         let name = node_text(&name_node, source).to_string();
 
@@ -219,7 +246,12 @@ impl JavaExtractor {
         Some(sym)
     }
 
-    fn extract_method(&self, node: &Node, source: &str, parent: Option<&str>) -> Option<ExtractedSymbol> {
+    fn extract_method(
+        &self,
+        node: &Node,
+        source: &str,
+        parent: Option<&str>,
+    ) -> Option<ExtractedSymbol> {
         let is_constructor = node.kind() == "constructor_declaration";
 
         let name = if is_constructor {
@@ -344,7 +376,12 @@ impl JavaExtractor {
                         symbols.push(sym);
 
                         if let Some(nested_body) = child.child_by_field_name("body") {
-                            self.extract_class_members(&nested_body, source, symbols, Some(&nested_name));
+                            self.extract_class_members(
+                                &nested_body,
+                                source,
+                                symbols,
+                                Some(&nested_name),
+                            );
                         }
                     }
                 }
@@ -429,11 +466,13 @@ impl JavaExtractor {
             if child.kind() == "formal_parameter" || child.kind() == "spread_parameter" {
                 let is_rest = child.kind() == "spread_parameter";
 
-                let name = child.child_by_field_name("name")
+                let name = child
+                    .child_by_field_name("name")
                     .map(|n| node_text(&n, source).to_string())
                     .unwrap_or_default();
 
-                let type_info = child.child_by_field_name("type")
+                let type_info = child
+                    .child_by_field_name("type")
                     .map(|n| node_text(&n, source).to_string());
 
                 sym.add_parameter(Parameter {
@@ -509,10 +548,7 @@ impl JavaExtractor {
 
         Some(Import {
             source: source_path,
-            names: vec![ImportedName {
-                name,
-                alias: None,
-            }],
+            names: vec![ImportedName { name, alias: None }],
             is_default: false,
             is_namespace: is_wildcard,
             line: node.start_position().row + 1,
@@ -533,14 +569,15 @@ impl JavaExtractor {
         }
 
         let func_name = match node.kind() {
-            "method_declaration" | "constructor_declaration" => {
-                node.child_by_field_name("name")
-                    .map(|n| node_text(&n, source))
-            }
+            "method_declaration" | "constructor_declaration" => node
+                .child_by_field_name("name")
+                .map(|n| node_text(&n, source)),
             _ => None,
         };
 
-        let current = func_name.map(String::from).or_else(|| current_function.map(String::from));
+        let current = func_name
+            .map(String::from)
+            .or_else(|| current_function.map(String::from));
 
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
@@ -548,11 +585,18 @@ impl JavaExtractor {
         }
     }
 
-    fn parse_call(&self, node: &Node, source: &str, current_function: Option<&str>) -> Option<FunctionCall> {
-        let name = node.child_by_field_name("name")
+    fn parse_call(
+        &self,
+        node: &Node,
+        source: &str,
+        current_function: Option<&str>,
+    ) -> Option<FunctionCall> {
+        let name = node
+            .child_by_field_name("name")
             .map(|n| node_text(&n, source).to_string())?;
 
-        let object = node.child_by_field_name("object")
+        let object = node
+            .child_by_field_name("object")
             .map(|n| node_text(&n, source).to_string());
 
         Some(FunctionCall {
@@ -565,7 +609,8 @@ impl JavaExtractor {
     }
 
     fn build_method_signature(&self, node: &Node, source: &str, is_constructor: bool) -> String {
-        let modifiers = node.children(&mut node.walk())
+        let modifiers = node
+            .children(&mut node.walk())
             .find(|c| c.kind() == "modifiers")
             .map(|n| format!("{} ", node_text(&n, source)))
             .unwrap_or_default();
@@ -578,20 +623,17 @@ impl JavaExtractor {
                 .unwrap_or_default()
         };
 
-        let name = node.child_by_field_name("name")
+        let name = node
+            .child_by_field_name("name")
             .map(|n| node_text(&n, source))
             .unwrap_or("unknown");
 
-        let params = node.child_by_field_name("parameters")
+        let params = node
+            .child_by_field_name("parameters")
             .map(|n| node_text(&n, source))
             .unwrap_or("()");
 
-        format!("{}{}{}{}",
-            modifiers,
-            return_type,
-            name,
-            params
-        )
+        format!("{}{}{}{}", modifiers, return_type, name, params)
     }
 
     fn clean_javadoc(comment: &str) -> String {
@@ -612,7 +654,9 @@ mod tests {
 
     fn parse_java(source: &str) -> (Tree, String) {
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(&tree_sitter_java::LANGUAGE.into()).unwrap();
+        parser
+            .set_language(&tree_sitter_java::LANGUAGE.into())
+            .unwrap();
         let tree = parser.parse(source, None).unwrap();
         (tree, source.to_string())
     }
@@ -636,10 +680,18 @@ public class UserService {
         let extractor = JavaExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "UserService" && s.kind == SymbolKind::Class));
-        assert!(symbols.iter().any(|s| s.name == "name" && s.kind == SymbolKind::Field));
-        assert!(symbols.iter().any(|s| s.name == "UserService" && s.kind == SymbolKind::Method)); // constructor
-        assert!(symbols.iter().any(|s| s.name == "greet" && s.kind == SymbolKind::Method));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "UserService" && s.kind == SymbolKind::Class));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "name" && s.kind == SymbolKind::Field));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "UserService" && s.kind == SymbolKind::Method)); // constructor
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "greet" && s.kind == SymbolKind::Method));
     }
 
     #[test]
@@ -654,8 +706,12 @@ public interface Greeter {
         let extractor = JavaExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "Greeter" && s.kind == SymbolKind::Interface));
-        assert!(symbols.iter().any(|s| s.name == "greet" && s.kind == SymbolKind::Method));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "Greeter" && s.kind == SymbolKind::Interface));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "greet" && s.kind == SymbolKind::Method));
     }
 
     #[test]
@@ -671,8 +727,12 @@ public enum Status {
         let extractor = JavaExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        assert!(symbols.iter().any(|s| s.name == "Status" && s.kind == SymbolKind::Enum));
-        assert!(symbols.iter().any(|s| s.name == "ACTIVE" && s.kind == SymbolKind::EnumVariant));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "Status" && s.kind == SymbolKind::Enum));
+        assert!(symbols
+            .iter()
+            .any(|s| s.name == "ACTIVE" && s.kind == SymbolKind::EnumVariant));
     }
 
     #[test]

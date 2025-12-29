@@ -49,12 +49,7 @@ impl VarExpander {
             let refs = self.resolver.find_references(&value);
             for r in refs.iter().rev() {
                 if let Some(expanded) = self.expand_var(&r.name, max_depth - 1, visited) {
-                    value = format!(
-                        "{}{}{}",
-                        &value[..r.start],
-                        expanded,
-                        &value[r.end..]
-                    );
+                    value = format!("{}{}{}", &value[..r.start], expanded, &value[r.end..]);
                 }
             }
         }
@@ -146,7 +141,13 @@ impl VarExpander {
         false
     }
 
-    fn format_var(&mut self, name: &str, var: &VarEntry, modifier: Option<&str>, mode: ExpansionMode) -> String {
+    fn format_var(
+        &mut self,
+        name: &str,
+        var: &VarEntry,
+        modifier: Option<&str>,
+        mode: ExpansionMode,
+    ) -> String {
         // Handle modifier
         if let Some(m) = modifier {
             return match m {
@@ -167,11 +168,7 @@ impl VarExpander {
                     .unwrap_or_else(|| var.value.clone())
             }
             ExpansionMode::Annotated => {
-                format!(
-                    "**${}** → {}",
-                    name,
-                    self.humanize_value(&var.value)
-                )
+                format!("**${}** → {}", name, self.humanize_value(&var.value))
             }
             ExpansionMode::Block => self.format_block(name, var),
             ExpansionMode::Interactive => {
@@ -187,7 +184,11 @@ impl VarExpander {
 
     fn format_block(&self, name: &str, var: &VarEntry) -> String {
         let mut lines = Vec::new();
-        lines.push(format!("> **{}**: {}", name, var.description.as_deref().unwrap_or("")));
+        lines.push(format!(
+            "> **{}**: {}",
+            name,
+            var.description.as_deref().unwrap_or("")
+        ));
         lines.push(">".to_string());
         lines.push(format!("> - **type**: {}", var.var_type));
         lines.push(format!("> - **value**: {}", var.value));
@@ -199,8 +200,7 @@ impl VarExpander {
             .split('|')
             .filter_map(|part| {
                 let (key, val) = part.split_once(':')?;
-                
-                
+
                 Some(format!("{}: {}", capitalize(key), val))
             })
             .collect::<Vec<_>>()

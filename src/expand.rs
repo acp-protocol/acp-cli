@@ -6,6 +6,5 @@
 //! This module provides convenient re-exports for variable expansion functionality.
 
 pub use crate::vars::{
-    ExpansionMode, ExpansionResult, InheritanceChain,
-    VarExpander, VarResolver, presets,
+    presets, ExpansionMode, ExpansionResult, InheritanceChain, VarExpander, VarResolver,
 };

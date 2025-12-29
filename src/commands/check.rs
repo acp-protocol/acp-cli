@@ -122,7 +122,16 @@ fn show_all_constraints(cache_data: &Cache) -> Result<()> {
     }
 
     // Sort by severity (frozen first)
-    let level_order = ["Frozen", "Restricted", "ApprovalRequired", "TestsRequired", "DocsRequired", "ReviewRequired", "Normal", "Experimental"];
+    let level_order = [
+        "Frozen",
+        "Restricted",
+        "ApprovalRequired",
+        "TestsRequired",
+        "DocsRequired",
+        "ReviewRequired",
+        "Normal",
+        "Experimental",
+    ];
 
     for level in level_order {
         if let Some(files) = by_level.get(level) {

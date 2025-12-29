@@ -33,14 +33,12 @@ use super::{DocStandardParser, ParsedDocumentation};
 use crate::annotate::{AnnotationType, Suggestion, SuggestionSource};
 
 /// @acp:summary "Matches Deprecated: prefix"
-static DEPRECATED_PREFIX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^Deprecated:\s*(.*)$").expect("Invalid deprecated prefix regex")
-});
+static DEPRECATED_PREFIX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^Deprecated:\s*(.*)$").expect("Invalid deprecated prefix regex"));
 
 /// @acp:summary "Matches BUG(who): prefix"
-static BUG_PREFIX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^BUG\(([^)]+)\):\s*(.*)$").expect("Invalid bug prefix regex")
-});
+static BUG_PREFIX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^BUG\(([^)]+)\):\s*(.*)$").expect("Invalid bug prefix regex"));
 
 /// @acp:summary "Matches TODO(who): or FIXME(who): prefix"
 static TODO_PREFIX: LazyLock<Regex> = LazyLock::new(|| {
@@ -48,9 +46,8 @@ static TODO_PREFIX: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// @acp:summary "Matches See also: or See: references"
-static SEE_ALSO: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^See\s*(?:also)?:\s*(.+)$").expect("Invalid see also regex")
-});
+static SEE_ALSO: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^See\s*(?:also)?:\s*(.+)$").expect("Invalid see also regex"));
 
 /// @acp:summary "Matches cross-reference to another symbol [Name] or [pkg.Name]"
 static CROSS_REF: LazyLock<Regex> = LazyLock::new(|| {
@@ -200,7 +197,9 @@ impl GodocParser {
                 // Indented line = code
                 in_example = true;
                 // Remove one level of indentation
-                let code = stripped.strip_prefix('\t').unwrap_or_else(|| stripped.trim_start());
+                let code = stripped
+                    .strip_prefix('\t')
+                    .unwrap_or_else(|| stripped.trim_start());
                 current_example.push(code.to_string());
             } else if in_example {
                 // End of code block
@@ -334,17 +333,20 @@ impl DocStandardParser for GodocParser {
 
         // Store extensions in custom tags
         if extensions.is_package_doc {
-            doc.custom_tags.push(("package_doc".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("package_doc".to_string(), "true".to_string()));
         }
         if !extensions.bugs.is_empty() {
-            doc.custom_tags.push(("has_bugs".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("has_bugs".to_string(), "true".to_string()));
             for (who, desc) in &extensions.bugs {
                 doc.notes.push(format!("BUG({}): {}", who, desc));
             }
         }
         // Only flag unconventional if we have a summary to check against
         if has_summary && !extensions.follows_convention {
-            doc.custom_tags.push(("unconventional_doc".to_string(), "true".to_string()));
+            doc.custom_tags
+                .push(("unconventional_doc".to_string(), "true".to_string()));
         }
 
         doc
@@ -407,7 +409,11 @@ impl DocStandardParser for GodocParser {
         }
 
         // Go-specific: has bugs documented
-        if parsed.custom_tags.iter().any(|(k, v)| k == "has_bugs" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "has_bugs" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -417,7 +423,11 @@ impl DocStandardParser for GodocParser {
         }
 
         // Go-specific: unconventional documentation
-        if parsed.custom_tags.iter().any(|(k, v)| k == "unconventional_doc" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "unconventional_doc" && v == "true")
+        {
             suggestions.push(Suggestion::ai_hint(
                 target,
                 line,
@@ -427,7 +437,11 @@ impl DocStandardParser for GodocParser {
         }
 
         // Go-specific: package documentation
-        if parsed.custom_tags.iter().any(|(k, v)| k == "package_doc" && v == "true") {
+        if parsed
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "package_doc" && v == "true")
+        {
             suggestions.push(Suggestion::new(
                 target,
                 line,
@@ -469,9 +483,7 @@ fn truncate_for_summary(s: &str, max_len: usize) -> String {
     if trimmed.len() <= max_len {
         trimmed.to_string()
     } else {
-        let truncate_at = trimmed[..max_len]
-            .rfind(' ')
-            .unwrap_or(max_len);
+        let truncate_at = trimmed[..max_len].rfind(' ').unwrap_or(max_len);
         format!("{}...", &trimmed[..truncate_at])
     }
 }
@@ -490,22 +502,29 @@ mod tests {
     #[test]
     fn test_parse_basic_godoc() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // NewParser creates a new parser instance.
 // It initializes the parser with default settings.
-"#);
+"#,
+        );
 
-        assert_eq!(doc.summary, Some("NewParser creates a new parser instance.".to_string()));
+        assert_eq!(
+            doc.summary,
+            Some("NewParser creates a new parser instance.".to_string())
+        );
     }
 
     #[test]
     fn test_parse_with_deprecated() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // OldFunction does something.
 //
 // Deprecated: Use NewFunction instead.
-"#);
+"#,
+        );
 
         assert!(doc.deprecated.is_some());
         assert!(doc.deprecated.unwrap().contains("NewFunction"));
@@ -514,23 +533,30 @@ mod tests {
     #[test]
     fn test_parse_with_bug() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Calculate computes a value.
 //
 // BUG(alice): Does not handle negative numbers correctly.
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "has_bugs" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "has_bugs" && v == "true"));
         assert!(doc.notes.iter().any(|n| n.contains("BUG(alice)")));
     }
 
     #[test]
     fn test_parse_with_todo() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Process handles the input.
 // TODO(bob): Add error handling
-"#);
+"#,
+        );
 
         assert!(!doc.todos.is_empty());
         assert!(doc.todos[0].contains("Add error handling"));
@@ -539,10 +565,12 @@ mod tests {
     #[test]
     fn test_parse_with_see_also() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Read reads data from the source.
 // See also: Write, Close
-"#);
+"#,
+        );
 
         assert!(doc.see_refs.contains(&"Write".to_string()));
         assert!(doc.see_refs.contains(&"Close".to_string()));
@@ -551,12 +579,14 @@ mod tests {
     #[test]
     fn test_parse_with_code_example() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Add adds two numbers.
 // Example:
 //	result := Add(2, 3)
 //	fmt.Println(result) // Output: 5
-"#);
+"#,
+        );
 
         assert!(!doc.examples.is_empty());
         assert!(doc.examples[0].contains("Add(2, 3)"));
@@ -565,9 +595,11 @@ mod tests {
     #[test]
     fn test_parse_with_cross_refs() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Parse parses input using [Config] and returns a [Result].
-"#);
+"#,
+        );
 
         assert!(doc.see_refs.contains(&"Config".to_string()));
         assert!(doc.see_refs.contains(&"Result".to_string()));
@@ -576,48 +608,65 @@ mod tests {
     #[test]
     fn test_parse_multi_paragraph() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Handler processes HTTP requests.
 //
 // It validates the input, performs the operation,
 // and returns an appropriate response.
-"#);
+"#,
+        );
 
-        assert_eq!(doc.summary, Some("Handler processes HTTP requests.".to_string()));
+        assert_eq!(
+            doc.summary,
+            Some("Handler processes HTTP requests.".to_string())
+        );
         assert!(doc.description.is_some());
     }
 
     #[test]
     fn test_convention_check_pass() {
         let parser = GodocParser::new().with_element_name("NewParser");
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // NewParser creates a new parser.
-"#);
+"#,
+        );
 
         // Should follow convention (starts with element name)
-        assert!(!doc.custom_tags.iter().any(|(k, _)| k == "unconventional_doc"));
+        assert!(!doc
+            .custom_tags
+            .iter()
+            .any(|(k, _)| k == "unconventional_doc"));
     }
 
     #[test]
     fn test_convention_check_fail() {
         let parser = GodocParser::new().with_element_name("NewParser");
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Creates a new parser instance.
-"#);
+"#,
+        );
 
-        assert!(doc.custom_tags.iter().any(|(k, v)| k == "unconventional_doc" && v == "true"));
+        assert!(doc
+            .custom_tags
+            .iter()
+            .any(|(k, v)| k == "unconventional_doc" && v == "true"));
     }
 
     #[test]
     fn test_block_comment() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 /*
 Package utils provides utility functions.
 
 It includes helpers for common operations.
 */
-"#);
+"#,
+        );
 
         assert!(doc.summary.is_some());
         assert!(doc.summary.unwrap().contains("Package utils"));
@@ -626,93 +675,102 @@ It includes helpers for common operations.
     #[test]
     fn test_to_suggestions_basic() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // NewClient creates a new API client.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "NewClient", 10);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Summary &&
-            s.value.contains("creates a new API client")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Summary
+                && s.value.contains("creates a new API client")));
     }
 
     #[test]
     fn test_to_suggestions_deprecated() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Old does something.
 // Deprecated: Use New instead.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "Old", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Deprecated
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Deprecated));
     }
 
     #[test]
     fn test_to_suggestions_bugs() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Calculate computes values.
 // BUG(dev): Off by one error.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "Calculate", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("bugs")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("bugs")));
     }
 
     #[test]
     fn test_to_suggestions_refs() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Process uses [Config] to process data.
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "Process", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Ref &&
-            s.value == "Config"
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Ref && s.value == "Config"));
     }
 
     #[test]
     fn test_to_suggestions_todos() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Incomplete function.
 // TODO: Finish implementation
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "Incomplete", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::Hack
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::Hack));
     }
 
     #[test]
     fn test_to_suggestions_examples() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // Add adds numbers.
 //	sum := Add(1, 2)
-"#);
+"#,
+        );
 
         let suggestions = parser.to_suggestions(&doc, "Add", 1);
 
-        assert!(suggestions.iter().any(|s|
-            s.annotation_type == AnnotationType::AiHint &&
-            s.value.contains("examples")
-        ));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.annotation_type == AnnotationType::AiHint && s.value.contains("examples")));
     }
 
     #[test]
@@ -739,12 +797,14 @@ It includes helpers for common operations.
     #[test]
     fn test_deprecated_multiline() {
         let parser = GodocParser::new();
-        let doc = parser.parse(r#"
+        let doc = parser.parse(
+            r#"
 // OldAPI is deprecated.
 //
 // Deprecated: This API is deprecated and will be removed in v2.0.
 // Use NewAPI instead for better performance.
-"#);
+"#,
+        );
 
         assert!(doc.deprecated.is_some());
         let deprecated = doc.deprecated.unwrap();

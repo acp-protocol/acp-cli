@@ -22,17 +22,17 @@
 //! - Aider (.aider.conf.yml)
 //! - Generic fallback (AGENTS.md)
 
-pub mod tool;
 pub mod adapter;
+pub mod adapters;
 pub mod content;
 pub mod merge;
-pub mod adapters;
+pub mod tool;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-pub use tool::{Tool, OutputFormat, MergeStrategy};
-pub use adapter::{ToolAdapter, DetectionResult, BootstrapContext};
+pub use adapter::{BootstrapContext, DetectionResult, ToolAdapter};
+pub use tool::{MergeStrategy, OutputFormat, Tool};
 
 use crate::error::Result;
 use adapters::*;
@@ -85,15 +85,11 @@ impl SyncExecutor {
 
     /// Bootstrap a single tool with ACP context
     pub fn bootstrap_tool(&self, tool: Tool, project_root: &Path) -> Result<BootstrapResult> {
-        let adapter = self.adapters.get(&tool)
-            .ok_or_else(|| crate::error::AcpError::Other(
-                format!("No adapter for tool: {:?}", tool)
-            ))?;
+        let adapter = self.adapters.get(&tool).ok_or_else(|| {
+            crate::error::AcpError::Other(format!("No adapter for tool: {:?}", tool))
+        })?;
 
-        let context = BootstrapContext {
-            project_root,
-            tool,
-        };
+        let context = BootstrapContext { project_root, tool };
 
         // Generate content
         let content = adapter.generate(&context)?;
@@ -165,7 +161,8 @@ impl SyncExecutor {
             tools.push(Tool::Generic);
         }
 
-        tools.into_iter()
+        tools
+            .into_iter()
             .map(|tool| self.bootstrap_tool(tool, project_root))
             .collect()
     }
