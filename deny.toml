@@ -80,6 +80,8 @@ allow = [
     "ISC",
     "Zlib",
     "CC0-1.0",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0"
 ]
 confidence-threshold = 0.8
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses

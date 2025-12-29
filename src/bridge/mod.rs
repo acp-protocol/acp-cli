@@ -23,18 +23,29 @@
 //!
 //! ## Usage
 //!
-//! ```rust,ignore
+//! ```rust
 //! use acp::bridge::{BridgeConfig, FormatDetector, BridgeMerger};
+//! use acp::bridge::merger::AcpAnnotations;
+//! use acp::cache::SourceFormat;
 //!
-//! let config = BridgeConfig::from_file(".acp.config.json")?;
+//! // Create an enabled configuration
+//! let config = BridgeConfig::enabled();
 //! let detector = FormatDetector::new(&config);
 //! let merger = BridgeMerger::new(&config);
 //!
-//! // Detect format from content
-//! let format = detector.detect(content, language);
+//! // Detect format from JavaScript content
+//! let content = "/** @param {string} name - User name */";
+//! let format = detector.detect(content, "javascript");
+//! assert_eq!(format, Some(SourceFormat::Jsdoc));
 //!
-//! // Merge native docs with ACP annotations
-//! let merged = merger.merge(native_docs, acp_annotations)?;
+//! // Merge with ACP annotations (native docs are optional)
+//! let acp = AcpAnnotations {
+//!     summary: Some("Greet a user".to_string()),
+//!     directive: Some("MUST validate name is non-empty".to_string()),
+//!     ..Default::default()
+//! };
+//! let result = merger.merge(None, SourceFormat::Jsdoc, &acp);
+//! assert_eq!(result.summary, Some("Greet a user".to_string()));
 //! ```
 
 pub mod config;

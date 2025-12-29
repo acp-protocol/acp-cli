@@ -6,7 +6,7 @@
 
 # @acp:summary "Package metadata and publishing information"
 [package]
-name = "acp"
+name = "acp-protocol"
 version = "0.3.0"
 edition = "2021"
 authors = ["ACP Contributors"]
@@ -58,6 +58,9 @@ tree-sitter-java = "0.23"
 
 # Git - Repository operations, blame tracking, file history
 git2 = "0.19"
+
+# OpenSSL - Vendored for cross-compilation support
+openssl = { version = "0.10", features = ["vendored"] }
 
 # Hashing - File content fingerprinting
 md5 = "0.7"

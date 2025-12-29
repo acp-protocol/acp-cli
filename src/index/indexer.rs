@@ -18,12 +18,17 @@ use rayon::prelude::*;
 use walkdir::WalkDir;
 use glob::Pattern;
 
+use crate::annotate::converters::{
+    DocStandardParser, ParsedDocumentation,
+    JsDocParser, DocstringParser, RustdocParser, GodocParser, JavadocParser,
+};
 use crate::ast::{AstParser, ExtractedSymbol, SymbolKind, Visibility as AstVisibility};
 use crate::bridge::{BridgeConfig, FormatDetector, BridgeMerger};
+use crate::bridge::merger::AcpAnnotations;
 use crate::cache::{
     Cache, CacheBuilder, DomainEntry, Language, SymbolEntry, SymbolType, Visibility,
     AnnotationProvenance, ProvenanceStats, LowConfidenceEntry,
-    BridgeMetadata, BridgeStats, BridgeSummary, SourceFormat,
+    BridgeMetadata, BridgeStats, BridgeSummary, SourceFormat, BridgeSource,
 };
 use crate::config::Config;
 use crate::constraints::{ConstraintIndex, Constraints, MutationConstraint, LockLevel, HackMarker, HackType};
@@ -109,6 +114,7 @@ impl Indexer {
 
         // RFC-0006: Clone bridge components for parallel access
         let format_detector = Arc::clone(&self.format_detector);
+        let bridge_merger = Arc::clone(&self.bridge_merger);
         let bridge_enabled = self.config.bridge.enabled;
 
         let mut results: Vec<_> = files
@@ -178,6 +184,48 @@ impl Indexer {
                                     if let Some(sum) = annotation_summaries.get(&symbol.name) {
                                         symbol.summary = Some(sum.clone());
                                     }
+                                }
+                            }
+
+                            // RFC-0006: Apply bridge merging for symbols with doc comments
+                            if bridge_enabled {
+                                if let Some(ref detected_format) = parse_result.file.bridge.detected_format {
+                                    // Build map of AST symbols by name for doc_comment lookup
+                                    let ast_doc_comments: HashMap<_, _> = ast_symbols.iter()
+                                        .filter_map(|s| s.doc_comment.as_ref().map(|doc| (s.name.clone(), doc.clone())))
+                                        .collect();
+
+                                    let mut merged_count = 0u64;
+                                    for symbol in &mut parse_result.symbols {
+                                        if let Some(doc_comment) = ast_doc_comments.get(&symbol.name) {
+                                            // Parse native documentation
+                                            let native_docs = parse_native_docs(doc_comment, detected_format);
+
+                                            // Extract ACP annotations from doc comment
+                                            let acp_annotations = extract_acp_annotations(doc_comment, &annotation_parser);
+
+                                            // Merge using bridge merger
+                                            let bridge_result = bridge_merger.merge(
+                                                native_docs.as_ref(),
+                                                *detected_format,
+                                                &acp_annotations,
+                                            );
+
+                                            // Update symbol with merged data
+                                            if bridge_result.summary.is_some() {
+                                                symbol.summary = bridge_result.summary;
+                                            }
+                                            if bridge_result.directive.is_some() {
+                                                symbol.purpose = bridge_result.directive;
+                                            }
+
+                                            // Track merged count
+                                            if matches!(bridge_result.source, BridgeSource::Merged) {
+                                                merged_count += 1;
+                                            }
+                                        }
+                                    }
+                                    parse_result.file.bridge.merged_count = merged_count;
                                 }
                             }
                         }
@@ -598,7 +646,7 @@ fn extract_provenance(
         let key = format!("@acp:{}", ann.annotation.name);
 
         let prov = if let Some(ref marker) = ann.provenance {
-            let needs_review = marker.confidence.map_or(false, |c| c < review_threshold);
+            let needs_review = marker.confidence.is_some_and(|c| c < review_threshold);
 
             AnnotationProvenance {
                 value: ann.annotation.value.clone().unwrap_or_default(),
@@ -809,3 +857,188 @@ fn format_to_string(format: &SourceFormat) -> String {
         SourceFormat::TypeHint => "type_hint".to_string(),
     }
 }
+
+/// Parse native documentation from a doc comment based on detected format
+fn parse_native_docs(doc_comment: &str, format: &SourceFormat) -> Option<ParsedDocumentation> {
+    let parsed = match format {
+        SourceFormat::Jsdoc => JsDocParser::new().parse(doc_comment),
+        SourceFormat::DocstringGoogle | SourceFormat::DocstringNumpy | SourceFormat::DocstringSphinx => {
+            DocstringParser::new().parse(doc_comment)
+        }
+        SourceFormat::Rustdoc => RustdocParser::new().parse(doc_comment),
+        SourceFormat::Javadoc => JavadocParser::new().parse(doc_comment),
+        SourceFormat::Godoc => GodocParser::new().parse(doc_comment),
+        SourceFormat::Acp | SourceFormat::TypeHint => return None,
+    };
+
+    if parsed.is_empty() {
+        None
+    } else {
+        Some(parsed)
+    }
+}
+
+/// Extract ACP annotations from a doc comment and convert to AcpAnnotations
+fn extract_acp_annotations(doc_comment: &str, parser: &Parser) -> AcpAnnotations {
+    let annotations = parser.parse_annotations(doc_comment);
+
+    let mut result = AcpAnnotations::default();
+
+    for ann in annotations {
+        match ann.name.as_str() {
+            "summary" => {
+                if let Some(ref value) = ann.value {
+                    result.summary = Some(value.clone());
+                }
+            }
+            "fn" | "method" => {
+                // @acp:fn "summary" - directive
+                // The parser already extracts value and directive separately
+                if let Some(ref value) = ann.value {
+                    // Value might be the summary in quotes
+                    if let Some((summary, _)) = parse_fn_annotation(value) {
+                        if result.summary.is_none() {
+                            result.summary = Some(summary);
+                        }
+                    }
+                }
+                // Directive is already parsed by the Parser
+                if let Some(ref directive) = ann.directive {
+                    result.directive = Some(directive.clone());
+                }
+            }
+            "param" => {
+                // @acp:param {type} name - directive
+                // Extract name from value, directive is already parsed
+                if let Some(ref value) = ann.value {
+                    if let Some((name, _)) = parse_param_annotation(value) {
+                        let directive = ann.directive.clone().unwrap_or_default();
+                        result.params.push((name, directive));
+                    }
+                }
+            }
+            "returns" => {
+                // @acp:returns {type} - directive
+                // Directive is already parsed by the Parser
+                if let Some(ref directive) = ann.directive {
+                    result.returns = Some(directive.clone());
+                } else if let Some(ref value) = ann.value {
+                    // Fallback: try to extract directive from value
+                    if let Some(directive) = parse_returns_annotation(value) {
+                        result.returns = Some(directive);
+                    }
+                }
+            }
+            "throws" => {
+                // @acp:throws {exception} - directive
+                if let Some(ref value) = ann.value {
+                    // Extract exception type from value
+                    let exception = if value.starts_with('{') {
+                        if let Some(close) = value.find('}') {
+                            value[1..close].to_string()
+                        } else {
+                            value.clone()
+                        }
+                    } else {
+                        value.split_whitespace().next().unwrap_or(value).to_string()
+                    };
+                    let directive = ann.directive.clone().unwrap_or_default();
+                    result.throws.push((exception, directive));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    result
+}
+
+/// Parse @acp:fn value into (summary, directive)
+fn parse_fn_annotation(value: &str) -> Option<(String, String)> {
+    // Format: "summary text" - directive text
+    // or just: directive text
+    if let Some(stripped) = value.strip_prefix('"') {
+        if let Some(end_quote) = stripped.find('"') {
+            let summary = stripped[..end_quote].to_string();
+            let rest = &stripped[end_quote + 1..];
+            let directive = rest.trim().trim_start_matches('-').trim().to_string();
+            if !directive.is_empty() {
+                return Some((summary, directive));
+            }
+        }
+    }
+    None
+}
+
+/// Parse @acp:param value into (name, directive)
+fn parse_param_annotation(value: &str) -> Option<(String, String)> {
+    // Format: {type} name - directive  OR  name - directive
+    let value = value.trim();
+
+    // Skip type annotation if present
+    let rest = if value.starts_with('{') {
+        if let Some(close) = value.find('}') {
+            &value[close + 1..]
+        } else {
+            value
+        }
+    } else {
+        value
+    };
+
+    let rest = rest.trim();
+
+    // Handle optional params: [name] or [name=default]
+    let (name, after_name) = if rest.starts_with('[') {
+        if let Some(close) = rest.find(']') {
+            let inner = &rest[1..close];
+            let name = inner.split('=').next().unwrap_or(inner).trim();
+            (name.to_string(), &rest[close + 1..])
+        } else {
+            return None;
+        }
+    } else {
+        // Regular param: name - directive
+        let parts: Vec<&str> = rest.splitn(2, char::is_whitespace).collect();
+        if parts.is_empty() {
+            return None;
+        }
+        let after = if parts.len() > 1 { parts[1] } else { "" };
+        (parts[0].to_string(), after)
+    };
+
+    // Extract directive after the dash
+    let directive = after_name.trim().trim_start_matches('-').trim().to_string();
+
+    if name.is_empty() {
+        None
+    } else {
+        Some((name, directive))
+    }
+}
+
+/// Parse @acp:returns value into directive
+fn parse_returns_annotation(value: &str) -> Option<String> {
+    // Format: {type} - directive  OR  - directive  OR  directive
+    let value = value.trim();
+
+    // Skip type annotation if present
+    let rest = if value.starts_with('{') {
+        if let Some(close) = value.find('}') {
+            &value[close + 1..]
+        } else {
+            value
+        }
+    } else {
+        value
+    };
+
+    let directive = rest.trim().trim_start_matches('-').trim().to_string();
+
+    if directive.is_empty() {
+        None
+    } else {
+        Some(directive)
+    }
+}
+

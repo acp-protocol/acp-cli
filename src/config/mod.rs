@@ -390,7 +390,7 @@ fn default_min_confidence() -> f64 {
 }
 
 /// @acp:summary "Annotation generation configuration (RFC-0003)"
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AnnotateConfig {
     /// Provenance tracking settings
     #[serde(default)]
@@ -401,14 +401,6 @@ pub struct AnnotateConfig {
     pub defaults: AnnotateDefaults,
 }
 
-impl Default for AnnotateConfig {
-    fn default() -> Self {
-        Self {
-            provenance: AnnotateProvenanceConfig::default(),
-            defaults: AnnotateDefaults::default(),
-        }
-    }
-}
 
 /// @acp:summary "Provenance tracking configuration"
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -458,7 +450,7 @@ pub struct AnnotateDefaults {
 // =============================================================================
 
 /// @acp:summary "Documentation configuration (RFC-0002)"
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DocumentationConfig {
     /// Trusted documentation sources for this project
     #[serde(default, rename = "approvedSources")]
@@ -477,16 +469,6 @@ pub struct DocumentationConfig {
     pub validation: DocumentationValidation,
 }
 
-impl Default for DocumentationConfig {
-    fn default() -> Self {
-        Self {
-            approved_sources: Vec::new(),
-            style_guides: HashMap::new(),
-            defaults: DocumentationDefaults::default(),
-            validation: DocumentationValidation::default(),
-        }
-    }
-}
 
 /// @acp:summary "Approved documentation source (RFC-0002)"
 #[derive(Debug, Clone, Serialize, Deserialize)]

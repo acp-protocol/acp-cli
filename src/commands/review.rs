@@ -333,7 +333,7 @@ fn interactive_review(cache: &mut Cache, options: &ReviewOptions) -> Result<()> 
         match input.trim().chars().next() {
             Some('a') | Some('A') => {
                 // Mark as reviewed in cache
-                mark_single_reviewed(cache, &item, &now)?;
+                mark_single_reviewed(cache, item, &now)?;
                 println!("{} Marked as reviewed", style("✓").green());
                 reviewed_count += 1;
             }

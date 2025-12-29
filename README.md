@@ -1,59 +1,71 @@
 # ACP CLI
 
-Command-line interface for the [AI Context Protocol](../README.md) — index your codebase, generate variables, and manage AI behavioral constraints.
+Command-line interface for the [AI Context Protocol](https://github.com/acp-protocol/acp-spec) — index your codebase, generate variables, and manage AI behavioral constraints.
 
-[![Crate](https://img.shields.io/crates/v/acp.svg)](https://crates.io/crates/acp)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](../LICENSE)
+[![Crate](https://img.shields.io/crates/v/acp-protocol.svg)](https://crates.io/crates/acp-protocol)
+[![CI](https://github.com/acp-protocol/acp-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/acp-protocol/acp-cli/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
 ## Installation
 
-### Building from Source (Current)
+### From crates.io (Recommended)
 
 ```bash
-# Clone the repository
-git clone https://github.com/acp-protocol/acp-spec.git
-cd acp-spec/cli
-
-# Build release binary
-cargo build --release
-
-# Install to PATH
-cargo install --path .
+cargo install acp-protocol
 ```
 
-### Homebrew (Coming Soon)
+This installs the `acp` binary to your Cargo bin directory.
+
+### From Homebrew
 
 ```bash
 brew tap acp-protocol/tap
-brew install acp-cli
+brew install acp
 ```
 
-### npm (Coming Soon)
+### From npm
 
 ```bash
-npm install -g @acp-protocol/cli
+npm install -g @acp-protocol/acp
 ```
 
-### Pre-built Binaries (Coming Soon)
+### Pre-built Binaries
 
-Pre-built binaries for macOS, Linux, and Windows will be available on the [Releases](https://github.com/acp-protocol/acp-spec/releases) page.
+Pre-built binaries for macOS, Linux, and Windows are available on the [Releases](https://github.com/acp-protocol/acp-cli/releases) page.
+
+### Building from Source
+
+```bash
+git clone https://github.com/acp-protocol/acp-cli.git
+cd acp-cli
+cargo build --release
+cargo install --path .
+```
 
 ---
 
 ## Quick Start
 
-### 1. Index Your Codebase
+### 1. Initialize Your Project
 
 ```bash
 cd your-project
+acp init
+```
+
+This creates `.acp.config.json` and optionally bootstraps AI tool configurations (CLAUDE.md, .cursorrules).
+
+### 2. Index Your Codebase
+
+```bash
 acp index
 ```
 
-This generates `.acp.cache.json` with your codebase structure, symbols, and constraints.
+This generates `.acp/acp.cache.json` with your codebase structure, symbols, and constraints.
 
-### 2. Generate Annotations (Optional)
+### 3. Generate Annotations (Optional)
 
 ```bash
 # Preview annotation suggestions
@@ -65,7 +77,7 @@ acp annotate --apply
 
 This analyzes your codebase and suggests ACP annotations based on doc comments and heuristics.
 
-### 3. Generate Variables
+### 4. Generate Variables
 
 ```bash
 acp index --vars
@@ -73,9 +85,9 @@ acp index --vars
 acp vars
 ```
 
-This creates `.acp.vars.json` with token-efficient variable definitions.
+This creates `.acp/acp.vars.json` with token-efficient variable definitions.
 
-### 4. Query the Cache
+### 5. Query the Cache
 
 ```bash
 # Show stats
@@ -103,9 +115,72 @@ acp query domains
 
 ---
 
+### `acp init`
+
+Initialize a new ACP project with configuration and optional AI tool bootstrapping.
+
+```bash
+acp init [OPTIONS]
+
+Options:
+  -f, --force              Force overwrite existing config
+      --include <PATTERN>  File patterns to include (can specify multiple)
+      --exclude <PATTERN>  File patterns to exclude (can specify multiple)
+  -o, --output <PATH>      Config file output path [default: .acp.config.json]
+      --no-bootstrap       Skip AI tool bootstrap (CLAUDE.md, .cursorrules, etc.)
+  -y, --yes                Skip interactive prompts (use defaults + CLI args)
+```
+
+**Examples:**
+
+```bash
+# Interactive initialization
+acp init
+
+# Non-interactive with custom patterns
+acp init -y --include "src/**/*" --exclude "**/test/**"
+
+# Skip AI tool bootstrapping
+acp init --no-bootstrap
+```
+
+---
+
+### `acp install`
+
+Install ACP plugins (daemon, MCP server).
+
+```bash
+acp install <TARGETS>... [OPTIONS]
+
+Arguments:
+  TARGETS    Plugins to install (daemon, mcp)
+
+Options:
+  -f, --force              Force reinstall
+      --version <VERSION>  Specific version [default: latest]
+      --list               List installed plugins
+      --uninstall          Uninstall specified plugins
+```
+
+**Examples:**
+
+```bash
+# Install daemon and MCP server
+acp install daemon mcp
+
+# List installed plugins
+acp install --list
+
+# Uninstall a plugin
+acp install daemon --uninstall
+```
+
+---
+
 ### `acp index`
 
-Index the codebase and generate `.acp.cache.json`.
+Index the codebase and generate `.acp/acp.cache.json`.
 
 ```bash
 acp index [ROOT] [OPTIONS]
@@ -114,7 +189,7 @@ Arguments:
   ROOT    Root directory to index [default: .]
 
 Options:
-  -o, --output <path>    Output cache file [default: .acp.cache.json]
+  -o, --output <path>    Output cache file [default: .acp/acp.cache.json]
       --vars             Also generate vars file
 ```
 
@@ -188,40 +263,54 @@ acp annotate --check --min-coverage 90
 
 # JSON output with breakdown
 acp annotate --format json
-
-# Summary with statistics
-acp annotate --format summary
-
-# Filter to specific files
-acp annotate --filter "src/auth/**/*.ts"
-
-# Parallel processing with 4 workers
-acp annotate -j 4
-
-# Only file-level annotations
-acp annotate --files-only --apply
 ```
 
-**Output Formats:**
+---
 
-| Format | Description |
-|--------|-------------|
-| `diff` | Unified diff showing proposed changes |
-| `json` | Structured JSON with suggestions, confidence scores, and breakdown |
-| `summary` | Statistics including coverage, type/source breakdown |
+### `acp review`
+
+Review auto-generated annotations (RFC-0003).
+
+```bash
+acp review <SUBCOMMAND> [OPTIONS]
+
+Subcommands:
+  list         List annotations needing review
+  mark         Mark annotations as reviewed
+  interactive  Interactive review mode
+
+Options:
+      --source <SOURCE>          Filter by source (explicit, converted, heuristic, refined, inferred)
+      --confidence <EXPR>        Filter by confidence (e.g., "<0.7", ">=0.9")
+      --cache <PATH>             Cache file path [default: .acp/acp.cache.json]
+      --json                     Output as JSON
+```
+
+**Examples:**
+
+```bash
+# List low-confidence annotations
+acp review list --confidence "<0.7"
+
+# Interactive review mode
+acp review interactive
+
+# Mark specific annotations as reviewed
+acp review mark --source heuristic
+```
 
 ---
 
 ### `acp vars`
 
-Generate `.acp.vars.json` from an existing cache.
+Generate `.acp/acp.vars.json` from an existing cache.
 
 ```bash
 acp vars [OPTIONS]
 
 Options:
-  -c, --cache <path>     Cache file to read [default: .acp.cache.json]
-  -o, --output <path>    Output vars file [default: .acp.vars.json]
+  -c, --cache <path>     Cache file to read [default: .acp/acp.cache.json]
+  -o, --output <path>    Output vars file [default: .acp/acp.vars.json]
 ```
 
 **Example:**
@@ -240,7 +329,7 @@ Query the cache for symbols, files, and metadata.
 acp query <SUBCOMMAND> [OPTIONS]
 
 Options:
-  -c, --cache <path>    Cache file [default: .acp.cache.json]
+  -c, --cache <path>    Cache file [default: .acp/acp.cache.json]
 
 Subcommands:
   symbol <name>     Query a symbol by name
@@ -284,7 +373,7 @@ Arguments:
 Options:
   -m, --mode <mode>     Expansion mode [default: annotated]
                         Values: none, summary, inline, annotated, block, interactive
-      --vars <path>     Vars file [default: .acp.vars.json]
+      --vars <path>     Vars file [default: .acp/acp.vars.json]
       --chains          Show inheritance chains
 ```
 
@@ -325,7 +414,7 @@ Arguments:
   NAME    Variable name (with or without $)
 
 Options:
-      --vars <path>    Vars file [default: .acp.vars.json]
+      --vars <path>    Vars file [default: .acp/acp.vars.json]
       --tree           Display as tree
 ```
 
@@ -337,6 +426,35 @@ acp chain SYM_AUTH_HANDLER
 
 # Show as tree
 acp chain $ARCH_PAYMENT --tree
+```
+
+---
+
+### `acp daemon`
+
+Manage the ACP daemon (HTTP REST API).
+
+```bash
+acp daemon <SUBCOMMAND>
+
+Subcommands:
+  start   Start the ACP daemon
+  stop    Stop the ACP daemon
+  status  Check daemon status
+  logs    Show daemon logs
+```
+
+**Examples:**
+
+```bash
+# Start the daemon
+acp daemon start
+
+# Check status
+acp daemon status
+
+# View logs
+acp daemon logs
 ```
 
 ---
@@ -403,7 +521,7 @@ Arguments:
   FILE    File to check
 
 Options:
-  -c, --cache <path>    Cache file [default: .acp.cache.json]
+  -c, --cache <path>    Cache file [default: .acp/acp.cache.json]
 ```
 
 **Example:**
@@ -415,13 +533,13 @@ acp check src/auth/session.ts
 **Output:**
 
 ```
-✓ Guardrails check passed
+Guardrails check passed
 
 Warnings:
-  ⚠ [ai-careful] Extra caution required: security-critical code
+  [ai-careful] Extra caution required: security-critical code
 
 Required Actions:
-  → flag-for-review - Requires security review
+  -> flag-for-review - Requires security review
 ```
 
 ---
@@ -477,14 +595,14 @@ Validate cache or vars files against the schema.
 acp validate <FILE>
 
 Arguments:
-  FILE    File to validate (.acp.cache.json or .acp.vars.json)
+  FILE    File to validate (.acp/acp.cache.json or .acp/acp.vars.json)
 ```
 
 **Examples:**
 
 ```bash
-acp validate .acp.cache.json
-acp validate .acp.vars.json
+acp validate .acp/acp.cache.json
+acp validate .acp/acp.vars.json
 ```
 
 ---
@@ -530,28 +648,11 @@ acp primer --budget 200 --json
 acp primer --capabilities shell
 ```
 
-**Output (200 tokens):**
-
-```
-This project uses ACP. @acp:* comments are directives for you.
-Before editing: acp constraints <path>
-More: acp primer --budget N
-
-acp constraints <path>
-  Returns: lock level + directive
-  Levels: frozen (refuse), restricted (ask), normal (proceed)
-  Use: Check before ANY file modification
-
-acp query file <path>
-  Returns: purpose, constraints, symbols, dependencies
-  ...
-```
-
 ---
 
 ## Configuration
 
-Create `.acp.config.json` in your project root:
+Create `.acp.config.json` in your project root (or run `acp init`):
 
 ```json
 {
@@ -559,13 +660,13 @@ Create `.acp.config.json` in your project root:
   "exclude": ["**/node_modules/**", "**/dist/**", "**/*.test.*"],
   "languages": ["typescript", "javascript", "rust", "python"],
   "output": {
-    "cache": ".acp.cache.json",
-    "vars": ".acp.vars.json"
+    "cache": ".acp/acp.cache.json",
+    "vars": ".acp/acp.vars.json"
   }
 }
 ```
 
-See the [config schema](acp-spec/schemas/v1/config.schema.json) for all options.
+See the [config schema](https://github.com/acp-protocol/acp-spec/blob/main/schemas/v1/config.schema.json) for all options.
 
 ---
 
@@ -575,39 +676,47 @@ Query the cache directly with jq:
 
 ```bash
 # Check if you can modify a file
-jq '.constraints.by_file["src/auth/session.ts"].mutation.level' .acp.cache.json
+jq '.constraints.by_file["src/auth/session.ts"].mutation.level' .acp/acp.cache.json
 
 # Get all frozen files
-jq '.constraints.by_lock_level.frozen' .acp.cache.json
+jq '.constraints.by_lock_level.frozen' .acp/acp.cache.json
 
 # Find expired hacks
-jq '.constraints.hacks | map(select(.expires < now | todate))' .acp.cache.json
+jq '.constraints.hacks | map(select(.expires < now | todate))' .acp/acp.cache.json
 
 # Get symbol info
-jq '.symbols["validateSession"]' .acp.cache.json
+jq '.symbols["validateSession"]' .acp/acp.cache.json
 
 # List all domains
-jq '.domains | keys' .acp.cache.json
+jq '.domains | keys' .acp/acp.cache.json
 
 # Get files in a domain
-jq '.domains.auth.files' .acp.cache.json
+jq '.domains.auth.files' .acp/acp.cache.json
 
 # Show codebase stats
-jq '.stats' .acp.cache.json
+jq '.stats' .acp/acp.cache.json
 ```
 
 ---
 
-## MCP Integration (Coming Soon)
+## MCP Integration
 
-MCP (Model Context Protocol) server integration is planned to provide AI tools with direct access to:
+The ACP MCP server provides AI tools with direct access to your codebase context through the [Model Context Protocol](https://modelcontextprotocol.io/).
 
-- **acp_constraints** — Check file constraints before modification
+Install and run via:
+
+```bash
+acp install mcp
+```
+
+Or install separately from [acp-mcp](https://github.com/acp-protocol/acp-mcp).
+
+**Available MCP Tools:**
+
 - **acp_query** — Query symbols, files, and domains
-- **acp_debug** — Track debugging attempts
-- **acp_vars** — Expand variable references
-
-See the [roadmap](../docs/roadmap.md) for status.
+- **acp_constraints** — Check file constraints before modification
+- **acp_primer** — Generate context primers
+- **acp_expand** — Expand variable references
 
 ---
 
@@ -652,19 +761,26 @@ async function authenticate<T extends User>(
 
 Types are optional and stored in the cache's `type_info` field.
 
-See the [Annotation Reference](../spec/chapters/annotations.md) for the complete list.
+See the [Annotation Reference](https://github.com/acp-protocol/acp-spec/blob/main/spec/chapters/annotations.md) for the complete list.
 
 ---
 
 ## Related Documentation
 
-- [ACP Specification](../spec/ACP-1.0.md) — Complete protocol specification
-- [Root README](../README.md) — Project overview and quick start
-- [JSON Schemas](../schemas/) — Schema definitions for all file formats
-- [Annotation Reference](../spec/chapters/annotations.md) — All annotation types
+- [ACP Specification](https://github.com/acp-protocol/acp-spec/blob/main/spec/ACP-1.0.md) — Complete protocol specification
+- [JSON Schemas](https://github.com/acp-protocol/acp-spec/tree/main/schemas) — Schema definitions for all file formats
+- [Annotation Reference](https://github.com/acp-protocol/acp-spec/blob/main/spec/chapters/annotations.md) — All annotation types
 
 ---
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+
 ## License
 
-MIT — see [LICENSE](../LICENSE)
+MIT — see [LICENSE](LICENSE)

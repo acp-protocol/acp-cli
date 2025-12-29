@@ -631,10 +631,11 @@ pub enum TypeSource {
 
 /// @acp:summary "Source of bridged documentation (RFC-0006)"
 /// Indicates how documentation was obtained.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum BridgeSource {
     /// Pure ACP annotation (human-written)
+    #[default]
     Explicit,
     /// Converted from native documentation
     Converted,
@@ -644,11 +645,6 @@ pub enum BridgeSource {
     Heuristic,
 }
 
-impl Default for BridgeSource {
-    fn default() -> Self {
-        BridgeSource::Explicit
-    }
-}
 
 fn is_explicit_bridge(source: &BridgeSource) -> bool {
     matches!(source, BridgeSource::Explicit)

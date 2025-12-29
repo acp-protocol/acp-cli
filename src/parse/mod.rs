@@ -439,10 +439,10 @@ impl Parser {
                                     let remaining = val[close_idx + 1..].trim();
                                     (Some(type_str), remaining)
                                 } else {
-                                    (None, val.as_ref())
+                                    (None, val)
                                 }
                             } else {
-                                (None, val.as_ref())
+                                (None, val)
                             };
 
                             // Parse optional marker and name: [name]=default or name
@@ -485,20 +485,14 @@ impl Parser {
                 "returns" | "return" => {
                     if let Some(ref mut builder) = current_symbol {
                         // Parse type from value: "{Type}" or empty
-                        let type_expr = if let Some(val) = &ann.value {
+                        let type_expr = ann.value.as_ref().and_then(|val| {
                             let val = val.trim();
                             if val.starts_with('{') {
-                                if let Some(close_idx) = val.find('}') {
-                                    Some(val[1..close_idx].trim().to_string())
-                                } else {
-                                    None
-                                }
+                                val.find('}').map(|close_idx| val[1..close_idx].trim().to_string())
                             } else {
                                 None
                             }
-                        } else {
-                            None
-                        };
+                        });
 
                         builder.type_info.returns = Some(TypeReturnInfo {
                             r#type: type_expr.clone(),
@@ -892,8 +886,8 @@ impl Parser {
         let mut marker = ProvenanceMarker::default();
         let mut found_any = false;
 
-        for i in start_idx..lines.len() {
-            let line = lines[i];
+        for line in lines.iter().skip(start_idx) {
+            let line = *line;
 
             // Check for @acp:source
             if let Some(cap) = SOURCE_PATTERN.captures(line) {

@@ -131,7 +131,7 @@ enum Commands {
         subcommand: BridgeCommands,
 
         /// Cache file to read
-        #[arg(short, long, default_value = ".acp/acp.cache.json", global = true)]
+        #[arg(long, default_value = ".acp/acp.cache.json", global = true)]
         cache: PathBuf,
     },
 
@@ -345,7 +345,7 @@ enum Commands {
         format: MapFormatArg,
 
         /// Cache file
-        #[arg(short, long, default_value = ".acp/acp.cache.json")]
+        #[arg(long, default_value = ".acp/acp.cache.json")]
         cache: PathBuf,
     },
 
@@ -371,7 +371,7 @@ enum Commands {
         backup: bool,
 
         /// Cache file
-        #[arg(short, long, default_value = ".acp/acp.cache.json")]
+        #[arg(long, default_value = ".acp/acp.cache.json")]
         cache: PathBuf,
     },
 

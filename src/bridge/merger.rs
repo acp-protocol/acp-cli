@@ -45,14 +45,14 @@ impl BridgeMerger {
     ) -> BridgeResult {
         // If no native docs, return ACP-only result
         if native.is_none() || !self.config.enabled {
-            return self.from_acp_only(acp);
+            return self.build_acp_only(acp);
         }
 
         let native = native.unwrap();
 
         // If native docs are empty, return ACP-only result
         if native.is_empty() {
-            return self.from_acp_only(acp);
+            return self.build_acp_only(acp);
         }
 
         // If no ACP annotations, return native-only result
@@ -69,7 +69,7 @@ impl BridgeMerger {
     }
 
     /// @acp:summary "Create result from ACP annotations only"
-    fn from_acp_only(&self, acp: &AcpAnnotations) -> BridgeResult {
+    fn build_acp_only(&self, acp: &AcpAnnotations) -> BridgeResult {
         let mut result = BridgeResult {
             summary: acp.summary.clone(),
             directive: acp.directive.clone(),

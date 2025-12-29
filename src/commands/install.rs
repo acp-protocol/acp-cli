@@ -8,7 +8,7 @@
 
 use std::fs::{self, File};
 use std::io::{self, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use console::style;
@@ -220,7 +220,7 @@ fn download_and_extract(
 }
 
 /// Extract tar.gz archive
-fn extract_tar_gz(data: &[u8], install_dir: &PathBuf, binary_name: &str) -> Result<PathBuf> {
+fn extract_tar_gz(data: &[u8], install_dir: &Path, binary_name: &str) -> Result<PathBuf> {
     use flate2::read::GzDecoder;
     use tar::Archive;
 
@@ -250,7 +250,7 @@ fn extract_tar_gz(data: &[u8], install_dir: &PathBuf, binary_name: &str) -> Resu
 }
 
 /// Extract zip archive
-fn extract_zip(data: &[u8], install_dir: &PathBuf, binary_name: &str) -> Result<PathBuf> {
+fn extract_zip(data: &[u8], install_dir: &Path, binary_name: &str) -> Result<PathBuf> {
     use std::io::Cursor;
     use zip::ZipArchive;
 
@@ -277,7 +277,7 @@ fn extract_zip(data: &[u8], install_dir: &PathBuf, binary_name: &str) -> Result<
 }
 
 /// Check if binary already exists
-fn check_existing(install_dir: &PathBuf, binary_name: &str, is_windows: bool) -> Option<PathBuf> {
+fn check_existing(install_dir: &Path, binary_name: &str, is_windows: bool) -> Option<PathBuf> {
     let name = if is_windows {
         format!("{}.exe", binary_name)
     } else {
@@ -293,7 +293,7 @@ fn check_existing(install_dir: &PathBuf, binary_name: &str, is_windows: bool) ->
 }
 
 /// Suggest PATH update
-fn suggest_path_update(install_dir: &PathBuf) {
+fn suggest_path_update(install_dir: &Path) {
     let path_str = install_dir.display().to_string();
 
     // Check if already in PATH
