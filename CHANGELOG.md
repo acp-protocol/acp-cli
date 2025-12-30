@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.1] - 2025-12-30
+## [0.4.2] - 2025-12-30
+
+### Fixed
+- Fixed crates.io packaging: checkout submodule and use --allow-dirty to include generated schemas
+
+## [0.4.1] - 2025-12-30 [YANKED]
 
 ### Fixed
 - Fixed crates.io packaging: schema files from acp-spec submodule are now properly included via build.rs
