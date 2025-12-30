@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2025-12-30
+
+### Fixed
+- Fixed `acp constraints` → `acp check` in primer CLI overview section
+- Updated acp-spec submodule with corrected primer.defaults.json
+
 ## [0.5.2] - 2025-12-30
 
 ### Fixed
