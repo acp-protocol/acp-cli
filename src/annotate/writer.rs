@@ -345,7 +345,8 @@ impl Writer {
 
             // For Python/Go style (# or // comments), ALWAYS insert before the symbol
             // regardless of existing docstrings (since docstrings are inside the body, not before)
-            let is_line_comment_style = matches!(style, CommentStyle::PyDocstring | CommentStyle::GoDoc);
+            let is_line_comment_style =
+                matches!(style, CommentStyle::PyDocstring | CommentStyle::GoDoc);
 
             if change.existing_doc_start.is_some() && !is_line_comment_style {
                 // Insert into existing doc comment (JSDoc, Javadoc, etc.)
@@ -565,8 +566,12 @@ mod tests {
 
     #[test]
     fn test_format_annotations_python_with_indent() {
-        let annotations =
-            vec![Suggestion::summary("test", 1, "Test", SuggestionSource::Heuristic)];
+        let annotations = vec![Suggestion::summary(
+            "test",
+            1,
+            "Test",
+            SuggestionSource::Heuristic,
+        )];
 
         let formatted = CommentStyle::PyDocstring.format_annotations(&annotations, "    ");
 
@@ -589,8 +594,12 @@ mod tests {
 
     #[test]
     fn test_format_annotations_go() {
-        let annotations =
-            vec![Suggestion::summary("test", 1, "Test summary", SuggestionSource::Heuristic)];
+        let annotations = vec![Suggestion::summary(
+            "test",
+            1,
+            "Test summary",
+            SuggestionSource::Heuristic,
+        )];
 
         let formatted = CommentStyle::GoDoc.format_annotations(&annotations, "");
 

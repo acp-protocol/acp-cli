@@ -162,9 +162,8 @@ impl Analyzer {
 
                     if !missing.is_empty() {
                         // Use definition_start_line (before decorators/attributes) for insertion
-                        let insertion_line = symbol
-                            .definition_start_line
-                            .unwrap_or(symbol.start_line);
+                        let insertion_line =
+                            symbol.definition_start_line.unwrap_or(symbol.start_line);
 
                         let mut gap = AnnotationGap::new(target, symbol.start_line)
                             .with_insertion_line(insertion_line)

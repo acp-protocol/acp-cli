@@ -1168,7 +1168,10 @@ fn simple_function() {}
         let extractor = RustExtractor;
         let symbols = extractor.extract_symbols(&tree, &src).unwrap();
 
-        let func = symbols.iter().find(|s| s.name == "simple_function").unwrap();
+        let func = symbols
+            .iter()
+            .find(|s| s.name == "simple_function")
+            .unwrap();
         // No attributes or doc comments, so definition_start_line equals start_line
         assert_eq!(func.start_line, 2);
         assert_eq!(func.definition_start_line, Some(2));

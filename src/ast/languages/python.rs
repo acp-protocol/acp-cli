@@ -121,7 +121,12 @@ impl PythonExtractor {
 
                             // Extract class methods
                             if let Some(body) = child.child_by_field_name("body") {
-                                self.extract_class_members(&body, source, symbols, Some(&class_name));
+                                self.extract_class_members(
+                                    &body,
+                                    source,
+                                    symbols,
+                                    Some(&class_name),
+                                );
                             }
                         }
                     }

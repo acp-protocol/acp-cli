@@ -266,7 +266,8 @@ impl TypeScriptExtractor {
                         }
 
                         // Set definition_start_line (before decorators/doc comments)
-                        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+                        sym.definition_start_line =
+                            Some(self.find_definition_start_line(node, source));
 
                         symbols.push(sym);
                     } else {
@@ -299,7 +300,8 @@ impl TypeScriptExtractor {
                         }
 
                         // Set definition_start_line (before decorators/doc comments)
-                        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+                        sym.definition_start_line =
+                            Some(self.find_definition_start_line(node, source));
 
                         symbols.push(sym);
                     }
