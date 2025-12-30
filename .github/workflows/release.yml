@@ -11,8 +11,35 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  ci:
+    name: CI Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-features -- -D warnings
+
+      - name: Check
+        run: cargo check --all-features
+
+      - name: Test
+        run: cargo test --all-features
+
   build:
     name: Build ${{ matrix.target }}
+    needs: ci
     strategy:
       fail-fast: false
       matrix:

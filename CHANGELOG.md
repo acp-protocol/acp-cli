@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.1] - 2025-12-30
+## [0.5.2] - 2025-12-30
+
+### Fixed
+- Fixed crates.io packaging: primer.defaults.json now included via build.rs
+- Fixed code formatting issues
+
+### Infrastructure
+- Release workflow now runs CI checks (fmt, clippy, test) before building binaries
+
+## [0.5.1] - 2025-12-30 [YANKED]
+
+Yanked due to formatting check failure in CI.
 
 ### Added
 - **RFC-0004: Full primer implementation** with value-based section selection
