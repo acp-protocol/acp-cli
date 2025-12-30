@@ -7,7 +7,7 @@
 # @acp:summary "Package metadata and publishing information"
 [package]
 name = "acp-protocol"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["ACP Contributors"]
 description = "AI Context Protocol - Token-efficient and context enhancing code documentation for AI systems"
@@ -15,6 +15,15 @@ license = "MIT"
 repository = "https://github.com/acp-protocol/acp-cli"
 keywords = ["ai", "documentation", "code-analysis", "context", "llm"]
 categories = ["development-tools", "command-line-utilities"]
+build = "build.rs"
+include = [
+    "src/**/*",
+    "schemas/**/*",
+    "build.rs",
+    "Cargo.toml",
+    "LICENSE",
+    "README.md",
+]
 
 # @acp:summary "Library crate configuration"
 [lib]
