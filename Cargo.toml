@@ -7,7 +7,7 @@
 # @acp:summary "Package metadata and publishing information"
 [package]
 name = "acp-protocol"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 authors = ["ACP Contributors"]
 description = "AI Context Protocol - Token-efficient and context enhancing code documentation for AI systems"
@@ -19,6 +19,7 @@ build = "build.rs"
 include = [
     "src/**/*",
     "schemas/**/*",
+    "primers/**/*",
     "build.rs",
     "Cargo.toml",
     "LICENSE",

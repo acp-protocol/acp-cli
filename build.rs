@@ -1,30 +1,47 @@
-//! Build script to copy schema files from acp-spec submodule to vendored location.
+//! Build script to copy files from acp-spec submodule to vendored locations.
 //!
-//! This ensures the schemas are available for include_str!() at compile time
+//! This ensures schemas and primers are available for include_str!() at compile time
 //! and get packaged into the crates.io release.
 
 use std::fs;
 use std::path::Path;
 
-fn main() {
-    let src_dir = Path::new("acp-spec/schemas/v1");
-    let dst_dir = Path::new("schemas/v1");
-
-    // Only copy if source (submodule) exists
+fn copy_json_files(src_dir: &Path, dst_dir: &Path) {
     if src_dir.exists() {
-        fs::create_dir_all(dst_dir).expect("Failed to create schemas/v1 directory");
+        fs::create_dir_all(dst_dir).unwrap_or_else(|e| {
+            panic!("Failed to create {:?} directory: {}", dst_dir, e)
+        });
 
-        for entry in fs::read_dir(src_dir).expect("Failed to read acp-spec/schemas/v1") {
+        for entry in fs::read_dir(src_dir).unwrap_or_else(|e| {
+            panic!("Failed to read {:?}: {}", src_dir, e)
+        }) {
             let entry = entry.expect("Failed to read directory entry");
             let src_path = entry.path();
 
             if src_path.extension().map(|e| e == "json").unwrap_or(false) {
                 let dst_path = dst_dir.join(entry.file_name());
-                fs::copy(&src_path, &dst_path).expect("Failed to copy schema file");
+                fs::copy(&src_path, &dst_path).unwrap_or_else(|e| {
+                    panic!("Failed to copy {:?} to {:?}: {}", src_path, dst_path, e)
+                });
             }
         }
     }
+}
 
-    // Tell Cargo to rerun build.rs if submodule schemas change
+fn main() {
+    // Copy schema files
+    copy_json_files(
+        Path::new("acp-spec/schemas/v1"),
+        Path::new("schemas/v1"),
+    );
+
+    // Copy primer files
+    copy_json_files(
+        Path::new("acp-spec/primers"),
+        Path::new("primers"),
+    );
+
+    // Tell Cargo to rerun build.rs if submodule files change
     println!("cargo:rerun-if-changed=acp-spec/schemas/v1");
+    println!("cargo:rerun-if-changed=acp-spec/primers");
 }

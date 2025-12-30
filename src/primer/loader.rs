@@ -46,7 +46,7 @@ pub fn load_primer_config(
 /// Load built-in primer defaults
 fn load_builtin_defaults() -> Result<PrimerConfig> {
     // Include the defaults file at compile time
-    let json = include_str!("../../acp-spec/primers/primer.defaults.json");
+    let json = include_str!("../../primers/primer.defaults.json");
     serde_json::from_str(json).context("Failed to parse built-in primer.defaults.json")
 }
 

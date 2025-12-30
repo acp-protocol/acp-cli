@@ -17,3 +17,7 @@
 
 # Claude Code
 .claude/
+
+# Temporary files
+tmp/
+

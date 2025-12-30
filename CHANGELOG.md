@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2025-12-30
+
 ### Added
 - **RFC-0004: Full primer implementation** with value-based section selection
   - 4-phase selection algorithm: required → conditional → safety → value-optimized
@@ -35,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `acp constraints` → `acp check` in primer.defaults.json (4 locations)
 - MCP capability filtering now properly excludes shell-only sections
+- Fixed crates.io packaging: primer.defaults.json now included via build.rs
+
+## [0.5.0] - 2025-12-30 [YANKED]
+
+Yanked due to missing primer.defaults.json in crates.io package.
 
 ## [0.4.2] - 2025-12-30
 
