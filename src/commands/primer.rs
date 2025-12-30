@@ -134,7 +134,10 @@ pub fn execute_primer(options: PrimerOptions) -> Result<()> {
     if options.json {
         println!("{}", serde_json::to_string_pretty(&primer)?);
     } else if options.preview {
-        println!("Preview: {} tokens, {} sections", primer.total_tokens, primer.sections_included);
+        println!(
+            "Preview: {} tokens, {} sections",
+            primer.total_tokens, primer.sections_included
+        );
         if let Some(reasons) = &primer.selection_reasoning {
             println!("\nSelection:");
             for reason in reasons {
@@ -178,7 +181,12 @@ pub fn generate_primer(options: &PrimerOptions) -> Result<PrimerOutput> {
     };
 
     // Select sections based on budget and capabilities
-    let selected = select_sections(&config, options.budget, &options.capabilities, &project_state);
+    let selected = select_sections(
+        &config,
+        options.budget,
+        &options.capabilities,
+        &project_state,
+    );
 
     // Calculate totals
     let total_tokens: u32 = selected.iter().map(|s| s.tokens).sum();

@@ -251,9 +251,7 @@ impl SectionFormats {
                 self.compact.as_ref().or(self.markdown.as_ref())
             }
             super::renderer::OutputFormat::Json => None, // JSON uses raw data
-            super::renderer::OutputFormat::Text => {
-                self.text.as_ref().or(self.markdown.as_ref())
-            }
+            super::renderer::OutputFormat::Text => self.text.as_ref().or(self.markdown.as_ref()),
         }
     }
 }

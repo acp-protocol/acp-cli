@@ -57,11 +57,7 @@ pub fn render_primer(
 }
 
 /// Render a single section
-fn render_section(
-    section: &Section,
-    format: OutputFormat,
-    state: &ProjectState,
-) -> Result<String> {
+fn render_section(section: &Section, format: OutputFormat, state: &ProjectState) -> Result<String> {
     // Get template with fallback chain
     let template = match section.formats.get(format) {
         Some(t) => t,
@@ -76,9 +72,7 @@ fn render_section(
             let empty_behavior = data_config.empty_behavior.as_deref().unwrap_or("exclude");
             match empty_behavior {
                 "exclude" => return Ok(String::new()),
-                "placeholder" => {
-                    return Ok(template.empty_template.clone().unwrap_or_default())
-                }
+                "placeholder" => return Ok(template.empty_template.clone().unwrap_or_default()),
                 _ => return Ok(String::new()),
             }
         }
@@ -150,10 +144,7 @@ fn render_item(template: &str, item: &DynamicItem) -> String {
         DynamicItem::Variable(var) => {
             result = result.replace("{{name}}", &var.name);
             result = result.replace("{{value}}", &var.value);
-            result = result.replace(
-                "{{description}}",
-                var.description.as_deref().unwrap_or(""),
-            );
+            result = result.replace("{{description}}", var.description.as_deref().unwrap_or(""));
         }
         DynamicItem::Attempt(attempt) => {
             result = result.replace("{{id}}", &attempt.id);
@@ -177,7 +168,7 @@ fn render_item(template: &str, item: &DynamicItem) -> String {
 fn remove_empty_conditionals(s: &str) -> String {
     // Very simple: if the result still has {{#if and {{/if}}, just strip them
     let mut result = s.to_string();
-    
+
     // Remove empty {{#if reason}}...{{/if}} blocks
     while let Some(start) = result.find("{{#if ") {
         if let Some(end) = result[start..].find("{{/if}}") {
@@ -197,7 +188,7 @@ fn remove_empty_conditionals(s: &str) -> String {
             break;
         }
     }
-    
+
     result
 }
 
@@ -252,8 +243,14 @@ mod tests {
 
     #[test]
     fn test_output_format_parse() {
-        assert_eq!("markdown".parse::<OutputFormat>().unwrap(), OutputFormat::Markdown);
-        assert_eq!("compact".parse::<OutputFormat>().unwrap(), OutputFormat::Compact);
+        assert_eq!(
+            "markdown".parse::<OutputFormat>().unwrap(),
+            OutputFormat::Markdown
+        );
+        assert_eq!(
+            "compact".parse::<OutputFormat>().unwrap(),
+            OutputFormat::Compact
+        );
         assert_eq!("json".parse::<OutputFormat>().unwrap(), OutputFormat::Json);
     }
 

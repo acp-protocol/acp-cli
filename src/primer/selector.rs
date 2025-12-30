@@ -47,7 +47,12 @@ pub fn select_sections(
     for section in required {
         let tokens = get_tokens(section, project_state);
         if remaining_budget >= tokens {
-            selected.push(create_selected(section, weights, project_state, dynamic_enabled));
+            selected.push(create_selected(
+                section,
+                weights,
+                project_state,
+                dynamic_enabled,
+            ));
             remaining_budget = remaining_budget.saturating_sub(tokens);
             excluded_by_conflict.extend(section.conflicts_with.clone());
         }
@@ -69,7 +74,12 @@ pub fn select_sections(
             if evaluate_condition(condition, project_state).unwrap_or(false) {
                 let tokens = get_tokens(section, project_state);
                 if remaining_budget >= tokens {
-                    selected.push(create_selected(section, weights, project_state, dynamic_enabled));
+                    selected.push(create_selected(
+                        section,
+                        weights,
+                        project_state,
+                        dynamic_enabled,
+                    ));
                     remaining_budget = remaining_budget.saturating_sub(tokens);
                     excluded_by_conflict.extend(section.conflicts_with.clone());
                 }
@@ -104,7 +114,12 @@ pub fn select_sections(
         if safety_spent + tokens <= safety_budget && remaining_budget >= tokens {
             // Check dependsOn
             if deps_met(section, &selected) {
-                selected.push(create_selected(section, weights, project_state, dynamic_enabled));
+                selected.push(create_selected(
+                    section,
+                    weights,
+                    project_state,
+                    dynamic_enabled,
+                ));
                 remaining_budget = remaining_budget.saturating_sub(tokens);
                 safety_spent += tokens;
                 excluded_by_conflict.extend(section.conflicts_with.clone());
@@ -116,8 +131,7 @@ pub fn select_sections(
     let mut remaining_sections: Vec<_> = available
         .iter()
         .filter(|s| {
-            !is_selected_by_id(&selected, &s.id)
-                && !is_excluded(&s.id, &excluded_by_conflict)
+            !is_selected_by_id(&selected, &s.id) && !is_excluded(&s.id, &excluded_by_conflict)
         })
         .cloned()
         .collect();
@@ -134,7 +148,12 @@ pub fn select_sections(
         if remaining_budget >= tokens {
             // Check dependsOn
             if deps_met(section, &selected) {
-                selected.push(create_selected(section, weights, project_state, dynamic_enabled));
+                selected.push(create_selected(
+                    section,
+                    weights,
+                    project_state,
+                    dynamic_enabled,
+                ));
                 remaining_budget = remaining_budget.saturating_sub(tokens);
                 excluded_by_conflict.extend(section.conflicts_with.clone());
             }
@@ -162,7 +181,10 @@ fn matches_capabilities(section: &Section, requested: &[String]) -> bool {
         || section.capabilities.iter().any(|c| requested.contains(c));
 
     let all_match = section.capabilities_all.is_empty()
-        || section.capabilities_all.iter().all(|c| requested.contains(c));
+        || section
+            .capabilities_all
+            .iter()
+            .all(|c| requested.contains(c));
 
     any_match && all_match
 }
@@ -176,7 +198,10 @@ fn is_excluded(id: &str, excluded: &[String]) -> bool {
 }
 
 fn deps_met(section: &Section, selected: &[SelectedSection]) -> bool {
-    section.depends_on.iter().all(|dep| is_selected_by_id(selected, dep))
+    section
+        .depends_on
+        .iter()
+        .all(|dep| is_selected_by_id(selected, dep))
 }
 
 fn get_tokens(section: &Section, state: &ProjectState) -> u32 {

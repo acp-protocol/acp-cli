@@ -144,7 +144,9 @@ fn apply_cli_overrides(mut config: PrimerConfig, cli: &CliOverrides) -> Result<P
 
     // Filter by categories if specified
     if !cli.categories.is_empty() {
-        config.sections.retain(|s| cli.categories.contains(&s.category));
+        config
+            .sections
+            .retain(|s| cli.categories.contains(&s.category));
     }
 
     // Apply preset weights if specified
@@ -184,6 +186,8 @@ mod tests {
             ..Default::default()
         };
         let result = apply_cli_overrides(config, &cli).unwrap();
-        assert!(result.disabled_sections.contains(&"cli-overview".to_string()));
+        assert!(result
+            .disabled_sections
+            .contains(&"cli-overview".to_string()));
     }
 }

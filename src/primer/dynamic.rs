@@ -11,9 +11,7 @@ use super::types::{DataFilter, SectionData};
 pub fn get_dynamic_data(data_config: &SectionData, state: &ProjectState) -> Vec<DynamicItem> {
     let items = match data_config.source.as_str() {
         // Constraint sources
-        "cache.constraints.by_lock_level" => {
-            get_protected_files(state, &data_config.filter)
-        }
+        "cache.constraints.by_lock_level" => get_protected_files(state, &data_config.filter),
 
         // Structure sources
         "cache.domains" => get_domains(state),

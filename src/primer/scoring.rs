@@ -59,7 +59,7 @@ fn apply_modifier(value: &mut SectionValue, modifier: &ValueModifier) {
         "efficiency" => apply_to_dimension(&mut value.efficiency, modifier),
         "accuracy" => apply_to_dimension(&mut value.accuracy, modifier),
         "base" => apply_to_dimension(&mut value.base, modifier),
-        "all" | _ => {
+        _ => {
             apply_to_dimension(&mut value.safety, modifier);
             apply_to_dimension(&mut value.efficiency, modifier);
             apply_to_dimension(&mut value.accuracy, modifier);
@@ -77,10 +77,10 @@ fn apply_to_dimension(dim: &mut u8, modifier: &ValueModifier) {
         }
     }
     if let Some(multiply) = modifier.multiply {
-        *dim = ((*dim as f64) * multiply).min(255.0).max(0.0) as u8;
+        *dim = ((*dim as f64) * multiply).clamp(0.0, 255.0) as u8;
     }
     if let Some(set) = modifier.set {
-        *dim = set.min(255).max(0) as u8;
+        *dim = set.clamp(0, 255) as u8;
     }
 }
 
@@ -105,17 +105,33 @@ pub fn get_preset_weights(preset: &str) -> DimensionWeights {
             accuracy: 2.0,
             base: 0.8,
         },
-        "balanced" | _ => DimensionWeights::default(),
+        _ => DimensionWeights::default(),
     }
 }
 
 /// Get list of available presets with their descriptions
 pub fn list_presets() -> Vec<(&'static str, &'static str, DimensionWeights)> {
     vec![
-        ("safe", "Prioritizes safety-critical sections", get_preset_weights("safe")),
-        ("efficient", "Prioritizes efficiency-boosting sections", get_preset_weights("efficient")),
-        ("accurate", "Prioritizes accuracy-improving sections", get_preset_weights("accurate")),
-        ("balanced", "Default balanced weights", get_preset_weights("balanced")),
+        (
+            "safe",
+            "Prioritizes safety-critical sections",
+            get_preset_weights("safe"),
+        ),
+        (
+            "efficient",
+            "Prioritizes efficiency-boosting sections",
+            get_preset_weights("efficient"),
+        ),
+        (
+            "accurate",
+            "Prioritizes accuracy-improving sections",
+            get_preset_weights("accurate"),
+        ),
+        (
+            "balanced",
+            "Default balanced weights",
+            get_preset_weights("balanced"),
+        ),
     ]
 }
 

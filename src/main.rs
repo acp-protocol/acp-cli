@@ -14,9 +14,9 @@ use acp::commands::{
     execute_revert, execute_review, execute_uninstall, execute_validate, execute_vars,
     execute_watch, AnnotateOptions, AttemptSubcommand, BridgeOptions, BridgeSubcommand,
     ChainOptions, CheckOptions, DaemonSubcommand, ExpandOptions, IndexOptions, InitOptions,
-    InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions,
-    PrimerOptions, QueryOptions, QuerySubcommand, RevertOptions, ReviewOptions, ReviewSubcommand,
-    ValidateOptions, VarsOptions, WatchOptions,
+    InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions, PrimerOptions,
+    QueryOptions, QuerySubcommand, RevertOptions, ReviewOptions, ReviewSubcommand, ValidateOptions,
+    VarsOptions, WatchOptions,
 };
 use acp::{Cache, Config};
 
