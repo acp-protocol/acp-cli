@@ -102,10 +102,28 @@ impl PythonExtractor {
 
             "decorated_definition" => {
                 // Handle decorated functions/classes
+                // Find the first decorator to get definition_start_line
+                let decorator_start = node.start_position().row + 1;
+
                 let mut cursor = node.walk();
                 for child in node.children(&mut cursor) {
-                    if child.kind() == "function_definition" || child.kind() == "class_definition" {
-                        self.extract_symbols_recursive(&child, source, symbols, parent);
+                    if child.kind() == "function_definition" {
+                        if let Some(mut sym) = self.extract_function(&child, source, parent) {
+                            // Set definition_start_line to before the decorators
+                            sym.definition_start_line = Some(decorator_start);
+                            symbols.push(sym);
+                        }
+                    } else if child.kind() == "class_definition" {
+                        if let Some(mut sym) = self.extract_class(&child, source, parent) {
+                            let class_name = sym.name.clone();
+                            sym.definition_start_line = Some(decorator_start);
+                            symbols.push(sym);
+
+                            // Extract class methods
+                            if let Some(body) = child.child_by_field_name("body") {
+                                self.extract_class_members(&body, source, symbols, Some(&class_name));
+                            }
+                        }
                     }
                 }
                 return;
@@ -178,6 +196,11 @@ impl PythonExtractor {
 
         sym.signature = Some(self.build_function_signature(node, source));
 
+        // For non-decorated functions, definition_start_line equals start_line
+        if sym.definition_start_line.is_none() {
+            sym.definition_start_line = Some(node.start_position().row + 1);
+        }
+
         Some(sym)
     }
 
@@ -212,6 +235,11 @@ impl PythonExtractor {
             sym = sym.with_parent(p);
         }
 
+        // For non-decorated classes, definition_start_line equals start_line
+        if sym.definition_start_line.is_none() {
+            sym.definition_start_line = Some(node.start_position().row + 1);
+        }
+
         Some(sym)
     }
 
@@ -231,11 +259,17 @@ impl PythonExtractor {
                     }
                 }
                 "decorated_definition" => {
+                    // Capture decorator start line for definition_start_line
+                    let decorator_start = child.start_position().row + 1;
+
                     let mut inner_cursor = child.walk();
                     for inner in child.children(&mut inner_cursor) {
                         if inner.kind() == "function_definition" {
                             if let Some(mut sym) = self.extract_function(&inner, source, class_name)
                             {
+                                // Set definition_start_line to before the decorators
+                                sym.definition_start_line = Some(decorator_start);
+
                                 // Check for @staticmethod or @classmethod
                                 let deco_text = node_text(&child, source);
                                 if deco_text.contains("@staticmethod") {
@@ -610,5 +644,41 @@ async def fetch_data(url: str) -> dict:
         assert_eq!(symbols.len(), 1);
         assert_eq!(symbols[0].name, "fetch_data");
         assert!(symbols[0].is_async);
+    }
+
+    #[test]
+    fn test_decorated_function_definition_start_line() {
+        let source = r#"
+@decorator1
+@decorator2
+def my_function():
+    pass
+"#;
+        let (tree, src) = parse_py(source);
+        let extractor = PythonExtractor;
+        let symbols = extractor.extract_symbols(&tree, &src).unwrap();
+
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].name, "my_function");
+        // definition_start_line should be line 2 (first decorator @decorator1)
+        assert_eq!(symbols[0].definition_start_line, Some(2));
+        // start_line should be line 4 (the actual def line)
+        assert_eq!(symbols[0].start_line, 4);
+    }
+
+    #[test]
+    fn test_non_decorated_function_definition_start_line() {
+        let source = r#"
+def simple_function():
+    pass
+"#;
+        let (tree, src) = parse_py(source);
+        let extractor = PythonExtractor;
+        let symbols = extractor.extract_symbols(&tree, &src).unwrap();
+
+        assert_eq!(symbols.len(), 1);
+        // For non-decorated functions, definition_start_line equals start_line
+        assert_eq!(symbols[0].definition_start_line, Some(2));
+        assert_eq!(symbols[0].start_line, 2);
     }
 }

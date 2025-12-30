@@ -7,7 +7,7 @@
 # @acp:summary "Package metadata and publishing information"
 [package]
 name = "acp-protocol"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["ACP Contributors"]
 description = "AI Context Protocol - Token-efficient and context enhancing code documentation for AI systems"

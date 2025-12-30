@@ -72,14 +72,11 @@ impl CommentStyle {
                 lines.push(format!("{} */", indent));
                 lines.join("\n")
             }
-            Self::PyDocstring => {
-                let mut lines = vec![format!("{}\"\"\"", indent)];
-                for ann in annotations {
-                    lines.push(format!("{}{}", indent, ann.to_annotation_string()));
-                }
-                lines.push(format!("{}\"\"\"", indent));
-                lines.join("\n")
-            }
+            Self::PyDocstring => annotations
+                .iter()
+                .map(|ann| format!("{}# {}", indent, ann.to_annotation_string()))
+                .collect::<Vec<_>>()
+                .join("\n"),
             Self::RustDoc => annotations
                 .iter()
                 .map(|ann| format!("{}/// {}", indent, ann.to_annotation_string()))
@@ -108,7 +105,7 @@ impl CommentStyle {
                 .collect(),
             Self::PyDocstring => annotations
                 .iter()
-                .map(|ann| format!("{}{}", indent, ann.to_annotation_string()))
+                .map(|ann| format!("{}# {}", indent, ann.to_annotation_string()))
                 .collect(),
             Self::RustDoc => annotations
                 .iter()
@@ -151,14 +148,11 @@ impl CommentStyle {
                 lines.push(format!("{} */", indent));
                 lines.join("\n")
             }
-            Self::PyDocstring => {
-                let mut lines = vec![format!("{}\"\"\"", indent)];
-                for line in all_lines {
-                    lines.push(format!("{}{}", indent, line));
-                }
-                lines.push(format!("{}\"\"\"", indent));
-                lines.join("\n")
-            }
+            Self::PyDocstring => all_lines
+                .iter()
+                .map(|line| format!("{}# {}", indent, line))
+                .collect::<Vec<_>>()
+                .join("\n"),
             Self::RustDoc => all_lines
                 .iter()
                 .map(|line| format!("{}/// {}", indent, line))
@@ -197,7 +191,7 @@ impl CommentStyle {
                 .collect(),
             Self::PyDocstring => all_lines
                 .iter()
-                .map(|line| format!("{}{}", indent, line))
+                .map(|line| format!("{}# {}", indent, line))
                 .collect(),
             Self::RustDoc => all_lines
                 .iter()
@@ -275,10 +269,11 @@ impl Writer {
                 continue;
             }
 
-            let line = target_suggestions[0].line;
+            // Use effective_insertion_line (before decorators/attributes) for placement
+            let insertion_line = target_suggestions[0].effective_insertion_line();
             let is_file_level = target_suggestions[0].is_file_level();
 
-            let mut change = FileChange::new(&path_str, line);
+            let mut change = FileChange::new(&path_str, insertion_line);
 
             if !is_file_level {
                 change = change.with_symbol(&target);
@@ -290,9 +285,9 @@ impl Writer {
                     if let Some((start, end)) = gap.doc_comment_range {
                         // Use the actual doc comment line range
                         change = change.with_existing_doc(start, end);
-                    } else if line > 1 {
+                    } else if insertion_line > 1 {
                         // Fallback: assume doc comment is just the line before symbol
-                        change = change.with_existing_doc(line - 1, line - 1);
+                        change = change.with_existing_doc(insertion_line - 1, insertion_line - 1);
                     }
                 }
             }
@@ -348,15 +343,23 @@ impl Writer {
                 ""
             };
 
-            if change.existing_doc_start.is_some() {
-                // Insert into existing doc comment
+            // For Python/Go style (# or // comments), ALWAYS insert before the symbol
+            // regardless of existing docstrings (since docstrings are inside the body, not before)
+            let is_line_comment_style = matches!(style, CommentStyle::PyDocstring | CommentStyle::GoDoc);
+
+            if change.existing_doc_start.is_some() && !is_line_comment_style {
+                // Insert into existing doc comment (JSDoc, Javadoc, etc.)
                 // Place ACP annotations after the opening line
                 let insert_line = change.existing_doc_start.unwrap();
                 let doc_end = change.existing_doc_end.unwrap_or(insert_line + 20);
 
-                // Check for existing @acp: annotations in the doc comment range
+                // Check for existing @acp: annotations inside the doc comment
+                let search_start = insert_line.saturating_sub(1);
+                let search_end = doc_end.min(lines.len());
+
+                // Check for existing @acp: annotations in the appropriate range
                 let existing_in_range: HashSet<String> = lines
-                    [insert_line.saturating_sub(1)..doc_end.min(lines.len())]
+                    [search_start..search_end.min(lines.len())]
                     .iter()
                     .filter_map(|line| {
                         if line.contains("@acp:") {
@@ -401,8 +404,9 @@ impl Writer {
                     style.format_for_insertion(&new_annotations, indent)
                 };
 
+                // Insert after the opening line of the doc comment
                 for (i, ann_line) in annotation_lines.into_iter().enumerate() {
-                    let insert_at = insert_line + i; // After the opening line
+                    let insert_at = insert_line + i;
                     if insert_at <= lines.len() {
                         lines.insert(insert_at, ann_line);
                     }
@@ -541,5 +545,55 @@ mod tests {
         assert!(diff.contains("--- a/test.txt"));
         assert!(diff.contains("+++ b/test.txt"));
         assert!(diff.contains("+new line"));
+    }
+
+    #[test]
+    fn test_format_annotations_python() {
+        let annotations = vec![
+            Suggestion::summary("test", 1, "Test summary", SuggestionSource::Heuristic),
+            Suggestion::domain("test", 1, "authentication", SuggestionSource::Heuristic),
+        ];
+
+        let formatted = CommentStyle::PyDocstring.format_annotations(&annotations, "");
+
+        // Python annotations use # comments, not docstrings
+        assert!(formatted.contains("# @acp:summary \"Test summary\""));
+        assert!(formatted.contains("# @acp:domain authentication"));
+        // Should NOT contain docstring markers
+        assert!(!formatted.contains("\"\"\""));
+    }
+
+    #[test]
+    fn test_format_annotations_python_with_indent() {
+        let annotations =
+            vec![Suggestion::summary("test", 1, "Test", SuggestionSource::Heuristic)];
+
+        let formatted = CommentStyle::PyDocstring.format_annotations(&annotations, "    ");
+
+        assert!(formatted.contains("    # @acp:summary \"Test\""));
+    }
+
+    #[test]
+    fn test_format_for_insertion_python() {
+        let annotations = vec![
+            Suggestion::summary("test", 1, "Test summary", SuggestionSource::Heuristic),
+            Suggestion::domain("test", 1, "core", SuggestionSource::Heuristic),
+        ];
+
+        let lines = CommentStyle::PyDocstring.format_for_insertion(&annotations, "");
+
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "# @acp:summary \"Test summary\"");
+        assert_eq!(lines[1], "# @acp:domain core");
+    }
+
+    #[test]
+    fn test_format_annotations_go() {
+        let annotations =
+            vec![Suggestion::summary("test", 1, "Test summary", SuggestionSource::Heuristic)];
+
+        let formatted = CommentStyle::GoDoc.format_annotations(&annotations, "");
+
+        assert!(formatted.contains("// @acp:summary \"Test summary\""));
     }
 }

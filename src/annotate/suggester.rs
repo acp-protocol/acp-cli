@@ -73,6 +73,7 @@ impl Suggester {
         // Process each gap
         for gap in &analysis.gaps {
             let mut gap_suggestions = Vec::new();
+            let insertion_line = gap.effective_insertion_line();
 
             // Try to convert existing doc comments
             if let Some(doc_comment) = &gap.doc_comment {
@@ -93,6 +94,11 @@ impl Suggester {
                     &analysis.file_path,
                 );
                 gap_suggestions.extend(heuristic_suggestions);
+            }
+
+            // Set insertion_line on all suggestions from this gap
+            for suggestion in &mut gap_suggestions {
+                suggestion.insertion_line = Some(insertion_line);
             }
 
             // Filter by level and merge by priority
@@ -119,6 +125,7 @@ impl Suggester {
         // Process each gap
         for gap in &analysis.gaps {
             let mut gap_suggestions = Vec::new();
+            let insertion_line = gap.effective_insertion_line();
 
             // Try to convert existing doc comments
             if let Some(doc_comment) = &gap.doc_comment {
@@ -142,6 +149,11 @@ impl Suggester {
                     gap.is_exported,
                 );
                 gap_suggestions.extend(heuristic_suggestions);
+            }
+
+            // Set insertion_line on all suggestions from this gap
+            for suggestion in &mut gap_suggestions {
+                suggestion.insertion_line = Some(insertion_line);
             }
 
             // Filter by level and merge by priority

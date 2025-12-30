@@ -151,6 +151,10 @@ pub struct ExtractedSymbol {
     pub is_static: bool,
     /// Generic type parameters
     pub generics: Vec<String>,
+    /// Line where annotation should be inserted (1-indexed)
+    /// For decorated/attributed symbols, this is BEFORE the decorators/attributes
+    /// For plain symbols, this equals start_line
+    pub definition_start_line: Option<usize>,
 }
 
 impl ExtractedSymbol {
@@ -175,6 +179,7 @@ impl ExtractedSymbol {
             is_async: false,
             is_static: false,
             generics: Vec::new(),
+            definition_start_line: None,
         }
     }
 
@@ -247,6 +252,13 @@ impl ExtractedSymbol {
     /// Add a generic type parameter
     pub fn add_generic(&mut self, generic: impl Into<String>) {
         self.generics.push(generic.into());
+    }
+
+    /// Set the definition start line (where annotation should be inserted)
+    /// This should be before any decorators/attributes
+    pub fn with_definition_start_line(mut self, line: usize) -> Self {
+        self.definition_start_line = Some(line);
+        self
     }
 }
 

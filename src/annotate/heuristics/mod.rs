@@ -104,6 +104,32 @@ impl HeuristicsEngine {
     ) -> Vec<Suggestion> {
         let mut suggestions = Vec::new();
 
+        // Handle file-level targets (symbol_kind = None, target contains path separator)
+        let is_file_level =
+            symbol_kind.is_none() && (target.contains('/') || target.contains('\\'));
+
+        if is_file_level {
+            // Generate @acp:module from file path
+            if let Some(module_name) = self.path.infer_module_name(file_path) {
+                suggestions.push(
+                    Suggestion::module(target, line, &module_name, SuggestionSource::Heuristic)
+                        .with_confidence(0.7),
+                );
+
+                // Generate @acp:summary for the module
+                if self.generate_summaries {
+                    let summary = format!("{} module", module_name);
+                    suggestions.push(
+                        Suggestion::summary(target, line, &summary, SuggestionSource::Heuristic)
+                            .with_confidence(0.5),
+                    );
+                }
+            }
+
+            // Return early - no need for symbol-level heuristics
+            return suggestions;
+        }
+
         // Get naming-based suggestions
         let naming_suggestions = self.naming.suggest(target, line);
         suggestions.extend(naming_suggestions);

@@ -235,6 +235,9 @@ impl RustExtractor {
 
         sym.signature = Some(self.build_function_signature(node, source));
 
+        // Set definition_start_line (before attributes/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
         Some(sym)
     }
 
@@ -268,6 +271,9 @@ impl RustExtractor {
         if let Some(p) = parent {
             sym = sym.with_parent(p);
         }
+
+        // Set definition_start_line (before attributes/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
 
         Some(sym)
     }
@@ -339,6 +345,9 @@ impl RustExtractor {
             sym = sym.with_parent(p);
         }
 
+        // Set definition_start_line (before attributes/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
         Some(sym)
     }
 
@@ -402,6 +411,9 @@ impl RustExtractor {
         if let Some(p) = parent {
             sym = sym.with_parent(p);
         }
+
+        // Set definition_start_line (before attributes/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
 
         Some(sym)
     }
@@ -481,6 +493,9 @@ impl RustExtractor {
             self.extract_generics(&type_params, source, &mut impl_sym);
         }
 
+        // Set definition_start_line (before attributes/doc comments)
+        impl_sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
         symbols.push(impl_sym);
 
         // Extract methods in the impl block
@@ -531,6 +546,9 @@ impl RustExtractor {
             sym = sym.with_parent(p);
         }
 
+        // Set definition_start_line (before attributes/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
         Some(sym)
     }
 
@@ -564,6 +582,9 @@ impl RustExtractor {
         if let Some(p) = parent {
             sym = sym.with_parent(p);
         }
+
+        // Set definition_start_line (before attributes/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
 
         Some(sym)
     }
@@ -601,6 +622,9 @@ impl RustExtractor {
             sym = sym.with_parent(p);
         }
 
+        // Set definition_start_line (before attributes/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
         Some(sym)
     }
 
@@ -630,6 +654,9 @@ impl RustExtractor {
         if let Some(p) = parent {
             sym = sym.with_parent(p);
         }
+
+        // Set definition_start_line (before attributes/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
 
         Some(sym)
     }
@@ -909,6 +936,48 @@ impl RustExtractor {
             .collect::<Vec<_>>()
             .join("\n")
     }
+
+    /// Find the earliest line of attributes/doc comments before a node.
+    /// Returns the line where annotation should be inserted (before attributes/docs).
+    fn find_definition_start_line(&self, node: &Node, source: &str) -> usize {
+        let node_start = node.start_position().row + 1;
+        let mut earliest_line = node_start;
+
+        // Walk backwards through siblings to find attributes and doc comments
+        let mut current = node.prev_sibling();
+        while let Some(prev) = current {
+            match prev.kind() {
+                "attribute_item" => {
+                    // #[...] attributes
+                    earliest_line = prev.start_position().row + 1;
+                    current = prev.prev_sibling();
+                }
+                "line_comment" => {
+                    let comment = node_text(&prev, source);
+                    if comment.starts_with("///") || comment.starts_with("//!") {
+                        // Doc comments should also be considered part of the definition
+                        earliest_line = prev.start_position().row + 1;
+                        current = prev.prev_sibling();
+                    } else {
+                        // Regular comment, stop here
+                        break;
+                    }
+                }
+                "block_comment" => {
+                    let comment = node_text(&prev, source);
+                    if comment.starts_with("/**") || comment.starts_with("/*!") {
+                        earliest_line = prev.start_position().row + 1;
+                        current = prev.prev_sibling();
+                    } else {
+                        break;
+                    }
+                }
+                _ => break,
+            }
+        }
+
+        earliest_line
+    }
 }
 
 #[cfg(test)]
@@ -1030,5 +1099,78 @@ pub enum Status {
         assert!(symbols
             .iter()
             .any(|s| s.name == "Active" && s.kind == SymbolKind::EnumVariant));
+    }
+
+    #[test]
+    fn test_definition_start_line_with_attributes() {
+        let source = r#"
+#[derive(Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct User {
+    name: String,
+}
+"#;
+        let (tree, src) = parse_rs(source);
+        let extractor = RustExtractor;
+        let symbols = extractor.extract_symbols(&tree, &src).unwrap();
+
+        let user = symbols.iter().find(|s| s.name == "User").unwrap();
+        // Struct starts at line 4, but definition_start_line should be line 2 (first attribute)
+        assert_eq!(user.start_line, 4);
+        assert_eq!(user.definition_start_line, Some(2));
+    }
+
+    #[test]
+    fn test_definition_start_line_with_doc_comment() {
+        let source = r#"
+/// A user in the system.
+/// Has a name and age.
+pub fn create_user(name: &str) -> User {
+    User { name: name.to_string() }
+}
+"#;
+        let (tree, src) = parse_rs(source);
+        let extractor = RustExtractor;
+        let symbols = extractor.extract_symbols(&tree, &src).unwrap();
+
+        let func = symbols.iter().find(|s| s.name == "create_user").unwrap();
+        // Function starts at line 4, but definition_start_line should be line 2 (first doc comment)
+        assert_eq!(func.start_line, 4);
+        assert_eq!(func.definition_start_line, Some(2));
+    }
+
+    #[test]
+    fn test_definition_start_line_with_attrs_and_docs() {
+        let source = r#"
+/// Documentation for the handler.
+#[derive(Clone)]
+#[async_trait]
+pub async fn handle_request() {
+    // implementation
+}
+"#;
+        let (tree, src) = parse_rs(source);
+        let extractor = RustExtractor;
+        let symbols = extractor.extract_symbols(&tree, &src).unwrap();
+
+        let func = symbols.iter().find(|s| s.name == "handle_request").unwrap();
+        // Function starts at line 5, but definition_start_line should be line 2 (doc comment before attrs)
+        assert_eq!(func.start_line, 5);
+        assert_eq!(func.definition_start_line, Some(2));
+    }
+
+    #[test]
+    fn test_definition_start_line_no_decorations() {
+        let source = r#"
+fn simple_function() {}
+"#;
+        let (tree, src) = parse_rs(source);
+        let extractor = RustExtractor;
+        let symbols = extractor.extract_symbols(&tree, &src).unwrap();
+
+        let func = symbols.iter().find(|s| s.name == "simple_function").unwrap();
+        // No attributes or doc comments, so definition_start_line equals start_line
+        assert_eq!(func.start_line, 2);
+        assert_eq!(func.definition_start_line, Some(2));
     }
 }

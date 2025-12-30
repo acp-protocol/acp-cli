@@ -161,7 +161,13 @@ impl Analyzer {
                     let missing = self.get_missing_annotation_types(symbol, &existing_types);
 
                     if !missing.is_empty() {
+                        // Use definition_start_line (before decorators/attributes) for insertion
+                        let insertion_line = symbol
+                            .definition_start_line
+                            .unwrap_or(symbol.start_line);
+
                         let mut gap = AnnotationGap::new(target, symbol.start_line)
+                            .with_insertion_line(insertion_line)
                             .with_symbol_kind(symbol.kind)
                             .with_visibility(symbol.visibility);
 
@@ -563,6 +569,7 @@ mod tests {
             is_async: false,
             is_static: false,
             generics: vec![],
+            definition_start_line: Some(30),
         }];
 
         analyzer.associate_annotations_with_symbols(&mut annotations, &symbols);

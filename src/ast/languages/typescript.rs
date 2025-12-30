@@ -199,6 +199,9 @@ impl TypeScriptExtractor {
         // Build signature
         sym.signature = Some(self.build_function_signature(node, source));
 
+        // Set definition_start_line (before decorators/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
         Some(sym)
     }
 
@@ -262,6 +265,9 @@ impl TypeScriptExtractor {
                             }
                         }
 
+                        // Set definition_start_line (before decorators/doc comments)
+                        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
                         symbols.push(sym);
                     } else {
                         // Regular variable/constant
@@ -291,6 +297,9 @@ impl TypeScriptExtractor {
                         if let Some(p) = parent {
                             sym = sym.with_parent(p);
                         }
+
+                        // Set definition_start_line (before decorators/doc comments)
+                        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
 
                         symbols.push(sym);
                     }
@@ -326,6 +335,9 @@ impl TypeScriptExtractor {
         if let Some(p) = parent {
             sym = sym.with_parent(p);
         }
+
+        // Set definition_start_line (before decorators/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
 
         Some(sym)
     }
@@ -410,6 +422,9 @@ impl TypeScriptExtractor {
             sym = sym.with_parent(p);
         }
 
+        // Set definition_start_line (before decorators/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
         Some(sym)
     }
 
@@ -443,6 +458,9 @@ impl TypeScriptExtractor {
             sym = sym.with_parent(p);
         }
 
+        // Set definition_start_line (before decorators/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
         Some(sym)
     }
 
@@ -472,6 +490,9 @@ impl TypeScriptExtractor {
         if let Some(p) = parent {
             sym = sym.with_parent(p);
         }
+
+        // Set definition_start_line (before decorators/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
 
         Some(sym)
     }
@@ -503,6 +524,9 @@ impl TypeScriptExtractor {
             sym = sym.with_parent(p);
         }
 
+        // Set definition_start_line (before decorators/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
+
         Some(sym)
     }
 
@@ -527,6 +551,9 @@ impl TypeScriptExtractor {
         if let Some(p) = parent {
             sym = sym.with_parent(p);
         }
+
+        // Set definition_start_line (before decorators/doc comments)
+        sym.definition_start_line = Some(self.find_definition_start_line(node, source));
 
         Some(sym)
     }
@@ -835,6 +862,39 @@ impl TypeScriptExtractor {
             .join("\n")
     }
 
+    /// Find the earliest line of decorators/comments before a node.
+    /// Returns the line where annotation should be inserted (before decorators/docs).
+    fn find_definition_start_line(&self, node: &Node, source: &str) -> usize {
+        let node_start = node.start_position().row + 1;
+        let mut earliest_line = node_start;
+
+        // Walk backwards through siblings to find decorators and comments
+        let mut current = node.prev_sibling();
+        while let Some(prev) = current {
+            match prev.kind() {
+                "decorator" => {
+                    // @Decorator() before class/method
+                    earliest_line = prev.start_position().row + 1;
+                    current = prev.prev_sibling();
+                }
+                "comment" => {
+                    let comment = node_text(&prev, source);
+                    // Only include JSDoc comments (/** ... */) as part of definition
+                    if comment.starts_with("/**") {
+                        earliest_line = prev.start_position().row + 1;
+                        current = prev.prev_sibling();
+                    } else {
+                        // Regular comment, stop here
+                        break;
+                    }
+                }
+                _ => break,
+            }
+        }
+
+        earliest_line
+    }
+
     /// Find all names exported via `export { name1, name2 }` clauses
     fn find_named_exports(&self, node: &Node, source: &str) -> std::collections::HashSet<String> {
         let mut exports = std::collections::HashSet::new();
@@ -1039,5 +1099,41 @@ export { Button, buttonVariants };
             variants.exported,
             "buttonVariants should be marked as exported"
         );
+    }
+
+    #[test]
+    fn test_definition_start_line_with_jsdoc() {
+        let source = r#"
+/**
+ * A greeting function
+ * @param name The name to greet
+ */
+function greet(name: string): string {
+    return `Hello, ${name}!`;
+}
+"#;
+        let (tree, src) = parse_ts(source);
+        let extractor = TypeScriptExtractor;
+        let symbols = extractor.extract_symbols(&tree, &src).unwrap();
+
+        let func = symbols.iter().find(|s| s.name == "greet").unwrap();
+        // Function starts at line 6, but definition_start_line should be line 2 (JSDoc start)
+        assert_eq!(func.start_line, 6);
+        assert_eq!(func.definition_start_line, Some(2));
+    }
+
+    #[test]
+    fn test_definition_start_line_no_decorations() {
+        let source = r#"
+function simple(): void {}
+"#;
+        let (tree, src) = parse_ts(source);
+        let extractor = TypeScriptExtractor;
+        let symbols = extractor.extract_symbols(&tree, &src).unwrap();
+
+        let func = symbols.iter().find(|s| s.name == "simple").unwrap();
+        // No decorators or JSDoc, so definition_start_line equals start_line
+        assert_eq!(func.start_line, 2);
+        assert_eq!(func.definition_start_line, Some(2));
     }
 }

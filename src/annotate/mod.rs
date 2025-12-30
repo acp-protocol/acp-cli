@@ -200,8 +200,12 @@ pub struct Suggestion {
     /// Target: file path for file-level, qualified_name for symbols
     pub target: String,
 
-    /// Line number where annotation should be inserted (1-indexed)
+    /// Line number of the symbol (1-indexed)
     pub line: usize,
+
+    /// Line number where annotation should be inserted (1-indexed)
+    /// This is before any decorators/attributes. Falls back to `line` if None.
+    pub insertion_line: Option<usize>,
 
     /// The annotation type (summary, domain, lock, etc.)
     pub annotation_type: AnnotationType,
@@ -228,11 +232,23 @@ impl Suggestion {
         Self {
             target: target.into(),
             line,
+            insertion_line: None,
             annotation_type,
             value: value.into(),
             source,
             confidence: 1.0,
         }
+    }
+
+    /// @acp:summary "Sets the insertion line (where annotation should be placed)"
+    pub fn with_insertion_line(mut self, line: usize) -> Self {
+        self.insertion_line = Some(line);
+        self
+    }
+
+    /// @acp:summary "Gets the effective insertion line (falls back to symbol line)"
+    pub fn effective_insertion_line(&self) -> usize {
+        self.insertion_line.unwrap_or(self.line)
     }
 
     /// @acp:summary "Creates a summary annotation suggestion"
@@ -273,6 +289,16 @@ impl Suggestion {
         source: SuggestionSource,
     ) -> Self {
         Self::new(target, line, AnnotationType::Layer, value, source)
+    }
+
+    /// @acp:summary "Creates a module annotation suggestion"
+    pub fn module(
+        target: impl Into<String>,
+        line: usize,
+        value: impl Into<String>,
+        source: SuggestionSource,
+    ) -> Self {
+        Self::new(target, line, AnnotationType::Module, value, source)
     }
 
     /// @acp:summary "Creates a deprecated annotation suggestion"
@@ -330,8 +356,14 @@ impl Suggestion {
             lines.push(format!("@acp:source-confidence {:.2}", self.confidence));
         }
 
-        // Add reviewed marker: false if explicitly marked for review OR below confidence threshold
-        let reviewed = !config.mark_needs_review && self.confidence >= config.review_threshold;
+        // RFC-0003: Auto-generated annotations always need human review
+        // Only explicit (existing) annotations can be marked as reviewed
+        let reviewed = match self.source {
+            SuggestionSource::Explicit => {
+                !config.mark_needs_review && self.confidence >= config.review_threshold
+            }
+            SuggestionSource::Converted | SuggestionSource::Heuristic => false,
+        };
         lines.push(format!("@acp:source-reviewed {}", reviewed));
 
         // Add generation ID
@@ -415,6 +447,11 @@ pub struct AnnotationGap {
     /// Line number of the symbol (1-indexed)
     pub line: usize,
 
+    /// Line where annotation should be inserted (1-indexed)
+    /// This is before any decorators/attributes for the symbol.
+    /// Falls back to `line` if not set.
+    pub insertion_line: Option<usize>,
+
     /// Which annotation types are missing
     pub missing: Vec<AnnotationType>,
 
@@ -438,6 +475,7 @@ impl AnnotationGap {
             target: target.into(),
             symbol_kind: None,
             line,
+            insertion_line: None,
             missing: Vec::new(),
             doc_comment: None,
             doc_comment_range: None,
@@ -450,6 +488,17 @@ impl AnnotationGap {
     pub fn with_symbol_kind(mut self, kind: SymbolKind) -> Self {
         self.symbol_kind = Some(kind);
         self
+    }
+
+    /// @acp:summary "Sets the insertion line (where annotation should go)"
+    pub fn with_insertion_line(mut self, line: usize) -> Self {
+        self.insertion_line = Some(line);
+        self
+    }
+
+    /// @acp:summary "Gets the effective insertion line (falls back to symbol line)"
+    pub fn effective_insertion_line(&self) -> usize {
+        self.insertion_line.unwrap_or(self.line)
     }
 
     /// @acp:summary "Sets the doc comment"

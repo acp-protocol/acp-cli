@@ -165,6 +165,51 @@ pub fn execute_annotate(options: AnnotateOptions, config: Config) -> Result<()> 
         eprintln!("Found {} files to analyze", files.len());
     }
 
+    // Warn if conversion source doesn't match detected file types
+    if options.convert && options.from != ConversionSource::Auto {
+        let mut mismatched_extensions = std::collections::HashSet::new();
+        for file_path in &files {
+            if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
+                let is_mismatch = match options.from {
+                    ConversionSource::Jsdoc | ConversionSource::Tsdoc => {
+                        !matches!(ext, "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs")
+                    }
+                    ConversionSource::Docstring => !matches!(ext, "py" | "pyi"),
+                    ConversionSource::Rustdoc => ext != "rs",
+                    ConversionSource::Godoc => ext != "go",
+                    ConversionSource::Javadoc => ext != "java",
+                    ConversionSource::Auto => false,
+                };
+                if is_mismatch {
+                    mismatched_extensions.insert(ext.to_string());
+                }
+            }
+        }
+
+        if !mismatched_extensions.is_empty() {
+            let expected = match options.from {
+                ConversionSource::Jsdoc => ".ts, .tsx, .js, .jsx",
+                ConversionSource::Tsdoc => ".ts, .tsx",
+                ConversionSource::Docstring => ".py, .pyi",
+                ConversionSource::Rustdoc => ".rs",
+                ConversionSource::Godoc => ".go",
+                ConversionSource::Javadoc => ".java",
+                ConversionSource::Auto => "any",
+            };
+            eprintln!(
+                "{} Warning: --convert {:?} is intended for {} files, but found files with extensions: {}",
+                style("⚠").yellow(),
+                options.from,
+                expected,
+                mismatched_extensions.into_iter().collect::<Vec<_>>().join(", ")
+            );
+            eprintln!(
+                "{}  Consider using --convert auto or the appropriate source for your file types",
+                style("→").cyan()
+            );
+        }
+    }
+
     // Clone path for parallel access
     let repo_path = options.path.clone();
 
