@@ -133,7 +133,15 @@ jobs:
       - name: Publish to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: cargo publish --no-verify
+        run: |
+          cargo publish --no-verify 2>&1 | tee publish_output.txt || {
+            if grep -q "already exists" publish_output.txt; then
+              echo "Version already published to crates.io, skipping"
+              exit 0
+            else
+              exit 1
+            fi
+          }
 
   publish-npm:
     name: Publish to npm
