@@ -14,7 +14,7 @@ use acp::commands::{
     execute_revert, execute_review, execute_uninstall, execute_validate, execute_vars,
     execute_watch, AnnotateOptions, AttemptSubcommand, BridgeOptions, BridgeSubcommand,
     ChainOptions, CheckOptions, DaemonSubcommand, ExpandOptions, IndexOptions, InitOptions,
-    InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions, PrimerFormat,
+    InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions,
     PrimerOptions, QueryOptions, QuerySubcommand, RevertOptions, ReviewOptions, ReviewSubcommand,
     ValidateOptions, VarsOptions, WatchOptions,
 };
@@ -378,19 +378,63 @@ enum Commands {
     /// RFC-0004: Generate AI bootstrap primer with tiered content
     Primer {
         /// Token budget for the primer (default: 200)
-        #[arg(long, default_value = "200")]
+        #[arg(long, short = 'b', default_value = "200")]
         budget: u32,
 
-        /// Required capabilities (comma-separated: shell,mcp)
+        /// Required capabilities (comma-separated: shell,mcp,editor)
         #[arg(long, value_delimiter = ',')]
         capabilities: Vec<String>,
 
-        /// Output as JSON
+        /// Output format (markdown, compact, json, text)
+        #[arg(long, short = 'f', default_value = "markdown")]
+        format: PrimerFormatArg,
+
+        /// Output as JSON metadata (overrides --format)
         #[arg(long)]
         json: bool,
 
-        /// Cache file (for project warnings)
-        #[arg(short, long, default_value = ".acp/acp.cache.json")]
+        /// Weight preset (safe, efficient, accurate, balanced)
+        #[arg(long, short = 'p')]
+        preset: Option<String>,
+
+        /// Force include section IDs (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        include: Vec<String>,
+
+        /// Exclude section IDs (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        exclude: Vec<String>,
+
+        /// Filter by category IDs (comma-separated)
+        #[arg(long, value_delimiter = ',')]
+        categories: Vec<String>,
+
+        /// Disable dynamic value modifiers
+        #[arg(long)]
+        no_dynamic: bool,
+
+        /// Show selection reasoning
+        #[arg(long)]
+        explain: bool,
+
+        /// List available sections
+        #[arg(long)]
+        list_sections: bool,
+
+        /// List available presets
+        #[arg(long)]
+        list_presets: bool,
+
+        /// Preview selection without rendering
+        #[arg(long)]
+        preview: bool,
+
+        /// Custom primer config file (default: .acp/primer.json)
+        #[arg(long)]
+        primer_config: Option<PathBuf>,
+
+        /// Cache file (for project state)
+        #[arg(long, default_value = ".acp/acp.cache.json")]
         cache: PathBuf,
     },
 }
@@ -402,6 +446,16 @@ enum MapFormatArg {
     Tree,
     Flat,
     Json,
+}
+
+/// Output format for primer command
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
+enum PrimerFormatArg {
+    #[default]
+    Markdown,
+    Compact,
+    Json,
+    Text,
 }
 
 /// Source documentation standard for annotation conversion
@@ -1007,19 +1061,49 @@ async fn main() -> anyhow::Result<()> {
         Commands::Primer {
             budget,
             capabilities,
+            format,
             json,
+            preset,
+            include,
+            exclude,
+            categories,
+            no_dynamic,
+            explain,
+            list_sections,
+            list_presets,
+            preview,
+            primer_config,
             cache,
         } => {
+            use acp::primer::OutputFormat;
+
+            let output_format = if json {
+                OutputFormat::Json
+            } else {
+                match format {
+                    PrimerFormatArg::Markdown => OutputFormat::Markdown,
+                    PrimerFormatArg::Compact => OutputFormat::Compact,
+                    PrimerFormatArg::Json => OutputFormat::Json,
+                    PrimerFormatArg::Text => OutputFormat::Text,
+                }
+            };
+
             let options = PrimerOptions {
                 budget,
                 capabilities,
-                format: if json {
-                    PrimerFormat::Json
-                } else {
-                    PrimerFormat::Text
-                },
                 cache: if cache.exists() { Some(cache) } else { None },
+                primer_config,
+                format: output_format,
                 json,
+                preset,
+                include,
+                exclude,
+                categories,
+                no_dynamic,
+                explain,
+                list_sections,
+                list_presets,
+                preview,
             };
             execute_primer(options)?;
         }

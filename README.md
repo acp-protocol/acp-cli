@@ -609,25 +609,43 @@ acp validate .acp/acp.vars.json
 
 ### `acp primer`
 
-Generate AI bootstrap primers with tiered content selection.
+Generate AI bootstrap primers with value-based section selection (RFC-0004).
 
 ```bash
 acp primer [OPTIONS]
 
-Options:
-      --budget <N>           Token budget [default: 200]
-      --capabilities <caps>  Capabilities filter (comma-separated: shell,mcp)
+Core Options:
+  -b, --budget <N>           Token budget [default: 200]
+      --capabilities <caps>  Filter by capabilities (shell, mcp, editor)
+  -f, --format <type>        Output format: markdown, compact, json, text [default: markdown]
       --json                 Output as JSON with metadata
-  -c, --cache <path>         Cache file for project warnings [default: .acp/acp.cache.json]
+
+Selection Options:
+  -p, --preset <name>        Weight preset: safe, efficient, accurate, balanced [default: balanced]
+      --include <ids>        Force include section IDs (comma-separated)
+      --exclude <ids>        Exclude section IDs (comma-separated)
+      --categories <ids>     Filter by category IDs
+      --no-dynamic           Disable dynamic value modifiers
+
+Introspection:
+      --list-sections        List all available sections (37 sections)
+      --list-presets         List weight presets with dimension weights
+      --preview              Preview selection without rendering
+      --explain              Show selection reasoning
+
+Configuration:
+      --primer-config <path> Custom primer config [default: .acp/primer.json]
+      --cache <path>         Cache file for project state [default: .acp/acp.cache.json]
 ```
 
-**Tier Selection:**
+**Weight Presets:**
 
-| Remaining Budget | Tier | Content Depth |
-|------------------|------|---------------|
-| <80 tokens | minimal | Command + one-line purpose |
-| 80-299 tokens | standard | + options, usage |
-| 300+ tokens | full | + examples, patterns |
+| Preset | Safety | Efficiency | Accuracy | Use Case |
+|--------|--------|------------|----------|----------|
+| `safe` | 2.5 | 0.8 | 1.0 | Security-critical projects |
+| `efficient` | 1.2 | 2.0 | 0.9 | Fast iteration, prototyping |
+| `accurate` | 1.2 | 0.9 | 2.0 | Precision-critical work |
+| `balanced` | 1.5 | 1.0 | 1.0 | Default, general use |
 
 **Examples:**
 
@@ -635,18 +653,35 @@ Options:
 # Standard primer (200 tokens)
 acp primer
 
-# Minimal primer
-acp primer --budget 60
+# Minimal primer for small context windows
+acp primer -b 100
 
-# Full primer with project warnings
-acp primer --budget 500
+# Full primer with selection reasoning
+acp primer -b 500 --explain
+
+# MCP-only primer with safe preset
+acp primer -b 300 --capabilities mcp --preset safe
+
+# List available sections
+acp primer --list-sections
+
+# Preview what would be selected
+acp primer -b 400 --preview
+
+# Exclude specific sections
+acp primer --exclude cli-overview,annotation-syntax
 
 # JSON output with metadata
-acp primer --budget 200 --json
-
-# Filter by capability
-acp primer --capabilities shell
+acp primer --json
 ```
+
+**Customization:**
+
+Create `.acp/primer.json` to customize:
+- Section weights and priorities
+- Add project-specific sections
+- Disable default sections
+- Override templates
 
 ---
 

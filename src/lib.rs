@@ -50,6 +50,7 @@ pub mod expand;
 pub mod git;
 pub mod index;
 pub mod parse;
+pub mod primer;
 pub mod query;
 pub mod scan;
 pub mod schema;

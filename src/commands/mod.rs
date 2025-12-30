@@ -44,7 +44,7 @@ pub use migrate::{execute_migrate, DirectiveDefaults, MigrateOptions, MigrationS
 pub use output::{
     format_constraint_level, format_symbol_ref, format_symbol_ref_range, TreeRenderer,
 };
-pub use primer::{execute_primer, PrimerFormat, PrimerOptions};
+pub use primer::{execute_primer, PrimerOptions};
 pub use query::{execute_query, ConfidenceFilter, QueryOptions, QuerySubcommand};
 pub use revert::{execute_revert, RevertOptions};
 pub use review::{execute_review, ReviewOptions, ReviewSubcommand};

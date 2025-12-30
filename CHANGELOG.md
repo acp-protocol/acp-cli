@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **RFC-0004: Full primer implementation** with value-based section selection
+  - 4-phase selection algorithm: required → conditional → safety → value-optimized
+  - Multi-dimensional value scoring (safety, efficiency, accuracy, base)
+  - 37 sections across 6 categories from `primer.defaults.json`
+- New primer CLI options:
+  - `-b, --budget` — Token budget (shorthand)
+  - `-f, --format` — Output format (markdown, compact, json, text)
+  - `-p, --preset` — Weight presets (safe, efficient, accurate, balanced)
+  - `--include`, `--exclude` — Section inclusion/exclusion
+  - `--categories` — Category filtering
+  - `--no-dynamic` — Disable dynamic value modifiers
+  - `--explain` — Show selection reasoning
+  - `--list-sections` — List available sections
+  - `--list-presets` — List weight presets
+  - `--preview` — Preview selection without rendering
+  - `--primer-config` — Custom primer configuration file
+- Dynamic sections populated from cache (protected files, domains, hacks, attempts)
+- Project customization via `.acp/primer.json`
+- MCP/shell capability filtering
+
+### Changed
+- Primer tier names: survival, essential, operational, informed, complete, expert
+- Primer now uses value-per-token optimization instead of fixed tier system
+
+### Fixed
+- `acp constraints` → `acp check` in primer.defaults.json (4 locations)
+- MCP capability filtering now properly excludes shell-only sections
+
 ## [0.4.2] - 2025-12-30
 
 ### Fixed
