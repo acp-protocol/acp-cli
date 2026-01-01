@@ -384,7 +384,7 @@ fn execute_explore_context(
     let domains: Vec<DomainInfo> = cache
         .domains
         .iter()
-        .filter(|(name, _)| domain_filter.map_or(true, |f| name.contains(f)))
+        .filter(|(name, _)| domain_filter.is_none_or(|f| name.contains(f)))
         .map(|(name, d)| DomainInfo {
             name: name.clone(),
             file_count: d.files.len(),
