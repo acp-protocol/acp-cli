@@ -183,11 +183,12 @@ impl NamingDetector {
             // Try to match compound suffixes first
             let suffix = self.extract_suffix(filename);
 
+            patterns.entry(suffix).or_insert_with(|| (0, Vec::new())).0 += 1;
             patterns
-                .entry(suffix)
-                .or_insert_with(|| (0, Vec::new()))
-                .0 += 1;
-            patterns.get_mut(&self.extract_suffix(filename)).unwrap().1.push(filename.clone());
+                .get_mut(&self.extract_suffix(filename))
+                .unwrap()
+                .1
+                .push(filename.clone());
         }
 
         patterns
