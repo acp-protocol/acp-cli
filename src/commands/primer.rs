@@ -13,8 +13,8 @@ use serde::Serialize;
 
 use crate::cache::Cache;
 use crate::primer::{
-    self, load_primer_config, render_primer, select_sections, CliOverrides, OutputFormat,
-    ProjectState,
+    self, load_primer_config, render_primer_with_tier, select_sections, CliOverrides,
+    IdeEnvironment, OutputFormat, PrimerTier, ProjectState,
 };
 
 /// Options for the primer command
@@ -50,6 +50,8 @@ pub struct PrimerOptions {
     pub list_presets: bool,
     /// Preview selection without rendering
     pub preview: bool,
+    /// RFC-0015: Standalone mode (include foundation prompt for raw API usage)
+    pub standalone: bool,
 }
 
 impl Default for PrimerOptions {
@@ -70,6 +72,7 @@ impl Default for PrimerOptions {
             list_sections: false,
             list_presets: false,
             preview: false,
+            standalone: false,
         }
     }
 }
@@ -78,7 +81,8 @@ impl Default for PrimerOptions {
 #[derive(Debug, Clone, Serialize)]
 pub struct PrimerOutput {
     pub total_tokens: u32,
-    pub tier: String,
+    /// RFC-0015 tier (micro, minimal, standard, full)
+    pub tier: PrimerTier,
     pub sections_included: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selection_reasoning: Option<Vec<SelectionReason>>,
@@ -126,6 +130,20 @@ pub fn execute_primer(options: PrimerOptions) -> Result<()> {
             );
         }
         return Ok(());
+    }
+
+    // RFC-0015: Warn when using --standalone in an IDE context
+    if options.standalone {
+        let ide = IdeEnvironment::detect_with_override();
+        if ide.is_ide() && !matches!(ide, IdeEnvironment::ClaudeCode) {
+            eprintln!(
+                "{}: Using --standalone in {} context. \
+                 IDE integrations typically provide their own system prompts. \
+                 Consider removing --standalone or set ACP_NO_IDE_DETECT=1 to suppress.",
+                console::style("warning").yellow().bold(),
+                ide.name()
+            );
+        }
     }
 
     // Generate primer
@@ -208,11 +226,11 @@ pub fn generate_primer(options: &PrimerOptions) -> Result<PrimerOutput> {
         None
     };
 
-    // Determine tier name based on budget
-    let tier = get_tier_name(options.budget);
+    // Determine tier based on budget (RFC-0015)
+    let tier = PrimerTier::from_budget(options.budget);
 
-    // Render output
-    let content = render_primer(&selected, options.format, &project_state)?;
+    // Render output with tier information
+    let content = render_primer_with_tier(&selected, options.format, &project_state, Some(tier))?;
 
     Ok(PrimerOutput {
         total_tokens,
@@ -235,17 +253,6 @@ fn determine_phase(section: &primer::types::Section) -> String {
     }
 }
 
-fn get_tier_name(budget: u32) -> String {
-    match budget {
-        0..=79 => "survival".to_string(),
-        80..=149 => "essential".to_string(),
-        150..=299 => "operational".to_string(),
-        300..=499 => "informed".to_string(),
-        500..=999 => "complete".to_string(),
-        _ => "expert".to_string(),
-    }
-}
-
 // ============================================================================
 // Legacy types for backward compatibility with existing tests
 // ============================================================================
@@ -258,7 +265,7 @@ pub enum PrimerFormat {
     Json,
 }
 
-/// Tier level for content selection (legacy)
+/// Tier level for content selection (legacy - use PrimerTier from primer::types)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tier {
     Minimal,
@@ -267,11 +274,13 @@ pub enum Tier {
 }
 
 impl Tier {
-    /// Determine tier based on remaining budget
+    /// Determine tier based on remaining budget (legacy mapping)
+    /// Note: For RFC-0015 tier selection, use PrimerTier::from_budget instead
     pub fn from_budget(remaining: u32) -> Self {
-        if remaining < 80 {
+        // Legacy mapping for backward compatibility
+        if remaining < 300 {
             Tier::Minimal
-        } else if remaining < 300 {
+        } else if remaining < 700 {
             Tier::Standard
         } else {
             Tier::Full
@@ -284,37 +293,73 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_tier_from_budget() {
-        assert_eq!(Tier::from_budget(50), Tier::Minimal);
-        assert_eq!(Tier::from_budget(79), Tier::Minimal);
-        assert_eq!(Tier::from_budget(80), Tier::Standard);
-        assert_eq!(Tier::from_budget(200), Tier::Standard);
-        assert_eq!(Tier::from_budget(299), Tier::Standard);
-        assert_eq!(Tier::from_budget(300), Tier::Full);
-        assert_eq!(Tier::from_budget(500), Tier::Full);
+    fn test_primer_tier_from_budget() {
+        // RFC-0015 tier thresholds
+        assert_eq!(PrimerTier::from_budget(50), PrimerTier::Micro);
+        assert_eq!(PrimerTier::from_budget(299), PrimerTier::Micro);
+        assert_eq!(PrimerTier::from_budget(300), PrimerTier::Minimal);
+        assert_eq!(PrimerTier::from_budget(449), PrimerTier::Minimal);
+        assert_eq!(PrimerTier::from_budget(450), PrimerTier::Standard);
+        assert_eq!(PrimerTier::from_budget(699), PrimerTier::Standard);
+        assert_eq!(PrimerTier::from_budget(700), PrimerTier::Full);
+        assert_eq!(PrimerTier::from_budget(1000), PrimerTier::Full);
     }
 
     #[test]
-    fn test_generate_minimal_primer() {
+    fn test_legacy_tier_from_budget() {
+        // Legacy mapping (for backward compatibility)
+        assert_eq!(Tier::from_budget(50), Tier::Minimal);
+        assert_eq!(Tier::from_budget(299), Tier::Minimal);
+        assert_eq!(Tier::from_budget(300), Tier::Standard);
+        assert_eq!(Tier::from_budget(699), Tier::Standard);
+        assert_eq!(Tier::from_budget(700), Tier::Full);
+    }
+
+    #[test]
+    fn test_generate_micro_primer() {
         let options = PrimerOptions {
             budget: 60,
             ..Default::default()
         };
 
         let result = generate_primer(&options).unwrap();
-        assert!(result.total_tokens <= 80 || result.sections_included >= 1);
-        assert_eq!(result.tier, "survival");
+        assert!(result.total_tokens <= 300 || result.sections_included >= 1);
+        assert_eq!(result.tier, PrimerTier::Micro);
+    }
+
+    #[test]
+    fn test_generate_minimal_primer() {
+        let options = PrimerOptions {
+            budget: 350,
+            ..Default::default()
+        };
+
+        let result = generate_primer(&options).unwrap();
+        assert_eq!(result.tier, PrimerTier::Minimal);
+        assert!(result.sections_included >= 1);
     }
 
     #[test]
     fn test_generate_standard_primer() {
         let options = PrimerOptions {
-            budget: 200,
+            budget: 500,
             ..Default::default()
         };
 
         let result = generate_primer(&options).unwrap();
-        assert_eq!(result.tier, "operational");
+        assert_eq!(result.tier, PrimerTier::Standard);
+        assert!(result.sections_included >= 1);
+    }
+
+    #[test]
+    fn test_generate_full_primer() {
+        let options = PrimerOptions {
+            budget: 800,
+            ..Default::default()
+        };
+
+        let result = generate_primer(&options).unwrap();
+        assert_eq!(result.tier, PrimerTier::Full);
         assert!(result.sections_included >= 1);
     }
 
@@ -333,7 +378,7 @@ mod tests {
     #[test]
     fn test_capability_filtering() {
         let options = PrimerOptions {
-            budget: 200,
+            budget: 500,
             capabilities: vec!["mcp".to_string()],
             ..Default::default()
         };
@@ -341,5 +386,21 @@ mod tests {
         let result = generate_primer(&options).unwrap();
         // With MCP capability, should get MCP sections only
         assert!(result.sections_included >= 1);
+    }
+
+    #[test]
+    fn test_primer_tier_names() {
+        assert_eq!(PrimerTier::Micro.name(), "micro");
+        assert_eq!(PrimerTier::Minimal.name(), "minimal");
+        assert_eq!(PrimerTier::Standard.name(), "standard");
+        assert_eq!(PrimerTier::Full.name(), "full");
+    }
+
+    #[test]
+    fn test_primer_tier_tokens() {
+        assert_eq!(PrimerTier::Micro.cli_tokens(), 250);
+        assert_eq!(PrimerTier::Micro.mcp_tokens(), 178);
+        assert_eq!(PrimerTier::Standard.cli_tokens(), 600);
+        assert_eq!(PrimerTier::Full.cli_tokens(), 1400);
     }
 }

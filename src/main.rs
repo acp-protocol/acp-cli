@@ -9,14 +9,14 @@ use console::style;
 use acp::annotate::{AnnotateLevel, ConversionSource, OutputFormat};
 use acp::commands::{
     execute_annotate, execute_attempt, execute_bridge, execute_chain, execute_check,
-    execute_daemon, execute_expand, execute_index, execute_init, execute_install,
+    execute_context, execute_daemon, execute_expand, execute_index, execute_init, execute_install,
     execute_list_installed, execute_map, execute_migrate, execute_primer, execute_query,
     execute_revert, execute_review, execute_uninstall, execute_validate, execute_vars,
     execute_watch, AnnotateOptions, AttemptSubcommand, BridgeOptions, BridgeSubcommand,
-    ChainOptions, CheckOptions, DaemonSubcommand, ExpandOptions, IndexOptions, InitOptions,
-    InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions, PrimerOptions,
-    QueryOptions, QuerySubcommand, RevertOptions, ReviewOptions, ReviewSubcommand, ValidateOptions,
-    VarsOptions, WatchOptions,
+    ChainOptions, CheckOptions, ContextOperation, ContextOptions, DaemonSubcommand, ExpandOptions,
+    IndexOptions, InitOptions, InstallOptions, InstallTarget, MapFormat, MapOptions, MigrateOptions,
+    PrimerOptions, QueryOptions, QuerySubcommand, RevertOptions, ReviewOptions, ReviewSubcommand,
+    ValidateOptions, VarsOptions, WatchOptions,
 };
 use acp::{Cache, Config};
 
@@ -210,6 +210,31 @@ enum Commands {
         cache: PathBuf,
     },
 
+    /// Get operation-specific context for AI agents (RFC-0015)
+    ///
+    /// Provides tailored context based on what the AI agent needs to do:
+    ///   - create: Naming conventions, import style, similar files
+    ///   - modify: Constraints, importers (affected files), symbols
+    ///   - debug: Related files, symbol info, hotpaths
+    ///   - explore: Project stats, domains, key files
+    Context {
+        /// Operation context type
+        #[command(subcommand)]
+        operation: ContextCommands,
+
+        /// Cache file path
+        #[arg(long, default_value = ".acp/acp.cache.json", global = true)]
+        cache: PathBuf,
+
+        /// Output as JSON
+        #[arg(long, global = true)]
+        json: bool,
+
+        /// Verbose output
+        #[arg(long, global = true)]
+        verbose: bool,
+    },
+
     /// Revert changes
     Revert {
         /// Attempt ID to revert
@@ -375,9 +400,15 @@ enum Commands {
         cache: PathBuf,
     },
 
-    /// RFC-0004: Generate AI bootstrap primer with tiered content
+    /// Generate AI bootstrap primer (RFC-0015: Tiered Interface Primers)
+    ///
+    /// Creates token-efficient bootstrap text for AI agents with automatic tier selection:
+    ///   - micro (<300 tokens): Essential safety constraints only
+    ///   - minimal (<450 tokens): Core project context
+    ///   - standard (<700 tokens): Balanced context with conventions
+    ///   - full (≥700 tokens): Complete project understanding
     Primer {
-        /// Token budget for the primer (default: 200)
+        /// Token budget determines tier: micro (<300), minimal (<450), standard (<700), full (≥700)
         #[arg(long, short = 'b', default_value = "200")]
         budget: u32,
 
@@ -428,6 +459,11 @@ enum Commands {
         /// Preview selection without rendering
         #[arg(long)]
         preview: bool,
+
+        /// Standalone mode for raw API usage. Includes foundation prompt.
+        /// Warning: Not needed when using IDE integrations (Cursor, VS Code, etc.)
+        #[arg(long)]
+        standalone: bool,
 
         /// Custom primer config file (default: .acp/primer.json)
         #[arg(long)]
@@ -680,6 +716,36 @@ enum ReviewCommands {
     Interactive,
 }
 
+/// RFC-0015: Context subcommands for operation-specific context
+#[derive(Subcommand)]
+enum ContextCommands {
+    /// Context for creating new files: naming conventions, import style, similar files
+    Create {
+        /// Directory where the new file will be created
+        #[arg(default_value = ".")]
+        directory: String,
+    },
+
+    /// Context for modifying files: constraints, importers (files affected by changes), symbols
+    Modify {
+        /// File path to modify
+        file: String,
+    },
+
+    /// Context for debugging: related files, symbol info, hotpaths through the code
+    Debug {
+        /// File path or symbol name to debug
+        target: String,
+    },
+
+    /// Context for exploring: project stats, domain overview, key files
+    Explore {
+        /// Filter by domain name (optional)
+        #[arg(long)]
+        domain: Option<String>,
+    },
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -699,6 +765,7 @@ async fn main() -> anyhow::Result<()> {
             | Commands::Validate { .. }
             | Commands::Daemon { .. }
             | Commands::Primer { .. }
+            | Commands::Context { .. }
     );
     if requires_config {
         let config_path = PathBuf::from(".acp.config.json");
@@ -891,6 +958,26 @@ async fn main() -> anyhow::Result<()> {
             execute_check(options)?;
         }
 
+        Commands::Context {
+            operation,
+            cache,
+            json,
+            verbose,
+        } => {
+            let options = ContextOptions {
+                cache,
+                json,
+                verbose,
+            };
+            let op = match operation {
+                ContextCommands::Create { directory } => ContextOperation::Create { directory },
+                ContextCommands::Modify { file } => ContextOperation::Modify { file },
+                ContextCommands::Debug { target } => ContextOperation::Debug { target },
+                ContextCommands::Explore { domain } => ContextOperation::Explore { domain },
+            };
+            execute_context(options, op)?;
+        }
+
         Commands::Revert {
             attempt,
             checkpoint,
@@ -1072,6 +1159,7 @@ async fn main() -> anyhow::Result<()> {
             list_sections,
             list_presets,
             preview,
+            standalone,
             primer_config,
             cache,
         } => {
@@ -1104,6 +1192,7 @@ async fn main() -> anyhow::Result<()> {
                 list_sections,
                 list_presets,
                 preview,
+                standalone,
             };
             execute_primer(options)?;
         }

@@ -506,3 +506,92 @@ pub struct SelectedSection {
     pub value: f64,
     pub section: Section,
 }
+
+/// RFC-0015: Primer tier levels based on token budget
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PrimerTier {
+    /// ~250 CLI tokens, ~178 MCP tokens - Minimal context, action-focused
+    Micro,
+    /// ~400 CLI tokens, ~320 MCP tokens - Standard IDE integrations
+    Minimal,
+    /// ~600 CLI tokens, ~480 MCP tokens - Full-featured agents (recommended)
+    Standard,
+    /// ~1,400 CLI tokens, ~1,100 MCP tokens - Dedicated context budget
+    Full,
+}
+
+impl PrimerTier {
+    /// Select tier based on token budget
+    /// ```text
+    /// if budget < 300:   → Micro
+    /// if budget < 450:   → Minimal
+    /// if budget < 700:   → Standard
+    /// else:              → Full
+    /// ```
+    pub fn from_budget(budget: u32) -> Self {
+        match budget {
+            0..=299 => PrimerTier::Micro,
+            300..=449 => PrimerTier::Minimal,
+            450..=699 => PrimerTier::Standard,
+            _ => PrimerTier::Full,
+        }
+    }
+
+    /// Get tier name as string
+    pub fn name(&self) -> &'static str {
+        match self {
+            PrimerTier::Micro => "micro",
+            PrimerTier::Minimal => "minimal",
+            PrimerTier::Standard => "standard",
+            PrimerTier::Full => "full",
+        }
+    }
+
+    /// Get target token count for CLI mode
+    pub fn cli_tokens(&self) -> u32 {
+        match self {
+            PrimerTier::Micro => 250,
+            PrimerTier::Minimal => 400,
+            PrimerTier::Standard => 600,
+            PrimerTier::Full => 1400,
+        }
+    }
+
+    /// Get target token count for MCP mode
+    pub fn mcp_tokens(&self) -> u32 {
+        match self {
+            PrimerTier::Micro => 178,
+            PrimerTier::Minimal => 320,
+            PrimerTier::Standard => 480,
+            PrimerTier::Full => 1100,
+        }
+    }
+
+    /// Get brief description of tier use case
+    pub fn description(&self) -> &'static str {
+        match self {
+            PrimerTier::Micro => "Minimal context, action-focused",
+            PrimerTier::Minimal => "Standard IDE integrations",
+            PrimerTier::Standard => "Full-featured agents (recommended)",
+            PrimerTier::Full => "Dedicated context budget, raw API",
+        }
+    }
+
+    /// Iterator over all tiers in order
+    pub fn all() -> impl Iterator<Item = PrimerTier> {
+        [
+            PrimerTier::Micro,
+            PrimerTier::Minimal,
+            PrimerTier::Standard,
+            PrimerTier::Full,
+        ]
+        .into_iter()
+    }
+}
+
+impl std::fmt::Display for PrimerTier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}

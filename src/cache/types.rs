@@ -95,6 +95,9 @@ pub struct Cache {
     /// RFC-0006: Bridge statistics (optional)
     #[serde(default, skip_serializing_if = "BridgeStats::is_empty")]
     pub bridge: BridgeStats,
+    /// RFC-0015: Auto-detected naming and import conventions (optional)
+    #[serde(default, skip_serializing_if = "Conventions::is_empty")]
+    pub conventions: Conventions,
 }
 
 fn default_cache_schema() -> String {
@@ -123,6 +126,7 @@ impl Cache {
             constraints: None,
             provenance: ProvenanceStats::default(),
             bridge: BridgeStats::default(),
+            conventions: Conventions::default(),
         }
     }
 
@@ -294,12 +298,104 @@ pub struct ProjectInfo {
 
 /// @acp:summary "Aggregate statistics"
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Stats {
     pub files: usize,
     pub symbols: usize,
     pub lines: usize,
     #[serde(default)]
     pub annotation_coverage: f64,
+    /// RFC-0015: Language distribution statistics
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub languages: Vec<LanguageStat>,
+    /// RFC-0015: Primary language of the project (highest percentage)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub primary_language: Option<String>,
+    /// RFC-0015: When the cache was last indexed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub indexed_at: Option<DateTime<Utc>>,
+}
+
+/// @acp:summary "RFC-0015: Language statistics entry"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LanguageStat {
+    /// Programming language identifier
+    pub name: String,
+    /// Number of files in this language
+    pub files: usize,
+    /// Percentage of total files
+    pub percentage: f64,
+}
+
+/// @acp:summary "RFC-0015: Auto-detected naming and import conventions"
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Conventions {
+    /// File naming patterns detected per directory
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub file_naming: Vec<FileNamingConvention>,
+    /// Import/module style conventions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub imports: Option<ImportConventions>,
+}
+
+impl Conventions {
+    /// Check if conventions are empty (for serialization skip)
+    pub fn is_empty(&self) -> bool {
+        self.file_naming.is_empty() && self.imports.is_none()
+    }
+}
+
+/// @acp:summary "RFC-0015: File naming pattern for a directory"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileNamingConvention {
+    /// Relative directory path
+    pub directory: String,
+    /// Glob-style naming pattern (e.g., '*.ts', '*.route.ts')
+    pub pattern: String,
+    /// Detection confidence (0.0-1.0, threshold 0.7)
+    pub confidence: f64,
+    /// Example filenames matching this pattern
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub examples: Vec<String>,
+    /// Similar patterns NOT used (to avoid confusion)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub anti_patterns: Vec<String>,
+}
+
+/// @acp:summary "RFC-0015: Import/module style conventions"
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportConventions {
+    /// JavaScript/TypeScript module system
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub module_system: Option<ModuleSystem>,
+    /// Import path style preference
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path_style: Option<PathStyle>,
+    /// Whether index files re-export from subdirectories
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub index_exports: bool,
+}
+
+/// @acp:summary "RFC-0015: JavaScript/TypeScript module system"
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ModuleSystem {
+    Esm,
+    Commonjs,
+    Mixed,
+}
+
+/// @acp:summary "RFC-0015: Import path style preference"
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PathStyle {
+    Relative,
+    Absolute,
+    Alias,
+    Mixed,
 }
 
 /// @acp:summary "File entry with metadata (RFC-001 compliant)"
@@ -317,6 +413,9 @@ pub struct FileEntry {
     /// Imported modules (required)
     #[serde(default)]
     pub imports: Vec<String>,
+    /// RFC-0015: Files that import this file (reverse import graph)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub imported_by: Vec<String>,
     /// Human-readable module name (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub module: Option<String>,
@@ -1292,6 +1391,7 @@ mod tests {
                 language: Language::Typescript,
                 exports: vec![],
                 imports: vec![],
+                imported_by: vec![], // RFC-0015
                 module: None,
                 summary: None,
                 purpose: None,
@@ -1375,6 +1475,7 @@ mod tests {
                 language: Language::Typescript,
                 exports: vec![],
                 imports: vec![],
+                imported_by: vec![], // RFC-0015
                 module: None,
                 summary: None,
                 purpose: None,

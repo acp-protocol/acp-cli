@@ -609,16 +609,26 @@ acp validate .acp/acp.vars.json
 
 ### `acp primer`
 
-Generate AI bootstrap primers with value-based section selection (RFC-0004).
+Generate AI bootstrap primers with tiered content selection (RFC-0015).
+
+**Automatic Tier Selection:**
+
+| Tier | Token Budget | Content |
+|------|--------------|---------|
+| `micro` | <300 | Essential safety constraints only |
+| `minimal` | 300-449 | Core project context |
+| `standard` | 450-699 | Balanced context with conventions |
+| `full` | ≥700 | Complete project understanding |
 
 ```bash
 acp primer [OPTIONS]
 
 Core Options:
-  -b, --budget <N>           Token budget [default: 200]
+  -b, --budget <N>           Token budget determines tier [default: 200]
       --capabilities <caps>  Filter by capabilities (shell, mcp, editor)
   -f, --format <type>        Output format: markdown, compact, json, text [default: markdown]
       --json                 Output as JSON with metadata
+      --standalone           Standalone mode for raw API usage (not needed in IDEs)
 
 Selection Options:
   -p, --preset <name>        Weight preset: safe, efficient, accurate, balanced [default: balanced]
@@ -628,7 +638,7 @@ Selection Options:
       --no-dynamic           Disable dynamic value modifiers
 
 Introspection:
-      --list-sections        List all available sections (37 sections)
+      --list-sections        List all available sections
       --list-presets         List weight presets with dimension weights
       --preview              Preview selection without rendering
       --explain              Show selection reasoning
@@ -650,17 +660,20 @@ Configuration:
 **Examples:**
 
 ```bash
-# Standard primer (200 tokens)
-acp primer
-
-# Minimal primer for small context windows
+# Micro tier primer (~250 tokens)
 acp primer -b 100
 
-# Full primer with selection reasoning
+# Minimal tier primer (~400 tokens)
+acp primer -b 350
+
+# Standard tier primer (~600 tokens)
 acp primer -b 500 --explain
 
-# MCP-only primer with safe preset
-acp primer -b 300 --capabilities mcp --preset safe
+# Full tier primer with MCP capability
+acp primer -b 800 --capabilities mcp --preset safe
+
+# Standalone mode for raw API usage
+acp primer -b 500 --standalone
 
 # List available sections
 acp primer --list-sections
@@ -668,10 +681,7 @@ acp primer --list-sections
 # Preview what would be selected
 acp primer -b 400 --preview
 
-# Exclude specific sections
-acp primer --exclude cli-overview,annotation-syntax
-
-# JSON output with metadata
+# JSON output with tier metadata
 acp primer --json
 ```
 
@@ -682,6 +692,55 @@ Create `.acp/primer.json` to customize:
 - Add project-specific sections
 - Disable default sections
 - Override templates
+
+---
+
+### `acp context`
+
+Get operation-specific context for AI agents (RFC-0015).
+
+```bash
+acp context <OPERATION> [OPTIONS]
+
+Operations:
+  create <directory>    Get context for creating new files
+  modify <file>         Get context for modifying existing files
+  debug <target>        Get context for debugging (file or symbol)
+  explore [--domain]    Get context for exploring the codebase
+
+Options:
+      --cache <path>    Cache file [default: .acp/acp.cache.json]
+      --json            Output as JSON
+      --verbose         Verbose output
+```
+
+**Context Types:**
+
+| Operation | Returns |
+|-----------|---------|
+| `create` | Naming conventions, import style, similar files |
+| `modify` | Constraints, importers (affected files), symbols |
+| `debug` | Related files, symbol info, hotpaths |
+| `explore` | Project stats, domain overview, key files |
+
+**Examples:**
+
+```bash
+# Get context before creating a new file
+acp context create src/auth/
+
+# Get context before modifying a file
+acp context modify src/auth/session.ts
+
+# Get debug context for a symbol
+acp context debug validateSession
+
+# Explore the codebase structure
+acp context explore
+
+# Focus on a specific domain
+acp context explore --domain auth
+```
 
 ---
 
@@ -748,10 +807,90 @@ Or install separately from [acp-mcp](https://github.com/acp-protocol/acp-mcp).
 
 **Available MCP Tools:**
 
-- **acp_query** — Query symbols, files, and domains
-- **acp_constraints** — Check file constraints before modification
-- **acp_primer** — Generate context primers
-- **acp_expand** — Expand variable references
+- **acp_get_architecture** — Get project overview with domains, files, symbols
+- **acp_get_file_context** — Get detailed context for a specific file
+- **acp_get_symbol_context** — Get symbol info with callers and callees
+- **acp_get_domain_files** — Get files in a domain
+- **acp_check_constraints** — Check file constraints before modification
+- **acp_get_hotpaths** — Get frequently-called symbols
+- **acp_expand_variable** — Expand ACP variable references
+- **acp_generate_primer** — Generate context primers with tier selection
+- **acp_context** — Operation-specific context (create, modify, debug, explore)
+
+---
+
+## IDE Integration
+
+ACP automatically detects your IDE environment and adapts its behavior accordingly.
+
+**Supported IDEs:**
+
+| IDE | Detection | Notes |
+|-----|-----------|-------|
+| Cursor | `CURSOR_*` env vars | Uses `.cursorrules` |
+| VS Code | `VSCODE_*` env vars | Uses CLAUDE.md with Cline |
+| Cline | `CLINE_*` env vars | Extension-provided context |
+| JetBrains | `JETBRAINS_IDE` env var | IntelliJ, WebStorm, etc. |
+| Zed | `ZED_*` env vars | Built-in AI integration |
+| Claude Code | `CLAUDE_CODE` env var | Uses CLAUDE.md |
+| Terminal | Default | Raw API usage |
+
+**Bootstrap Files:**
+
+When you run `acp init`, it creates IDE-specific bootstrap files:
+
+```bash
+# Bootstrap for Cursor
+.cursorrules
+
+# Bootstrap for Claude Code, Cline
+CLAUDE.md
+
+# Both include primers and project context
+```
+
+**Using Primers with IDEs:**
+
+```bash
+# IDE context (auto-detected) - no --standalone needed
+acp primer -b 500
+
+# Raw API usage (e.g., direct Anthropic API calls)
+acp primer -b 500 --standalone
+```
+
+**Environment Variables:**
+
+| Variable | Purpose |
+|----------|---------|
+| `ACP_NO_IDE_DETECT=1` | Disable IDE detection |
+
+**Example: Cursor Integration**
+
+```bash
+# 1. Initialize project
+acp init
+
+# 2. Add primer to .cursorrules
+echo "$(acp primer -b 400)" >> .cursorrules
+
+# 3. Get context before modifications
+acp context modify src/auth/session.ts
+```
+
+**Example: Claude Code Integration**
+
+```bash
+# 1. Initialize project
+acp init
+
+# 2. Add primer to CLAUDE.md
+echo "$(acp primer -b 500)" >> CLAUDE.md
+
+# 3. Use context command for operations
+acp context create src/utils/
+acp context debug validateSession
+```
 
 ---
 

@@ -1,5 +1,5 @@
 //! @acp:module "Primer Renderer"
-//! @acp:summary "Template rendering for primer output"
+//! @acp:summary "RFC-0015: Template rendering for tiered primer output"
 //! @acp:domain cli
 //! @acp:layer output
 
@@ -39,11 +39,32 @@ pub fn render_primer(
     format: OutputFormat,
     project_state: &ProjectState,
 ) -> Result<String> {
+    render_primer_with_tier(sections, format, project_state, None)
+}
+
+/// RFC-0015: Render primer output with tier information
+pub fn render_primer_with_tier(
+    sections: &[SelectedSection],
+    format: OutputFormat,
+    project_state: &ProjectState,
+    tier: Option<PrimerTier>,
+) -> Result<String> {
     if format == OutputFormat::Json {
-        return render_json(sections);
+        return render_json_with_tier(sections, tier);
     }
 
     let mut output = String::new();
+
+    // Add tier header for markdown format if tier is provided
+    if format == OutputFormat::Markdown {
+        if let Some(t) = tier {
+            output.push_str(&format!(
+                "<!-- ACP Primer: {} tier (~{} tokens) -->\n\n",
+                t.name(),
+                t.cli_tokens()
+            ));
+        }
+    }
 
     for section in sections {
         let rendered = render_section(&section.section, format, project_state)?;
@@ -192,12 +213,21 @@ fn remove_empty_conditionals(s: &str) -> String {
     result
 }
 
-fn render_json(sections: &[SelectedSection]) -> Result<String> {
+fn render_json_with_tier(sections: &[SelectedSection], tier: Option<PrimerTier>) -> Result<String> {
     #[derive(serde::Serialize)]
     struct JsonOutput {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        tier: Option<TierInfo>,
         total_tokens: u32,
         sections_included: usize,
         sections: Vec<JsonSection>,
+    }
+
+    #[derive(serde::Serialize)]
+    struct TierInfo {
+        name: String,
+        target_tokens: u32,
+        description: String,
     }
 
     #[derive(serde::Serialize)]
@@ -209,6 +239,11 @@ fn render_json(sections: &[SelectedSection]) -> Result<String> {
     }
 
     let output = JsonOutput {
+        tier: tier.map(|t| TierInfo {
+            name: t.name().to_string(),
+            target_tokens: t.cli_tokens(),
+            description: t.description().to_string(),
+        }),
         total_tokens: sections.iter().map(|s| s.tokens).sum(),
         sections_included: sections.len(),
         sections: sections

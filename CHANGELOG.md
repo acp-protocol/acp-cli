@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-12-31
+
+### Added
+- **RFC-0015: Primer System Redesign** - Accuracy-focused, context-aware bootstrap
+  - 4-tier system: micro (<300), minimal (<450), standard (<700), full (≥700 tokens)
+  - Automatic tier selection based on token budget
+  - IDE environment detection (Cursor, VS Code, Cline, JetBrains, Zed, Claude Code)
+  - `--standalone` flag for raw API usage with IDE context warnings
+- **New `acp context` command** for operation-specific AI context
+  - `acp context create` - Naming conventions, import style for new files
+  - `acp context modify --file <path>` - Constraints, importers for existing files
+  - `acp context debug --file <path>` - Related files, symbols for debugging
+  - `acp context explore` - Project overview, domains, stats
+- **Naming convention detection** - Auto-detects file naming patterns per directory
+- **Import tracking** - Tracks which files import each module (importers)
+- **MCP `acp_context` tool** - Operation-specific context via MCP protocol
+- **Cache enhancements**:
+  - `conventions` section with file naming patterns and import style
+  - `imported_by` field for reverse import tracking
+  - `primary_language` detection with percentage
+
+### Changed
+- Primer tier thresholds now use RFC-0015 values (300, 450, 700)
+- `PrimerTier` enum: `Micro`, `Minimal`, `Standard`, `Full`
+- Improved primer output format with tier information
+
+### Infrastructure
+- acp-mcp updated to 0.2.0 with `acp_context` tool
+
 ## [0.5.3] - 2025-12-30
 
 ### Fixed

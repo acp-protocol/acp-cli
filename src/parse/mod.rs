@@ -780,6 +780,7 @@ impl Parser {
             language,
             exports,
             imports,
+            imported_by: Vec::new(), // RFC-0015: Populated during cache building
             module: module_name,
             summary: file_summary,
             purpose: purpose.clone(),

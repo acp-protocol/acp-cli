@@ -45,6 +45,7 @@ pub mod cache;
 pub mod commands;
 pub mod config;
 pub mod constraints;
+pub mod conventions;
 pub mod error;
 pub mod expand;
 pub mod git;
@@ -73,6 +74,7 @@ pub use constraints::{
     DebugStatus, FileGuardrails, GuardrailEnforcer, GuardrailParser, HackMarker, LockLevel,
     MutationConstraint, QualityGate, StyleConstraint,
 };
+pub use conventions::{detect_naming_conventions, ConventionsAnalyzer, NamingDetector};
 pub use error::{AcpError, Result};
 pub use git::{BlameInfo, FileHistory, GitFileInfo, GitRepository, GitSymbolInfo};
 pub use index::Indexer;

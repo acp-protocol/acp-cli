@@ -433,6 +433,9 @@ impl Indexer {
         // Build the cache
         let mut cache = builder.build();
 
+        // RFC-0015: Compute reverse import graph (imported_by)
+        compute_import_graph(&mut cache);
+
         // RFC-0003: Compute provenance statistics
         let low_conf_threshold = 0.5; // TODO: Read from config when available
         cache.provenance = compute_provenance_stats(&cache, low_conf_threshold);
@@ -1100,4 +1103,121 @@ fn parse_returns_annotation(value: &str) -> Option<String> {
     } else {
         Some(directive)
     }
+}
+
+// ============================================================================
+// RFC-0015: Import Graph Computation
+// ============================================================================
+
+/// Compute reverse import graph for all files (RFC-0015)
+///
+/// For each file's imports, resolve the import path to a file in the cache
+/// and add the importing file to that target's `imported_by` list.
+fn compute_import_graph(cache: &mut Cache) {
+    use std::path::Path;
+
+    // Collect all import relationships first (avoid borrow issues)
+    let mut import_edges: Vec<(String, String)> = Vec::new();
+
+    // Get all file paths for lookup
+    let file_paths: std::collections::HashSet<_> = cache.files.keys().cloned().collect();
+
+    for (importer_path, file) in &cache.files {
+        let importer_dir = Path::new(importer_path)
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        for import_source in &file.imports {
+            // Try to resolve the import to a file in the cache
+            if let Some(resolved) = resolve_import_path(import_source, &importer_dir, &file_paths) {
+                import_edges.push((importer_path.clone(), resolved));
+            }
+        }
+    }
+
+    // Apply the reverse edges
+    for (importer, imported) in import_edges {
+        if let Some(file) = cache.files.get_mut(&imported) {
+            if !file.imported_by.contains(&importer) {
+                file.imported_by.push(importer);
+            }
+        }
+    }
+
+    // Sort imported_by lists for consistent output
+    for file in cache.files.values_mut() {
+        file.imported_by.sort();
+    }
+}
+
+/// Resolve an import path to a file path in the cache
+///
+/// Handles:
+/// - Relative imports: `./utils`, `../lib/helper`
+/// - Index file resolution: `./utils` -> `./utils/index.ts`
+/// - Extension resolution: `./utils` -> `./utils.ts`
+fn resolve_import_path(
+    import_source: &str,
+    importer_dir: &str,
+    file_paths: &std::collections::HashSet<String>,
+) -> Option<String> {
+    // Skip external packages (no path prefix)
+    if !import_source.starts_with('.') && !import_source.starts_with('/') {
+        return None;
+    }
+
+    // Normalize the import path
+    let normalized = if import_source.starts_with('.') {
+        // Relative import - resolve against importer's directory
+        let combined = if importer_dir.is_empty() {
+            import_source.to_string()
+        } else {
+            format!("{}/{}", importer_dir, import_source)
+        };
+        crate::cache::normalize_path(&combined)
+    } else {
+        // Absolute import (starts with /)
+        crate::cache::normalize_path(import_source)
+    };
+
+    // Common extensions to try
+    let extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".rs", ".py", ".go"];
+
+    // Try exact match first
+    let with_prefix = format!("./{}", normalized);
+    if file_paths.contains(&normalized) {
+        return Some(normalized);
+    }
+    if file_paths.contains(&with_prefix) {
+        return Some(with_prefix);
+    }
+
+    // Try with various extensions
+    for ext in &extensions {
+        let with_ext = format!("{}{}", normalized, ext);
+        let with_prefix_ext = format!("./{}{}", normalized, ext);
+
+        if file_paths.contains(&with_ext) {
+            return Some(with_ext);
+        }
+        if file_paths.contains(&with_prefix_ext) {
+            return Some(with_prefix_ext);
+        }
+    }
+
+    // Try index file resolution
+    for ext in &extensions {
+        let index_path = format!("{}/index{}", normalized, ext);
+        let with_prefix_index = format!("./{}/index{}", normalized, ext);
+
+        if file_paths.contains(&index_path) {
+            return Some(index_path);
+        }
+        if file_paths.contains(&with_prefix_index) {
+            return Some(with_prefix_index);
+        }
+    }
+
+    None
 }
