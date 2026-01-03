@@ -304,12 +304,7 @@ pub fn generate_primer(options: &PrimerOptions) -> Result<PrimerOutput> {
     }
 
     // Select sections based on budget and capabilities
-    let selected = select_sections(
-        &config,
-        options.budget,
-        &capabilities,
-        &project_state,
-    );
+    let selected = select_sections(&config, options.budget, &capabilities, &project_state);
 
     // Calculate totals
     let total_tokens: u32 = selected.iter().map(|s| s.tokens).sum();
