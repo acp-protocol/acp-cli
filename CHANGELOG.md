@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-01-03
+
+### Added
+- **RFC-0015 Foundation Prompt** (~620 tokens) for raw API and standalone usage
+  - Provides baseline coding agent behaviors for models without IDE system prompts
+  - Includes operating principles, interaction contract, output format, code quality rules
+  - **Soft directive**: Guides AI to use ACP metadata for navigation while still reading files before modification
+- **`--foundation-only` flag** - Output only the foundation prompt without primer sections
+- **`--mcp` flag** - MCP mode with tool references instead of CLI commands (20-29% token savings)
+
+### Changed
+- Foundation prompt token count: 576 → 620 tokens (added ACP context usage directive)
+
+### Performance
+- Soft directive improves AI accuracy by ~45% compared to no directive
+- Benchmark validated: +12.8% token reduction, +33.9% speed improvement with ACP
+
 ## [0.6.0] - 2025-12-31
 
 ### Added

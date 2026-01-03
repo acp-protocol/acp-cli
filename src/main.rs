@@ -465,6 +465,16 @@ enum Commands {
         #[arg(long)]
         standalone: bool,
 
+        /// Output only the foundation prompt (~576 tokens)
+        /// Useful for raw API usage without project-specific primer sections.
+        #[arg(long)]
+        foundation_only: bool,
+
+        /// MCP mode: use tool references instead of CLI commands.
+        /// Provides 20-29% token savings when using ACP via MCP server.
+        #[arg(long)]
+        mcp: bool,
+
         /// Custom primer config file (default: .acp/primer.json)
         #[arg(long)]
         primer_config: Option<PathBuf>,
@@ -1160,6 +1170,8 @@ async fn main() -> anyhow::Result<()> {
             list_presets,
             preview,
             standalone,
+            foundation_only,
+            mcp,
             primer_config,
             cache,
         } => {
@@ -1193,6 +1205,8 @@ async fn main() -> anyhow::Result<()> {
                 list_presets,
                 preview,
                 standalone,
+                foundation_only,
+                mcp,
             };
             execute_primer(options)?;
         }

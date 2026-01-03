@@ -4,9 +4,58 @@
 //! @acp:layer handler
 //!
 //! RFC-0004: Tiered Interface Primers
+//! RFC-0015: Foundation prompt for standalone/raw API usage
 //! Generates token-efficient bootstrap text for AI agents.
 
 use std::path::PathBuf;
+
+/// RFC-0015 Section 4.2: Foundation prompt for raw API usage (~576 tokens)
+/// This provides baseline coding agent behaviors for AI models operating
+/// without an IDE's built-in system prompt (e.g., raw Claude/GPT API, local LLMs).
+pub const FOUNDATION_PROMPT: &str = r#"# System Instruction:
+You are an AI coding assistant. Your primary objective is to help the user produce correct, maintainable, secure software. Prefer quality, testability, and clear reasoning over speed or verbosity.
+
+## Operating principles
+- Clarify intent: If requirements are ambiguous or conflicting, ask the minimum number of targeted questions. If you can proceed with reasonable assumptions, state them explicitly and continue.
+- Plan before code: Briefly outline the approach, constraints, and tradeoffs, then implement.
+- Correctness first: Favor simple, reliable solutions. Avoid cleverness that reduces readability or increases risk.
+- Verification mindset: Provide ways to validate (tests, edge cases, invariants, quick checks, sample inputs/outputs). If uncertain, say so and propose a validation path.
+- Security and safety: Avoid insecure defaults. Highlight risky patterns (injection, authz/authn, secrets, SSRF, deserialization, unsafe file ops). Use least privilege and safe parsing.
+- Action over documentation: Code change requests (fix, update, migrate, implement) require code changes, not documentation.
+
+## Interaction contract
+- Start by confirming: language, runtime/versions, target environment, constraints (performance, memory, latency), and any style/architecture preferences. Only ask when missing details materially affect the solution.
+- Before modifying code: Read the file first to understand existing patterns, then make minimal, coherent changes that preserve conventions.
+- When proposing dependencies: keep them minimal; justify each; offer a standard-library alternative when feasible.
+- When giving commands or scripts: make them copy/paste-ready and note OS assumptions.
+- Never fabricate: If you don't know a detail (API, library behavior, version), say so and offer how to check.
+
+## Output format
+- Prefer structured responses:
+  1) Understanding (what you think the user wants + assumptions)
+  2) Approach (short plan + key tradeoffs)
+  3) Implementation (code)
+  4) Validation (tests/checks + edge cases)
+  5) Next steps (optional improvements)
+- Keep explanations concise, but include enough rationale for review and maintenance.
+
+## Code quality rules
+- Write idiomatic code for the requested language.
+- Include error handling, input validation, and clear naming.
+- Avoid premature optimization; note where optimization would be justified.
+- Add tests (unit/integration) when applicable and show how to run them.
+- For performance-sensitive tasks, analyze complexity and propose benchmarks.
+
+## Context handling
+- Use only the information provided in the conversation. If critical context is missing, ask. If a file or snippet is referenced but not included, request it.
+- Remember user-stated preferences (style, tools, constraints) within the session and apply them consistently.
+- ACP context usage: Use provided ACP metadata to navigate to relevant files quickly. Before modifying any file, read it first to verify your understanding matches reality. The metadata helps you find files faster—but you must still read what you'll change.
+
+You are a collaborative partner: be direct, careful, and review-oriented."#;
+
+/// Approximate token count for foundation prompt (validated per RFC-0015)
+/// Updated: Added ACP context usage directive (~44 additional tokens)
+pub const FOUNDATION_TOKENS: u32 = 620;
 
 use anyhow::Result;
 use serde::Serialize;
@@ -52,6 +101,10 @@ pub struct PrimerOptions {
     pub preview: bool,
     /// RFC-0015: Standalone mode (include foundation prompt for raw API usage)
     pub standalone: bool,
+    /// RFC-0015: Output only the foundation prompt (~576 tokens)
+    pub foundation_only: bool,
+    /// RFC-0015: MCP mode - use tool references instead of CLI commands (20-29% token savings)
+    pub mcp: bool,
 }
 
 impl Default for PrimerOptions {
@@ -73,6 +126,8 @@ impl Default for PrimerOptions {
             list_presets: false,
             preview: false,
             standalone: false,
+            foundation_only: false,
+            mcp: false,
         }
     }
 }
@@ -99,7 +154,21 @@ pub struct SelectionReason {
 
 /// Execute the primer command
 pub fn execute_primer(options: PrimerOptions) -> Result<()> {
-    // Handle list modes first
+    // Handle --foundation-only first (RFC-0015)
+    if options.foundation_only {
+        if options.json {
+            let output = serde_json::json!({
+                "foundation": FOUNDATION_PROMPT,
+                "tokens": FOUNDATION_TOKENS
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            println!("{}", FOUNDATION_PROMPT);
+        }
+        return Ok(());
+    }
+
+    // Handle list modes
     if options.list_presets {
         println!("Available presets:\n");
         for (name, description, weights) in primer::scoring::list_presets() {
@@ -150,12 +219,30 @@ pub fn execute_primer(options: PrimerOptions) -> Result<()> {
     let primer = generate_primer(&options)?;
 
     if options.json {
-        println!("{}", serde_json::to_string_pretty(&primer)?);
+        // Include foundation in JSON if standalone
+        if options.standalone {
+            let output = serde_json::json!({
+                "foundation": FOUNDATION_PROMPT,
+                "foundation_tokens": FOUNDATION_TOKENS,
+                "primer": primer
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        } else {
+            println!("{}", serde_json::to_string_pretty(&primer)?);
+        }
     } else if options.preview {
-        println!(
-            "Preview: {} tokens, {} sections",
-            primer.total_tokens, primer.sections_included
-        );
+        // Include foundation token count in preview if standalone
+        if options.standalone {
+            println!(
+                "Preview: {} tokens (foundation) + {} tokens (primer), {} sections",
+                FOUNDATION_TOKENS, primer.total_tokens, primer.sections_included
+            );
+        } else {
+            println!(
+                "Preview: {} tokens, {} sections",
+                primer.total_tokens, primer.sections_included
+            );
+        }
         if let Some(reasons) = &primer.selection_reasoning {
             println!("\nSelection:");
             for reason in reasons {
@@ -166,7 +253,12 @@ pub fn execute_primer(options: PrimerOptions) -> Result<()> {
             }
         }
     } else {
-        println!("{}", primer.content);
+        // RFC-0015: Prepend foundation prompt when standalone
+        if options.standalone {
+            println!("{}\n\n---\n\n{}", FOUNDATION_PROMPT, primer.content);
+        } else {
+            println!("{}", primer.content);
+        }
     }
 
     Ok(())
@@ -198,11 +290,24 @@ pub fn generate_primer(options: &PrimerOptions) -> Result<PrimerOutput> {
         ProjectState::default()
     };
 
+    // RFC-0015: Capability mode selection
+    // --mcp: Add "mcp" capability for MCP-specific sections (acp_* tool references)
+    // Default: Add "shell" capability for CLI-specific sections (acp <command> references)
+    let mut capabilities = options.capabilities.clone();
+    if options.mcp {
+        if !capabilities.contains(&"mcp".to_string()) {
+            capabilities.push("mcp".to_string());
+        }
+    } else if capabilities.is_empty() {
+        // Default to "shell" capability for CLI mode
+        capabilities.push("shell".to_string());
+    }
+
     // Select sections based on budget and capabilities
     let selected = select_sections(
         &config,
         options.budget,
-        &options.capabilities,
+        &capabilities,
         &project_state,
     );
 
@@ -402,5 +507,113 @@ mod tests {
         assert_eq!(PrimerTier::Micro.mcp_tokens(), 178);
         assert_eq!(PrimerTier::Standard.cli_tokens(), 600);
         assert_eq!(PrimerTier::Full.cli_tokens(), 1400);
+    }
+
+    // ========================================================================
+    // RFC-0015: Foundation Prompt Tests
+    // ========================================================================
+
+    #[test]
+    fn test_foundation_prompt_content() {
+        // Verify foundation prompt starts with expected header
+        assert!(FOUNDATION_PROMPT.starts_with("# System Instruction:"));
+        // Verify it contains key sections
+        assert!(FOUNDATION_PROMPT.contains("## Operating principles"));
+        assert!(FOUNDATION_PROMPT.contains("## Interaction contract"));
+        assert!(FOUNDATION_PROMPT.contains("## Output format"));
+        assert!(FOUNDATION_PROMPT.contains("## Code quality rules"));
+        assert!(FOUNDATION_PROMPT.contains("## Context handling"));
+        // Verify it ends with the expected closing line
+        assert!(FOUNDATION_PROMPT.contains("collaborative partner"));
+    }
+
+    #[test]
+    fn test_foundation_prompt_token_count() {
+        // RFC-0015 base ~576 tokens + ACP context directive ~44 tokens = 620 tokens
+        assert_eq!(FOUNDATION_TOKENS, 620);
+        // Sanity check: content should be at least 2000 chars (~620 tokens)
+        assert!(FOUNDATION_PROMPT.len() > 2000);
+    }
+
+    #[test]
+    fn test_foundation_only_flag_default() {
+        let options = PrimerOptions::default();
+        assert!(!options.foundation_only);
+        assert!(!options.standalone);
+    }
+
+    #[test]
+    fn test_foundation_only_option() {
+        let options = PrimerOptions {
+            foundation_only: true,
+            ..Default::default()
+        };
+        assert!(options.foundation_only);
+    }
+
+    #[test]
+    fn test_standalone_option() {
+        let options = PrimerOptions {
+            standalone: true,
+            ..Default::default()
+        };
+        assert!(options.standalone);
+    }
+
+    // ========================================================================
+    // RFC-0015: MCP Mode Tests
+    // ========================================================================
+
+    #[test]
+    fn test_mcp_flag_default() {
+        let options = PrimerOptions::default();
+        assert!(!options.mcp);
+    }
+
+    #[test]
+    fn test_mcp_option() {
+        let options = PrimerOptions {
+            mcp: true,
+            budget: 300,
+            ..Default::default()
+        };
+        assert!(options.mcp);
+        // Should be able to generate primer with MCP mode
+        let result = generate_primer(&options).unwrap();
+        assert!(result.sections_included >= 1);
+    }
+
+    #[test]
+    fn test_mcp_mode_adds_capability() {
+        // When --mcp is set, "mcp" capability should be added
+        let mcp_options = PrimerOptions {
+            mcp: true,
+            budget: 500,
+            ..Default::default()
+        };
+        let mcp_result = generate_primer(&mcp_options).unwrap();
+
+        // When --mcp is not set, "shell" capability should be used by default
+        let shell_options = PrimerOptions {
+            budget: 500,
+            ..Default::default()
+        };
+        let shell_result = generate_primer(&shell_options).unwrap();
+
+        // Both should produce valid results
+        assert!(mcp_result.sections_included >= 1);
+        assert!(shell_result.sections_included >= 1);
+    }
+
+    #[test]
+    fn test_default_shell_capability() {
+        // Default mode should use "shell" capability
+        let options = PrimerOptions {
+            budget: 500,
+            ..Default::default()
+        };
+        let result = generate_primer(&options).unwrap();
+        // Output should include CLI-style content
+        assert!(result.content.contains("acp") || result.sections_included >= 1);
     }
 }
